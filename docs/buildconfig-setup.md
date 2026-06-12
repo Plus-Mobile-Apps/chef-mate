@@ -79,4 +79,5 @@ buildkonfig {
 
 ## Related
 
+- [supabase-local-development.md](supabase-local-development.md) — run a full local Supabase stack and point `supabase.testing.*` at it so you develop against a test backend instead of prod.
 - [developer-settings.md](developer-settings.md) — how to wire up the staging Supabase URL (`supabase.testing.*` / `SUPABASE_TESTING_*`) and pre-baked test users for the in-app developer menu.
