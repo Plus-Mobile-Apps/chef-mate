@@ -58,6 +58,7 @@ in your IDE’s toolbar or open the [/iosApp](./iosApp) directory in Xcode and r
 
 - [Architecture overview](docs/architecture.md)
 - [Build configuration (Supabase + Bugsnag)](docs/buildconfig-setup.md)
+- [Local Supabase development (test env instead of prod)](docs/supabase-local-development.md)
 - [Developer settings (debug-only env switch + test-user login)](docs/developer-settings.md)
 - [Deployment (Android / iOS / Desktop)](docs/deployment.md)
 - [Deep linking setup](docs/DEEP_LINKING_SETUP.md)
