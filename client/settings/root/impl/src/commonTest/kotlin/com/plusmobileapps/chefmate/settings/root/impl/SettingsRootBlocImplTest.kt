@@ -5,6 +5,7 @@ package com.plusmobileapps.chefmate.settings.root.impl
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
+import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavOrderBloc
 import com.plusmobileapps.chefmate.recipe.categories.RecipeCategoriesBloc
 import com.plusmobileapps.chefmate.recipe.exporter.ExportRecipesBloc
@@ -27,6 +28,7 @@ class SettingsRootBlocImplTest {
     var exportRecipesOutput: Consumer<ExportRecipesBloc.Output> = Consumer {}
     var recipeCategoriesOutput: Consumer<RecipeCategoriesBloc.Output> = Consumer {}
     var groceryAutocompleteOutput: Consumer<GroceryAutocompleteBloc.Output> = Consumer {}
+    var groceryCategoryRulesOutput: Consumer<GroceryCategoryRulesBloc.Output> = Consumer {}
 
     var rootOutput: SettingsRootBloc.Output? = null
 
@@ -64,6 +66,10 @@ class SettingsRootBlocImplTest {
             },
             groceryAutocomplete = { _, output ->
                 groceryAutocompleteOutput = output
+                mock()
+            },
+            groceryCategoryRules = { _, output ->
+                groceryCategoryRulesOutput = output
                 mock()
             },
         )
@@ -153,6 +159,20 @@ class SettingsRootBlocImplTest {
         deepLinked.instance() should instanceOf<SettingsRootBloc.Child.GroceryAutocomplete>()
         // App settings sits underneath so Back returns there rather than out of settings.
         deepLinked.routerState.value.backStack.size shouldBe 1
+    }
+
+    @Test
+    fun When_app_settings_opens_grocery_category_rules_Then_grocery_category_rules_is_shown() {
+        appSettingsOutput.onNext(AppSettingsBloc.Output.OpenGroceryCategoryRules)
+        bloc.instance() should instanceOf<SettingsRootBloc.Child.GroceryCategoryRules>()
+        bloc.routerState.value.backStack.size shouldBe 1
+    }
+
+    @Test
+    fun Given_grocery_category_rules_When_it_outputs_back_Then_app_settings_is_shown() {
+        appSettingsOutput.onNext(AppSettingsBloc.Output.OpenGroceryCategoryRules)
+        groceryCategoryRulesOutput.onNext(GroceryCategoryRulesBloc.Output.Back)
+        bloc.instance() should instanceOf<SettingsRootBloc.Child.AppSettings>()
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailBloc
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
+import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryCategoryOverrideRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
 import dev.mokkery.answering.returns
@@ -17,12 +18,14 @@ import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 
 class GroceryDetailBlocTest {
     val context = TestBlocContext.create()
     val groceryItem = GroceryItem(id = 1L, name = "Milk", isChecked = false)
     val repository: GroceryRepository = mock { everySuspend { getGrocery(1L) } returns groceryItem }
+    val overrideRepository = FakeGroceryCategoryOverrideRepository()
     val testConsumer = TestConsumer<GroceryDetailBloc.Output>()
 
     val bloc =
@@ -35,6 +38,7 @@ class GroceryDetailBlocTest {
                     id = id,
                     mainContext = context.mainContext,
                     repository = repository,
+                    categoryOverrideRepository = overrideRepository,
                 )
             },
         )
@@ -161,6 +165,74 @@ class GroceryDetailBlocTest {
         runTest {
             bloc.onBackClicked()
             testConsumer.lastValue shouldBe GroceryDetailBloc.Output.Finished
+        }
+    }
+
+    @Test
+    fun WHEN_always_file_here_toggled_on_THEN_persist_rule_and_check_the_box() {
+        runTest {
+            bloc.onAisleChanged(GroceryCategory.DAIRY)
+            bloc.onAlwaysFileHereToggled(true)
+
+            overrideRepository.observeOverrideMap().first() shouldBe
+                mapOf("milk" to GroceryCategory.DAIRY)
+            bloc.models.test {
+                (awaitItem() as GroceryDetailBloc.Model.Loaded).alwaysFileHere shouldBe true
+            }
+        }
+    }
+
+    @Test
+    fun WHEN_always_file_here_toggled_off_THEN_remove_the_rule() {
+        runTest {
+            bloc.onAlwaysFileHereToggled(true)
+            bloc.onAlwaysFileHereToggled(false)
+
+            overrideRepository.observeOverrideMap().first() shouldBe emptyMap()
+            bloc.models.test {
+                (awaitItem() as GroceryDetailBloc.Model.Loaded).alwaysFileHere shouldBe false
+            }
+        }
+    }
+
+    @Test
+    fun GIVEN_rule_active_WHEN_aisle_changed_THEN_rule_follows_the_new_aisle() {
+        runTest {
+            bloc.onAlwaysFileHereToggled(true)
+            bloc.onAisleChanged(GroceryCategory.BEVERAGES)
+
+            overrideRepository.observeOverrideMap().first() shouldBe
+                mapOf("milk" to GroceryCategory.BEVERAGES)
+        }
+    }
+
+    @Test
+    fun GIVEN_existing_rule_for_name_WHEN_loaded_THEN_box_is_checked() {
+        runTest {
+            val itemInOverriddenAisle = groceryItem.copy(category = GroceryCategory.BEVERAGES)
+            val repo: GroceryRepository = mock {
+                everySuspend { getGrocery(1L) } returns itemInOverriddenAisle
+            }
+            val overrides = FakeGroceryCategoryOverrideRepository()
+            overrides.setOverride("Milk", GroceryCategory.BEVERAGES)
+            val blocWithRule =
+                GroceryDetailBlocImpl(
+                    context = TestBlocContext.create(),
+                    id = 1L,
+                    output = TestConsumer(),
+                    viewModelFactory = { id ->
+                        GroceryDetailViewModel(
+                            id = id,
+                            mainContext = context.mainContext,
+                            repository = repo,
+                            categoryOverrideRepository = overrides,
+                        )
+                    },
+                )
+
+            blocWithRule.models.test {
+                (awaitItem() as GroceryDetailBloc.Model.Loaded).alwaysFileHere shouldBe true
+            }
         }
     }
 }

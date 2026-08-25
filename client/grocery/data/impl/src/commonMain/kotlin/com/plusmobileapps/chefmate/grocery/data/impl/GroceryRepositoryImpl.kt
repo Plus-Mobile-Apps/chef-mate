@@ -13,6 +13,7 @@ import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.IO
 import com.plusmobileapps.chefmate.grocery.data.CollaborationStatus
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
+import com.plusmobileapps.chefmate.grocery.data.GroceryCategoryOverrideRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryListInvite
 import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
@@ -67,11 +68,17 @@ class GroceryRepositoryImpl(
     private val dateTimeUtil: DateTimeUtil,
     private val remoteDataSource: GroceryRemoteDataSource,
     private val authRepository: AuthenticationRepository,
+    private val categoryOverrideRepository: GroceryCategoryOverrideRepository,
 ) : GroceryRepository {
 
     private val scope = CoroutineScope(ioContext + SupervisorJob())
     private val syncMutex = Mutex()
     private val syncingIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    // Latest name→aisle rules, cached so the synchronous [getGrocery] read can apply them without
+    // re-querying. The [getGroceries] flows below re-read this via [combine] so rule changes
+    // re-emit.
+    private val categoryOverrides = MutableStateFlow<Map<String, GroceryCategory>>(emptyMap())
 
     private var realtimeJob: Job? = null
     private var realtimeUserId: String? = null
@@ -86,6 +93,9 @@ class GroceryRepositoryImpl(
                     stopRealtimeSync()
                 }
             }
+        }
+        scope.launch {
+            categoryOverrideRepository.observeOverrideMap().collect { categoryOverrides.value = it }
         }
     }
 
@@ -123,17 +133,22 @@ class GroceryRepositoryImpl(
     }
 
     override fun getGroceries(): Flow<List<GroceryItem>> =
-        combine(queries.readAll().asFlow().map { it.executeAsList() }, syncingIds) { items, syncing
-                ->
-                items.map { fromEntity(it, syncing) }
+        combine(
+                queries.readAll().asFlow().map { it.executeAsList() },
+                syncingIds,
+                categoryOverrides,
+            ) { items, syncing, overrides ->
+                items.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
     override fun getGroceries(listId: Long): Flow<List<GroceryItem>> =
-        combine(queries.readByListId(listId).asFlow().map { it.executeAsList() }, syncingIds) {
-                items,
-                syncing ->
-                items.map { fromEntity(it, syncing) }
+        combine(
+                queries.readByListId(listId).asFlow().map { it.executeAsList() },
+                syncingIds,
+                categoryOverrides,
+            ) { items, syncing, overrides ->
+                items.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
@@ -291,7 +306,7 @@ class GroceryRepositoryImpl(
     override suspend fun getGrocery(id: Long): GroceryItem? =
         withContext(ioContext) {
             queries.getGroceryById(id).executeAsOneOrNull()?.let {
-                fromEntity(it, syncingIds.value)
+                fromEntity(it, syncingIds.value, categoryOverrides.value)
             }
         }
 
@@ -1028,7 +1043,11 @@ class GroceryRepositoryImpl(
             else -> ListRole.OWNER
         }
 
-    private fun fromEntity(entity: Grocery, syncing: Set<Long>): GroceryItem {
+    private fun fromEntity(
+        entity: Grocery,
+        syncing: Set<Long>,
+        overrides: Map<String, GroceryCategory>,
+    ): GroceryItem {
         val syncStatus =
             when {
                 entity.id in syncing -> SyncStatus.SYNCING
@@ -1039,12 +1058,15 @@ class GroceryRepositoryImpl(
         val parsed = IngredientParser.parse(entity.name)
         val storedAisle =
             entity.aisle?.let { runCatching { GroceryCategory.valueOf(it) }.getOrNull() }
+        // Resolution order: a per-item stored aisle wins, then the user's name→aisle rule, then the
+        // parser's guess.
+        val category = storedAisle ?: overrides[parsed.name.lowercase()] ?: parsed.category
         return GroceryItem(
             id = entity.id,
             name = entity.name,
             displayName = parsed.name,
             quantity = parsed.quantity,
-            category = storedAisle ?: parsed.category,
+            category = category,
             isChecked = entity.isChecked,
             syncStatus = syncStatus,
             recipeName = entity.recipeName,

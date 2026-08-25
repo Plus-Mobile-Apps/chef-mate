@@ -4,7 +4,9 @@ package com.plusmobileapps.chefmate.auth.usecase.impl
 
 import com.plusmobileapps.chefmate.aichat.AiChatLocalDataCleaner
 import com.plusmobileapps.chefmate.auth.data.testing.FakeAuthenticationRepository
+import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryAutocompleteRepository
+import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryCategoryOverrideRepository
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryRepository
 import com.plusmobileapps.chefmate.meal.data.testing.FakeMealPlanRepository
 import com.plusmobileapps.chefmate.recipe.data.Category
@@ -35,6 +37,7 @@ class SignOutUseCaseImplTest {
         )
     private val categoryRepository = FakeCategoryRepository(categories)
     private val groceryAutocompleteRepository = FakeGroceryAutocompleteRepository()
+    private val groceryCategoryOverrideRepository = FakeGroceryCategoryOverrideRepository()
     private var aiChatCleared = false
     private val aiChatLocalDataCleaner = AiChatLocalDataCleaner { aiChatCleared = true }
 
@@ -69,5 +72,17 @@ class SignOutUseCaseImplTest {
         useCase()
 
         recipeBookRepository.getRecipeBooks().first() shouldBe emptyList()
+    }
+
+    @Test
+    fun When_signing_out_Then_grocery_category_rules_are_preserved() = runTest {
+        // Category rules are device-local (no backend table), so wiping them on sign-out would
+        // destroy them permanently rather than restoring them on the next sign-in.
+        groceryCategoryOverrideRepository.setOverride("Cold brew", GroceryCategory.BEVERAGES)
+
+        useCase()
+
+        groceryCategoryOverrideRepository.observeOverrideMap().first() shouldBe
+            mapOf("cold brew" to GroceryCategory.BEVERAGES)
     }
 }

@@ -34,6 +34,11 @@ class SignOutUseCaseImpl(
         recipeBookRepository.clearLocalData()
         categoryRepository.clearLocalData()
         groceryAutocompleteRepository.clearLocalData()
+        // Grocery category rules are deliberately NOT cleared here. Every other repository above
+        // is server-backed, so wiping it locally is recoverable on the next sign-in. Category
+        // rules are device-local (no Supabase table yet), so clearing them would destroy the
+        // user's rules permanently. They're treated as a device preference that outlives the
+        // session; DeleteAccountUseCase still wipes them, since that's explicit erasure.
         groceryRepository.clearLocalData()
         groceryRepository.ensureDefaultList()
         aiChatLocalDataCleaner.clearLocalData()

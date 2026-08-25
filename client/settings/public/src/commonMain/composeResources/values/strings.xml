@@ -39,6 +39,7 @@
     <string name="app_settings_recipe_categories">Categories</string>
     <string name="app_settings_grocery_section">Grocery</string>
     <string name="app_settings_grocery_autocomplete">Autocomplete items</string>
+    <string name="app_settings_grocery_category_rules">Category rules</string>
     <string name="developer_settings">Developer Settings</string>
     <string name="version_label">Version {version}</string>
 </resources>

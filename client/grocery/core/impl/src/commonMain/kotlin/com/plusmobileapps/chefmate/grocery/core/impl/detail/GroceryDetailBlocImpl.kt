@@ -35,7 +35,10 @@ class GroceryDetailBlocImpl(
             if (it.isLoading) {
                 GroceryDetailBloc.Model.Loading
             } else {
-                GroceryDetailBloc.Model.Loaded(it.groceryItem)
+                GroceryDetailBloc.Model.Loaded(
+                    item = it.groceryItem,
+                    alwaysFileHere = it.alwaysFileHere,
+                )
             }
         }
 
@@ -63,6 +66,10 @@ class GroceryDetailBlocImpl(
 
     override fun onAisleChanged(category: GroceryCategory) {
         viewModel.onAisleChanged(category)
+    }
+
+    override fun onAlwaysFileHereToggled(enabled: Boolean) {
+        viewModel.onAlwaysFileHereToggled(enabled)
     }
 
     override fun onSaveClicked() {

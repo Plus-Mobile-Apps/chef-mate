@@ -13,6 +13,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailBloc
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailSheetContent
+import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocAlwaysFileHere
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocFromRecipe
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocLoaded
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocLoading
@@ -66,6 +67,13 @@ fun GroceryDetailSheetFromRecipeLightScreenshot() {
 @Composable
 fun GroceryDetailSheetLoadingLightScreenshot() {
     GroceryDetailSheet(bloc = previewGroceryDetailBlocLoading)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 500)
+@Composable
+fun GroceryDetailSheetAlwaysFileHereLightScreenshot() {
+    GroceryDetailSheet(bloc = previewGroceryDetailBlocAlwaysFileHere)
 }
 
 // ── EXPANDED-width dialog variant ──────────────────────────────────────────

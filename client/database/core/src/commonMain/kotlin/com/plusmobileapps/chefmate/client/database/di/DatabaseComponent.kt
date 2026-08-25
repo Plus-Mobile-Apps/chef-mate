@@ -8,6 +8,7 @@ import com.plusmobileapps.chefmate.database.CategoryQueries
 import com.plusmobileapps.chefmate.database.CookingSessionQueries
 import com.plusmobileapps.chefmate.database.Database
 import com.plusmobileapps.chefmate.database.GroceryAutocompleteItemQueries
+import com.plusmobileapps.chefmate.database.GroceryCategoryOverrideQueries
 import com.plusmobileapps.chefmate.database.GroceryListMemberQueries
 import com.plusmobileapps.chefmate.database.GroceryListQueries
 import com.plusmobileapps.chefmate.database.GroceryQueries
@@ -94,4 +95,9 @@ interface DatabaseComponent {
     @Provides
     fun providesGroceryAutocompleteItemQueries(database: Database): GroceryAutocompleteItemQueries =
         database.groceryAutocompleteItemQueries
+
+    @SingleIn(AppScope::class)
+    @Provides
+    fun providesGroceryCategoryOverrideQueries(database: Database): GroceryCategoryOverrideQueries =
+        database.groceryCategoryOverrideQueries
 }

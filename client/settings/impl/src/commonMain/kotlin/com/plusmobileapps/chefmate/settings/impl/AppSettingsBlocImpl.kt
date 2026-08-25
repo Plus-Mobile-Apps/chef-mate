@@ -79,4 +79,8 @@ class AppSettingsBlocImpl(
     override fun onGroceryAutocompleteClicked() {
         output.onNext(Output.OpenGroceryAutocomplete)
     }
+
+    override fun onGroceryCategoryRulesClicked() {
+        output.onNext(Output.OpenGroceryCategoryRules)
+    }
 }

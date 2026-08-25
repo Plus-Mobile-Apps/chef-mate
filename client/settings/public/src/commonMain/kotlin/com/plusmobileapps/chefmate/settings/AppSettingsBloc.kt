@@ -44,6 +44,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
     fun onGroceryAutocompleteClicked()
 
+    fun onGroceryCategoryRulesClicked()
+
     data class Model(
         val isHistoryEnabled: Boolean = true,
         val showClearHistoryDialog: Boolean = false,
@@ -64,6 +66,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
         data object OpenRecipeCategories : Output()
 
         data object OpenGroceryAutocomplete : Output()
+
+        data object OpenGroceryCategoryRules : Output()
     }
 
     fun interface Factory {

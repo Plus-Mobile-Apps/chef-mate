@@ -4,6 +4,7 @@
     <string name="grocery_detail_name_label">Name</string>
     <string name="grocery_detail_quantity_label">Quantity</string>
     <string name="grocery_detail_aisle_label">Aisle</string>
+    <string name="grocery_detail_always_file_here">Always file {name} in {aisle}</string>
     <string name="purchased">Purchased</string>
     <string name="grocery_checked">Checked</string>
     <string name="grocery_not_checked">Not Checked</string>

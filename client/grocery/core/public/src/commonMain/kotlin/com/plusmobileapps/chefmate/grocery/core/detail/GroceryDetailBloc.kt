@@ -26,12 +26,22 @@ interface GroceryDetailBloc : BackClickBloc, ComposeScreen {
 
     fun onAisleChanged(category: GroceryCategory)
 
+    /**
+     * Toggles a persistent "always file this item's name under the selected aisle" rule. When on,
+     * every future item with the same name lands in this aisle by default.
+     */
+    fun onAlwaysFileHereToggled(enabled: Boolean)
+
     fun onSaveClicked()
 
     sealed class Model {
         object Loading : Model()
 
-        data class Loaded(val item: GroceryItem) : Model()
+        /**
+         * @param alwaysFileHere whether a name→aisle rule for this item's name currently points at
+         *   the selected aisle (drives the "always file here" checkbox).
+         */
+        data class Loaded(val item: GroceryItem, val alwaysFileHere: Boolean = false) : Model()
     }
 
     sealed class Output {

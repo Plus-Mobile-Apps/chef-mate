@@ -13,6 +13,7 @@ import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
+import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavOrderBloc
 import com.plusmobileapps.chefmate.recipe.categories.RecipeCategoriesBloc
 import com.plusmobileapps.chefmate.recipe.exporter.ExportRecipesBloc
@@ -40,6 +41,7 @@ class SettingsRootBlocImpl(
     private val exportRecipes: ExportRecipesBloc.Factory,
     private val recipeCategories: RecipeCategoriesBloc.Factory,
     private val groceryAutocomplete: GroceryAutocompleteBloc.Factory,
+    private val groceryCategoryRules: GroceryCategoryRulesBloc.Factory,
 ) : SettingsRootBloc, BlocContext by context {
 
     private val navigation = StackNavigation<Configuration>()
@@ -121,6 +123,15 @@ class SettingsRootBlocImpl(
                             output = ::handleGroceryAutocompleteOutput,
                         )
                 )
+
+            Configuration.GroceryCategoryRules ->
+                SettingsRootBloc.Child.GroceryCategoryRules(
+                    bloc =
+                        groceryCategoryRules.create(
+                            context = context,
+                            output = ::handleGroceryCategoryRulesOutput,
+                        )
+                )
         }
 
     private fun handleAppSettingsOutput(output: AppSettingsBloc.Output) {
@@ -136,6 +147,8 @@ class SettingsRootBlocImpl(
                 navigation.bringToFront(Configuration.RecipeCategories)
             AppSettingsBloc.Output.OpenGroceryAutocomplete ->
                 navigation.bringToFront(Configuration.GroceryAutocomplete)
+            AppSettingsBloc.Output.OpenGroceryCategoryRules ->
+                navigation.bringToFront(Configuration.GroceryCategoryRules)
         }
     }
 
@@ -172,6 +185,12 @@ class SettingsRootBlocImpl(
         }
     }
 
+    private fun handleGroceryCategoryRulesOutput(output: GroceryCategoryRulesBloc.Output) {
+        when (output) {
+            GroceryCategoryRulesBloc.Output.Back -> navigation.pop()
+        }
+    }
+
     @Serializable
     private sealed class Configuration {
         @Serializable data object AppSettings : Configuration()
@@ -185,5 +204,7 @@ class SettingsRootBlocImpl(
         @Serializable data object RecipeCategories : Configuration()
 
         @Serializable data object GroceryAutocomplete : Configuration()
+
+        @Serializable data object GroceryCategoryRules : Configuration()
     }
 }

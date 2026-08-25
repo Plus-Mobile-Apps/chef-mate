@@ -482,6 +482,7 @@ object IngredientParser {
                 "soda" to GroceryCategory.BEVERAGES,
                 "water" to GroceryCategory.BEVERAGES,
                 "coffee" to GroceryCategory.BEVERAGES,
+                "cold brew" to GroceryCategory.BEVERAGES,
                 "tea" to GroceryCategory.BEVERAGES,
                 "beer" to GroceryCategory.BEVERAGES,
                 "wine" to GroceryCategory.BEVERAGES,

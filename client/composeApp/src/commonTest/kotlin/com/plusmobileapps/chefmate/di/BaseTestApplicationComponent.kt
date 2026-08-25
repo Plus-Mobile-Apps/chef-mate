@@ -7,6 +7,7 @@ import com.plusmobileapps.chefmate.database.CategoryQueries
 import com.plusmobileapps.chefmate.database.CookingSessionQueries
 import com.plusmobileapps.chefmate.database.Database
 import com.plusmobileapps.chefmate.database.GroceryAutocompleteItemQueries
+import com.plusmobileapps.chefmate.database.GroceryCategoryOverrideQueries
 import com.plusmobileapps.chefmate.database.GroceryListMemberQueries
 import com.plusmobileapps.chefmate.database.GroceryListQueries
 import com.plusmobileapps.chefmate.database.GroceryQueries
@@ -49,6 +50,10 @@ abstract class BaseTestApplicationComponent : TestApplicationComponent {
     @Provides
     fun providesGroceryAutocompleteItemQueries(database: Database): GroceryAutocompleteItemQueries =
         database.groceryAutocompleteItemQueries
+
+    @Provides
+    fun providesGroceryCategoryOverrideQueries(database: Database): GroceryCategoryOverrideQueries =
+        database.groceryCategoryOverrideQueries
 
     @Provides
     fun providesMealPlanQueries(database: Database): MealPlanQueries = database.mealPlanQueries

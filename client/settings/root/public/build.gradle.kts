@@ -9,6 +9,7 @@ kotlin {
             api(projects.client.settings.public)
             api(projects.client.bottomnav.public)
             api(projects.client.grocery.autocomplete.public)
+            api(projects.client.grocery.categoryRules.public)
             api(projects.client.recipe.categories.public)
             api(projects.client.recipe.exporter.public)
             api(projects.client.recipe.importer.public)

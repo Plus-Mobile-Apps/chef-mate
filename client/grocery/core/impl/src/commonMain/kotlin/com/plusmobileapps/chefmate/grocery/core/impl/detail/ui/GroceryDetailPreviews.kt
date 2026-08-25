@@ -10,10 +10,15 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
-private fun groceryDetailBloc(item: GroceryItem): GroceryDetailBloc =
+private fun groceryDetailBloc(
+    item: GroceryItem,
+    alwaysFileHere: Boolean = false,
+): GroceryDetailBloc =
     object : GroceryDetailBloc {
         override val models =
-            MutableStateFlow<GroceryDetailBloc.Model>(GroceryDetailBloc.Model.Loaded(item))
+            MutableStateFlow<GroceryDetailBloc.Model>(
+                GroceryDetailBloc.Model.Loaded(item = item, alwaysFileHere = alwaysFileHere)
+            )
 
         override fun onGroceryNameChanged(name: String) = Unit
 
@@ -22,6 +27,8 @@ private fun groceryDetailBloc(item: GroceryItem): GroceryDetailBloc =
         override fun onGroceryCheckedChanged(isChecked: Boolean) = Unit
 
         override fun onAisleChanged(category: GroceryCategory) = Unit
+
+        override fun onAlwaysFileHereToggled(enabled: Boolean) = Unit
 
         override fun onSaveClicked() = Unit
 
@@ -54,6 +61,10 @@ val previewGroceryDetailBlocPurchased: GroceryDetailBloc =
 val previewGroceryDetailBlocFromRecipe: GroceryDetailBloc =
     groceryDetailBloc(sampleItem.copy(recipeName = "Pancakes"))
 
+/** "Always file here" rule active — exercises the checked category-rule row. */
+val previewGroceryDetailBlocAlwaysFileHere: GroceryDetailBloc =
+    groceryDetailBloc(sampleItem, alwaysFileHere = true)
+
 /** Loading state — exercises the spinner. */
 val previewGroceryDetailBlocLoading: GroceryDetailBloc =
     object : GroceryDetailBloc {
@@ -67,6 +78,8 @@ val previewGroceryDetailBlocLoading: GroceryDetailBloc =
         override fun onGroceryCheckedChanged(isChecked: Boolean) = Unit
 
         override fun onAisleChanged(category: GroceryCategory) = Unit
+
+        override fun onAlwaysFileHereToggled(enabled: Boolean) = Unit
 
         override fun onSaveClicked() = Unit
 

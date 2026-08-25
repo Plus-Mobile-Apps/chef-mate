@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import chefmate.client.grocery.core.public.generated.resources.Res
 import chefmate.client.grocery.core.public.generated.resources.grocery_detail_aisle_label
+import chefmate.client.grocery.core.public.generated.resources.grocery_detail_always_file_here
 import chefmate.client.grocery.core.public.generated.resources.grocery_detail_name_label
 import chefmate.client.grocery.core.public.generated.resources.grocery_detail_quantity_label
 import chefmate.client.grocery.core.public.generated.resources.grocery_recipe_source
@@ -75,7 +76,11 @@ fun GroceryDetailSheetContent(bloc: GroceryDetailBloc, modifier: Modifier = Modi
                     PlusLoadingIndicator()
                 }
             is GroceryDetailBloc.Model.Loaded -> {
-                GroceryDetailFields(item = model.item, bloc = bloc)
+                GroceryDetailFields(
+                    item = model.item,
+                    alwaysFileHere = model.alwaysFileHere,
+                    bloc = bloc,
+                )
                 Button(onClick = bloc::onSaveClicked, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(CommonRes.string.save))
                 }
@@ -85,7 +90,11 @@ fun GroceryDetailSheetContent(bloc: GroceryDetailBloc, modifier: Modifier = Modi
 }
 
 @Composable
-private fun GroceryDetailFields(item: GroceryItem, bloc: GroceryDetailBloc) {
+private fun GroceryDetailFields(
+    item: GroceryItem,
+    alwaysFileHere: Boolean,
+    bloc: GroceryDetailBloc,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall),
@@ -106,6 +115,27 @@ private fun GroceryDetailFields(item: GroceryItem, bloc: GroceryDetailBloc) {
         )
     }
     AisleDropdown(selected = item.category, onSelected = bloc::onAisleChanged)
+    if (item.displayName.isNotBlank()) {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth().testTag(GroceryDetailTestTags.ALWAYS_FILE_HERE).clickable {
+                    bloc.onAlwaysFileHereToggled(!alwaysFileHere)
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = alwaysFileHere, onCheckedChange = bloc::onAlwaysFileHereToggled)
+            Text(
+                text =
+                    PhraseModel(
+                            Res.string.grocery_detail_always_file_here,
+                            "name" to FixedString(item.displayName),
+                            "aisle" to item.category.displayName(),
+                        )
+                        .localized(),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
     val recipeName = item.recipeName
     if (recipeName != null) {
         Text(

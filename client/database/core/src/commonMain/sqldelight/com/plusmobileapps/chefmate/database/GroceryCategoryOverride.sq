@@ -1,0 +1,81 @@
+import kotlin.Boolean;
+
+-- User-defined "always file <name> under <aisle>" rules. When a grocery item's
+-- name matches a rule, that rule's category wins over the IngredientParser guess
+-- (but a per-item stored aisle on the Grocery row still wins over the rule).
+--
+-- `categoryKey` stores a GroceryCategory enum name today. It is a free-form TEXT
+-- column so a future "custom aisle" (Phase 2) can store its own key without a
+-- schema migration.
+--
+-- `remoteId`, `clientId`, `isDirty`, and `ownerId` mirror the GroceryAutocompleteItem
+-- table's sync scaffolding. The feature is local-only for now; a follow-up wires
+-- Supabase sync without another migration.
+CREATE TABLE GroceryCategoryOverride (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    categoryKey TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    remoteId TEXT UNIQUE,
+    clientId TEXT,
+    isDirty INTEGER AS Boolean NOT NULL DEFAULT 0,
+    ownerId TEXT
+);
+
+-- Case-insensitive uniqueness: one rule per name, so "Cold Brew" and "cold brew"
+-- can't both hold conflicting rules.
+CREATE UNIQUE INDEX idx_grocery_category_override_name ON GroceryCategoryOverride(name COLLATE NOCASE);
+
+getAll:
+SELECT * FROM GroceryCategoryOverride ORDER BY name COLLATE NOCASE ASC;
+
+getById:
+SELECT * FROM GroceryCategoryOverride WHERE id = ?;
+
+getByName:
+SELECT * FROM GroceryCategoryOverride WHERE name = ? COLLATE NOCASE;
+
+getByRemoteId:
+SELECT * FROM GroceryCategoryOverride WHERE remoteId = ?;
+
+getByClientId:
+SELECT * FROM GroceryCategoryOverride WHERE clientId = ?;
+
+-- Upsert on the case-insensitive name so re-tagging an existing name updates its
+-- aisle instead of failing the unique index. Marked dirty for a future sync push.
+upsert:
+INSERT INTO GroceryCategoryOverride (name, categoryKey, clientId, ownerId, isDirty)
+VALUES (?, ?, ?, ?, 1)
+ON CONFLICT(name COLLATE NOCASE) DO UPDATE SET
+    categoryKey = excluded.categoryKey,
+    isDirty = 1;
+
+createWithRemoteId:
+INSERT INTO GroceryCategoryOverride (name, categoryKey, remoteId, clientId, ownerId)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(remoteId) DO UPDATE SET
+    name = excluded.name,
+    categoryKey = excluded.categoryKey,
+    clientId = excluded.clientId,
+    ownerId = excluded.ownerId;
+
+lastInsertId:
+SELECT MAX(id) FROM GroceryCategoryOverride;
+
+getUnsynced:
+SELECT * FROM GroceryCategoryOverride WHERE remoteId IS NULL OR isDirty = 1;
+
+updateRemoteId:
+UPDATE GroceryCategoryOverride SET remoteId = ?, isDirty = 0 WHERE id = ?;
+
+updateClientId:
+UPDATE GroceryCategoryOverride SET clientId = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM GroceryCategoryOverride WHERE id = ?;
+
+deleteByName:
+DELETE FROM GroceryCategoryOverride WHERE name = ? COLLATE NOCASE;
+
+deleteAll:
+DELETE FROM GroceryCategoryOverride;

@@ -49,6 +49,10 @@ class SignInUseCaseImpl(
         recipeRepository.clearLocalData()
         categoryRepository.clearLocalData()
         groceryAutocompleteRepository.clearLocalData()
+        // Grocery category rules are deliberately NOT cleared. The wipe above exists to avoid
+        // reconciling anon-owned rows against the new account's pull — but rules never sync, so
+        // there is no pull to reconcile and clearing would just destroy a guest's rules the
+        // moment they sign up. See SignOutUseCaseImpl for the full rationale.
         groceryRepository.clearLocalData()
         groceryRepository.ensureDefaultList()
         aiChatLocalDataCleaner.clearLocalData()
