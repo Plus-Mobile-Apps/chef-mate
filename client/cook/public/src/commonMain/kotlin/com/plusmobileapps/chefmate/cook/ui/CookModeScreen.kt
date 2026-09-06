@@ -135,6 +135,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
 import com.plusmobileapps.chefmate.ui.text.parseListLine
 import com.plusmobileapps.chefmate.ui.text.toDisplayAnnotatedString
+import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -1107,4 +1108,9 @@ private fun CookModeBottomBar(
     }
 }
 
-private fun splitLines(text: String): List<String> = text.split("\n").filter { it.isNotBlank() }
+/**
+ * Splits stored recipe text into displayable lines, dropping blanks and the stray `<br>` tags
+ * recipes edited by an older build may still carry (see [withoutLineBreakTags]).
+ */
+private fun splitLines(text: String): List<String> =
+    text.withoutLineBreakTags().split("\n").filter { it.isNotBlank() }

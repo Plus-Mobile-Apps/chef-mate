@@ -176,6 +176,7 @@ import com.plusmobileapps.chefmate.ui.text.ListLine
 import com.plusmobileapps.chefmate.ui.text.parseListLine
 import com.plusmobileapps.chefmate.ui.text.toDisplayAnnotatedString
 import com.plusmobileapps.chefmate.ui.text.toInlineMarkdownAnnotatedString
+import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import com.plusmobileapps.chefmate.util.rememberShareLauncher
 import kotlin.time.ExperimentalTime
@@ -1282,7 +1283,12 @@ private fun DetailRow(
     }
 }
 
-private fun splitLines(text: String): List<String> = text.split("\n").filter { it.isNotBlank() }
+/**
+ * Splits stored recipe text into displayable lines, dropping blanks and the stray `<br>` tags
+ * recipes edited by an older build may still carry (see [withoutLineBreakTags]).
+ */
+private fun splitLines(text: String): List<String> =
+    text.withoutLineBreakTags().split("\n").filter { it.isNotBlank() }
 
 private fun formatRecipeAsText(recipe: Recipe): String = buildString {
     appendLine(recipe.title)
