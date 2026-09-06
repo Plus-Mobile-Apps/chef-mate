@@ -326,6 +326,79 @@ class RecipeRepositoryImplTest {
         }
 
     @Test
+    fun syncWithRemote_pull_applies_remote_edits_to_an_already_synced_recipe() =
+        runTest(testDispatcher) {
+            fakeAuth.setAuthenticated()
+            val created = recipeRepository.createRecipe(blankRecipe(title = "Chili"))
+            val remoteId = db.recipeQueries.getById(created.id).executeAsOne().remoteId!!
+
+            // Another device edited the same recipe and pushed it.
+            recipeRemote.fetchResult =
+                listOf(
+                    RemoteRecipe(
+                        id = remoteId,
+                        ownerId = "test-id",
+                        title = "Chili con Carne",
+                        directions = "Simmer for an hour",
+                        servings = 6,
+                        isFavorite = true,
+                        updatedAt = "2026-01-01T00:00:00Z",
+                    )
+                )
+
+            recipeRepository.syncAllUnsynced()
+
+            val row = db.recipeQueries.getById(created.id).executeAsOne()
+            row.title shouldBe "Chili con Carne"
+            row.directions shouldBe "Simmer for an hour"
+            row.servings shouldBe 6L
+            row.isFavorite shouldBe true
+            row.updatedAt shouldBe "2026-01-01T00:00:00Z"
+        }
+
+    @Test
+    fun syncWithRemote_pull_does_not_clobber_a_recipe_with_unpushed_local_edits() =
+        runTest(testDispatcher) {
+            val created = recipeRepository.createRecipe(blankRecipe(title = "Chili"))
+            // Previously synced, then edited locally — update() leaves the row dirty.
+            db.recipeQueries.updateRemoteId(remoteId = "remote-chili", id = created.id)
+            db.recipeQueries.update(
+                title = "My local title",
+                description = null,
+                ingredients = null,
+                directions = null,
+                imageUrl = null,
+                sourceUrl = null,
+                servings = null,
+                prepTime = null,
+                cookTime = null,
+                totalTime = null,
+                calories = null,
+                starRating = null,
+                isFavorite = false,
+                updatedAt = "2026-02-02T00:00:00Z",
+                id = created.id,
+            )
+            // The dirty push fails, so the remote still holds the pre-edit copy when we pull.
+            recipeRemote.upsertFailure = { RuntimeException("network") }
+            recipeRemote.fetchResult =
+                listOf(
+                    RemoteRecipe(
+                        id = "remote-chili",
+                        ownerId = "test-id",
+                        title = "Stale remote title",
+                        updatedAt = "2026-01-01T00:00:00Z",
+                    )
+                )
+
+            fakeAuth.setAuthenticated()
+
+            val row = db.recipeQueries.getById(created.id).executeAsOne()
+            row.title shouldBe "My local title"
+            row.isDirty shouldBe true
+        }
+
+    @Test
     fun syncWithRemote_pull_does_not_resurrect_tombstoned_recipe() =
         runTest(testDispatcher) {
             db.recipeQueries.create(
@@ -551,9 +624,13 @@ class RecipeRepositoryImplTest {
         var deleteFailure: (() -> Throwable)? = null
         var fetchResult: List<RemoteRecipe> = emptyList()
 
-        override suspend fun upsertRecipe(recipe: RemoteRecipe): RemoteRecipe =
+        var upsertFailure: (() -> Throwable)? = null
+
+        override suspend fun upsertRecipe(recipe: RemoteRecipe): RemoteRecipe {
+            upsertFailure?.invoke()?.let { throw it }
             // Stamp a stable remote id derived from the client id so tests can correlate.
-            recipe.copy(id = recipe.id ?: "remote-${recipe.clientId.orEmpty()}")
+            return recipe.copy(id = recipe.id ?: "remote-${recipe.clientId.orEmpty()}")
+        }
 
         override suspend fun deleteRecipe(remoteId: String) {
             deleteCalls += remoteId

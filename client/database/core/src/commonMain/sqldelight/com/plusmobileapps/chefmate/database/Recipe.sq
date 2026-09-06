@@ -70,6 +70,10 @@ update:
 UPDATE Recipe SET title = ?, description = ?, ingredients = ?, directions = ?, imageUrl = ?, sourceUrl = ?, servings = ?, prepTime = ?, cookTime = ?, totalTime = ?, calories = ?, starRating = ?, isFavorite = ?, updatedAt = ?, isDirty = 1
 WHERE id = ?;
 
+updateFromRemote:
+UPDATE Recipe SET title = ?, description = ?, ingredients = ?, directions = ?, imageUrl = ?, sourceUrl = ?, servings = ?, prepTime = ?, cookTime = ?, totalTime = ?, calories = ?, starRating = ?, isFavorite = ?, isPublic = ?, ownerId = ?, updatedAt = ?
+WHERE id = ?;
+
 delete:
 DELETE FROM Recipe WHERE id = ?;
 

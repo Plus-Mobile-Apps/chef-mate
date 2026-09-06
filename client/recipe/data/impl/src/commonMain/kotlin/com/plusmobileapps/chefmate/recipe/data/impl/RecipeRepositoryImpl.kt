@@ -500,7 +500,34 @@ class RecipeRepositoryImpl(
                 for (remote in remoteRecipes) {
                     val remoteId = remote.id ?: continue
                     val existing = db.getByRemoteId(remoteId).executeAsOneOrNull()
-                    if (existing != null) continue
+                    if (existing != null) {
+                        // Already known locally — fold in edits made on another device. Rows with
+                        // unpushed local changes are skipped: their dirty push ran earlier in this
+                        // pass, and overwriting here would drop an edit made while we were
+                        // fetching. Tombstoned rows keep their tombstone until the delete lands.
+                        if (!existing.isDirty && !existing.isPendingDelete) {
+                            db.updateFromRemote(
+                                title = remote.title,
+                                description = remote.description,
+                                ingredients = remote.ingredients,
+                                directions = remote.directions,
+                                imageUrl = remote.imageUrl,
+                                sourceUrl = remote.sourceUrl,
+                                servings = remote.servings?.toLong(),
+                                prepTime = remote.prepTime?.toLong(),
+                                cookTime = remote.cookTime?.toLong(),
+                                totalTime = remote.totalTime?.toLong(),
+                                calories = remote.calories?.toLong(),
+                                starRating = remote.starRating?.toLong(),
+                                isFavorite = remote.isFavorite,
+                                isPublic = remote.isPublic,
+                                ownerId = remote.ownerId.ifBlank { userId },
+                                updatedAt = remote.updatedAt ?: existing.updatedAt,
+                                id = existing.id,
+                            )
+                        }
+                        continue
+                    }
 
                     val matchedByClientId =
                         remote.clientId?.let { clientId ->
