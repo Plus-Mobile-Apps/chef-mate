@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -148,6 +149,8 @@ import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalNavRailInset
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -386,6 +389,10 @@ fun GroceryListScreen(
                             onSwipeToDelete = { displayItem ->
                                 itemLookup[displayItem.key as Long]?.let(bloc::onGroceryItemDelete)
                             },
+                            // Only the start inset: the add-item row below already keeps the list
+                            // clear of the floating bottom pill, so adding the bottom inset here
+                            // too would double-pad it.
+                            contentPadding = PaddingValues(start = LocalNavRailInset.current),
                         )
                     }
                 }
@@ -401,6 +408,15 @@ fun GroceryListScreen(
                         },
                         onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
                         forceShowSuggestions = forceShowAutocompleteSuggestions,
+                        // The add row is anchored at the bottom of the screen, where the floating
+                        // nav pill now sits. It can't scroll under the pill like the list does, so
+                        // it takes real padding. The pill slides away with the keyboard, so this
+                        // animates to zero and the row lands directly on the keyboard.
+                        modifier =
+                            Modifier.padding(
+                                start = LocalNavRailInset.current,
+                                bottom = LocalBottomNavBarInset.current,
+                            ),
                     )
                 }
             },
