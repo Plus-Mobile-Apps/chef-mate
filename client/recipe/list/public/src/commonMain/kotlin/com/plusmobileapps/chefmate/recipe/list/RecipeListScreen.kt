@@ -213,7 +213,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
-import com.plusmobileapps.chefmate.ui.components.navigationContentPadding
+import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
 import com.plusmobileapps.chefmate.ui.text.toInlineMarkdownAnnotatedString
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import com.plusmobileapps.chefmate.util.rememberImagePickerLauncher
@@ -1516,7 +1516,7 @@ private fun RecipeGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding =
-            navigationContentPadding(
+            bottomNavContentPadding(
                 start = 8.dp,
                 end = 8.dp,
                 top = 8.dp,
@@ -1644,7 +1644,7 @@ private fun RecipeList(
     LazyColumn(
         state = state,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = navigationContentPadding(bottom = bottomContentPadding),
+        contentPadding = bottomNavContentPadding(bottom = bottomContentPadding),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
             val recipe = recipes[index]

@@ -27,14 +27,6 @@ import androidx.compose.ui.unit.dp
 val LocalBottomNavBarInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
 /**
- * The horizontal space the app's floating navigation rail occupies at the start edge of the tab
- * content area — its width plus its margins — or `0.dp` on layouts that show the bottom bar
- * instead. The rail counterpart of [LocalBottomNavBarInset]; content fills the full width behind
- * it, so scrollables add this to the start of their `contentPadding`.
- */
-val LocalNavRailInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
-
-/**
  * Pads this composable clear of the floating bottom navigation bar. For bottom-anchored UI that
  * must never sit under the bar — FABs, input rows, pinned toolbars.
  */
@@ -42,19 +34,19 @@ val LocalNavRailInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.d
 fun Modifier.bottomNavBarPadding(): Modifier = padding(bottom = LocalBottomNavBarInset.current)
 
 /**
- * `contentPadding` for a scrollable tab root: adds the floating navigation bar's inset at the
- * bottom and the floating rail's at the start, on top of whatever padding the screen already needed
- * (FAB clearance, its own spacing).
+ * `contentPadding` for a scrollable tab root: adds [LocalBottomNavBarInset] underneath whatever
+ * padding the screen already needed (FAB clearance, its own spacing), so the list scrolls under the
+ * floating bar instead of ending at it.
  */
 @Composable
-fun navigationContentPadding(
+fun bottomNavContentPadding(
     start: Dp = 0.dp,
     top: Dp = 0.dp,
     end: Dp = 0.dp,
     bottom: Dp = 0.dp,
 ): PaddingValues =
     PaddingValues(
-        start = start + LocalNavRailInset.current,
+        start = start,
         top = top,
         end = end,
         bottom = bottom + LocalBottomNavBarInset.current,

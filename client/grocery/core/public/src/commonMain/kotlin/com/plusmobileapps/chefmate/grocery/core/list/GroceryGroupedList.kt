@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,9 +83,8 @@ fun GroceryGroupedList(
     onSwipeToDelete: ((GroceryDisplayItem) -> Unit)? = null,
     swipeToDeleteEnabled: Boolean = supportsSwipeToDelete,
     footer: (LazyListScope.() -> Unit)? = null,
-    contentPadding: PaddingValues = PaddingValues(),
 ) {
-    LazyColumn(state = state, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
+    LazyColumn(state = state, modifier = modifier.fillMaxSize()) {
         groups.forEach { group ->
             if (showHeaders) {
                 stickyHeader(key = "header_${group.category.name}") {

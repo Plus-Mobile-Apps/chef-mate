@@ -109,7 +109,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
-import com.plusmobileapps.chefmate.ui.components.navigationContentPadding
+import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -421,7 +421,7 @@ private fun MonthView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = navigationContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         item(key = "month_calendar") {
             MonthCalendar(
@@ -653,7 +653,7 @@ private fun DayView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = navigationContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         if (dayMeals.breakfast.isNotEmpty()) {
             stickyHeader(key = "breakfast") {
@@ -741,7 +741,7 @@ private fun WeekView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = navigationContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         weekMeals.forEach { dayGroup ->
             if (dayGroup.meals.isNotEmpty()) {
