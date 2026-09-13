@@ -2,12 +2,24 @@
 
 package com.plusmobileapps.chefmate.recipe.bottomnav
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -16,17 +28,24 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import chefmate.client.bottomnav.public.generated.resources.Res
 import chefmate.client.bottomnav.public.generated.resources.tab_browser
@@ -48,8 +67,15 @@ import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.RECIPES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.SETTINGS
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
 import com.plusmobileapps.chefmate.ui.components.NavRailItem
 import com.plusmobileapps.chefmate.ui.components.PlusNavRailHeaderContainer
+import com.plusmobileapps.chefmate.ui.components.glass.AppBackdrop
+import com.plusmobileapps.chefmate.ui.components.glass.GlassDefaults
+import com.plusmobileapps.chefmate.ui.components.glass.GlassSurface
+import com.plusmobileapps.chefmate.ui.components.glass.LocalAppBackdrop
+import com.plusmobileapps.chefmate.ui.components.glass.appBackdropSource
+import com.plusmobileapps.chefmate.ui.components.glass.rememberAppBackdrop
 import com.plusmobileapps.chefmate.ui.components.reportBottomNavInset
 import com.plusmobileapps.chefmate.ui.fadeScalePredictiveBackAnimatable
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -64,6 +90,11 @@ private enum class NavigationLayout {
 
 @Composable
 fun BottomNavigationScreen(bloc: BottomNavBloc, modifier: Modifier = Modifier) {
+    // One backdrop for both shells. The floating bar and rail blur the tab content behind
+    // themselves, and hoisting the handle above BoxWithConstraints keeps the content's modifier
+    // chain identical on both sides of the 600dp breakpoint — so crossing it stays a pure
+    // movableContent move for Haze too, with no layer torn down and rebuilt.
+    val backdrop = rememberAppBackdrop()
     // The active tab's Children stack is kept in movable content so that crossing the 600dp
     // breakpoint on rotation/resize *moves* the running composition between the bottom-bar and
     // nav-rail shells rather than disposing one and composing the other fresh. Without this, every
@@ -85,7 +116,8 @@ fun BottomNavigationScreen(bloc: BottomNavBloc, modifier: Modifier = Modifier) {
                 else -> NavigationLayout.SIDE_EXPANDED
             }
         when (layout) {
-            NavigationLayout.BOTTOM -> MobileBottomNavContent(bloc = bloc, content = tabContent)
+            NavigationLayout.BOTTOM ->
+                MobileBottomNavContent(bloc = bloc, backdrop = backdrop, content = tabContent)
             NavigationLayout.SIDE_COMPACT ->
                 SideNavContent(
                     modifier = Modifier.imePadding(),
@@ -139,23 +171,56 @@ private fun SideNavContent(
 @Composable
 private fun MobileBottomNavContent(
     bloc: BottomNavBloc,
+    backdrop: AppBackdrop,
     content: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state = bloc.state.collectAsState()
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = { PlusBottomBar(state = state.value, onClick = bloc::onTabSelected) },
-    ) { paddingValues ->
-        // The bottom bar stays anchored at the bottom of the screen; only the content gets ime
-        // padding so an open keyboard pushes the content (e.g. the grocery input) up and shrinks
-        // the scrollable area above the bar instead of hiding the navigation.
-        //
-        // consumeWindowInsets marks the bottom-bar/navigation-bar inset (already applied via
-        // paddingValues) as consumed, so imePadding only adds the *remaining* keyboard height.
-        // Without this, the open keyboard would be padded on top of the nav-bar inset that it
-        // already covers, leaving a gap the size of the bottom bar between the input and keyboard.
-        content(Modifier.padding(paddingValues).consumeWindowInsets(paddingValues).imePadding())
+    val density = LocalDensity.current
+    // The pill is only ~16dp off the bottom edge, so an open keyboard covers it outright. Slide it
+    // away instead of trying to float it above a rising keyboard: the tab content then owns the
+    // whole area above the keyboard, which is what a bottom-anchored input (the grocery add row)
+    // wants anyway.
+    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    var barBlockHeight by remember { mutableStateOf(0.dp) }
+    val barInset by
+        animateDpAsState(if (imeVisible) 0.dp else barBlockHeight, label = "bottomNavBarInset")
+
+    Box(modifier = modifier.fillMaxSize()) {
+        // No Scaffold here: the tab content fills the screen so it can be seen through the glass,
+        // and the bar floats over it. That means this Box has to supply the insets the Scaffold
+        // used to — no tab root applies a top inset of its own, so without this every screen would
+        // run under the status bar. windowInsetsPadding consumes what it applies, so nested
+        // consumers don't double-pad. The bottom is deliberately left unpadded; screens clear the
+        // bar through LocalBottomNavBarInset instead.
+        CompositionLocalProvider(
+            LocalAppBackdrop provides backdrop,
+            LocalBottomNavBarInset provides barInset,
+        ) {
+            content(
+                Modifier.fillMaxSize()
+                    .appBackdropSource(backdrop)
+                    .windowInsetsPadding(
+                        WindowInsets.systemBars.only(
+                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                        )
+                    )
+                    .imePadding()
+            )
+        }
+        AnimatedVisibility(
+            visible = !imeVisible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+        ) {
+            PlusBottomBar(
+                state = state.value,
+                backdrop = backdrop,
+                onClick = bloc::onTabSelected,
+                onBlockHeightChanged = { barBlockHeight = it },
+            )
+        }
     }
 }
 
@@ -178,23 +243,60 @@ private fun BottomNavContentContainer(bloc: BottomNavBloc, modifier: Modifier = 
     }
 }
 
+/**
+ * The floating navigation pill: a translucent, blurred capsule inset from the screen edges with the
+ * tab content scrolling behind it.
+ *
+ * [backdrop] is the content it blurs; `null` renders the flat fallback tint (screenshot tests and
+ * previews, where the platform has no blur pipeline). [onBlockHeightChanged] reports the height of
+ * the bar *plus* its bottom margin, which is what screens need to clear via
+ * [LocalBottomNavBarInset].
+ */
 @Composable
-private fun PlusBottomBar(state: BottomNavBloc.Model, onClick: (BottomNavBloc.Tab) -> Unit) {
-    // Report the bar height so the global toast host floats snackbars above it instead of covering
-    // it. See LocalBottomNavInset / ToastScaffold.
-    BottomAppBar(modifier = Modifier.fillMaxWidth().reportBottomNavInset()) {
-        state.tabs.forEach { tab ->
-            NavigationBarItem(
-                selected = tab == state.selectedTab,
-                onClick = { onClick(tab) },
-                label = {
-                    Text(
-                        stringResource(tab.getLabel()),
-                        color = ChefMateTheme.colorScheme.onSurface,
-                    )
-                },
-                icon = { TabIcon(tab = tab, notificationCount = state.notificationCount) },
-            )
+private fun PlusBottomBar(
+    state: BottomNavBloc.Model,
+    backdrop: AppBackdrop?,
+    onClick: (BottomNavBloc.Tab) -> Unit,
+    modifier: Modifier = Modifier,
+    onBlockHeightChanged: (Dp) -> Unit = {},
+) {
+    val density = LocalDensity.current
+    val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+    // Clamp rather than add: stacking a 12dp gap on top of a 34pt iPhone home indicator or a 48dp
+    // Android three-button bar leaves the pill stranded halfway up the screen. Sitting directly on
+    // top of the system affordance is what reads as "floating".
+    val bottomMargin = maxOf(navigationBarInset, GlassDefaults.minEdgeGap)
+
+    GlassSurface(
+        backdrop = backdrop,
+        modifier =
+            modifier
+                // Both of these must come BEFORE the padding: onSizeChanged reports the node as
+                // measured at its position in the chain, and what consumers need is the full block
+                // — bar plus margin, i.e. the distance from the bottom of the screen. ToastScaffold
+                // in particular takes maxOf(bottomNavInset, navigationBars) on the assumption that
+                // the reported height spans the system inset.
+                .reportBottomNavInset()
+                .onSizeChanged { onBlockHeightChanged(with(density) { it.height.toDp() }) }
+                .padding(
+                    start = ChefMateTheme.dimens.paddingNormal,
+                    end = ChefMateTheme.dimens.paddingNormal,
+                    bottom = bottomMargin,
+                ),
+    ) {
+        ShortNavigationBar(
+            containerColor = Color.Transparent,
+            contentColor = ChefMateTheme.colorScheme.onSurface,
+            windowInsets = WindowInsets(0, 0, 0, 0),
+        ) {
+            state.tabs.forEach { tab ->
+                ShortNavigationBarItem(
+                    selected = tab == state.selectedTab,
+                    onClick = { onClick(tab) },
+                    icon = { TabIcon(tab = tab, notificationCount = state.notificationCount) },
+                    label = { Text(stringResource(tab.getLabel())) },
+                )
+            }
         }
     }
 }
@@ -203,10 +305,18 @@ private fun PlusBottomBar(state: BottomNavBloc.Model, onClick: (BottomNavBloc.Ta
  * Renders just the bottom navigation bar for screenshot tests, with [notificationCount] driving the
  * More-tab badge. Not used in production — the app always renders the bar through
  * [BottomNavigationScreen].
+ *
+ * The backdrop is `null` here: layoutlib has no blur pipeline, so the bar renders its flat fallback
+ * tint. Everything else — shape, margins, border, item layout — is identical to production, so the
+ * goldens still catch layout regressions.
  */
 @Composable
 fun BottomNavBarPreview(notificationCount: Int) {
-    PlusBottomBar(state = BottomNavBloc.Model(notificationCount = notificationCount), onClick = {})
+    PlusBottomBar(
+        state = BottomNavBloc.Model(notificationCount = notificationCount),
+        backdrop = null,
+        onClick = {},
+    )
 }
 
 /**

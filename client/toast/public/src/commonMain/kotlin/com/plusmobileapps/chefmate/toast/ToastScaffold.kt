@@ -48,9 +48,10 @@ fun ToastScaffold(
     // Animate so FABs/toolbars glide up and back rather than jumping as snackbars come and go.
     val inset by animateDpAsState(hostHeight, label = "snackbarInset")
     // Lift the snackbar over the bottom nav bar when one is showing; otherwise fall back to the
-    // system navigation-bar inset so the host never renders under it. A present bottom bar already
-    // absorbs that inset (its height spans it), so take the larger of the two to avoid double
-    // counting. Animated so it glides as bars/screens come and go.
+    // system navigation-bar inset so the host never renders under it. The nav bar reports the whole
+    // block it occupies — the floating pill plus the margin below it, i.e. the distance up from the
+    // bottom of the screen — so that figure already spans the system inset. Take the larger of the
+    // two to avoid double counting. Animated so it glides as bars/screens come and go.
     val navBarInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
     val bottomBarInset by
         animateDpAsState(maxOf(bottomNavInset.value, navBarInset), label = "bottomNavInset")
