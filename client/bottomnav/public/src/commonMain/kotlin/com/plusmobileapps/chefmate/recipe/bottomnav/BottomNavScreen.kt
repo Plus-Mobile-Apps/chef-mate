@@ -31,6 +31,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.ShortNavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -295,6 +296,13 @@ private fun PlusBottomBar(
                     onClick = { onClick(tab) },
                     icon = { TabIcon(tab = tab, notificationCount = state.notificationCount) },
                     label = { Text(stringResource(tab.getLabel())) },
+                    // Material defaults the selected label to `secondary`, which in this theme is
+                    // teal200 — near-invisible on the light pill. Match the selected icon's
+                    // treatment instead and let the indicator carry the selection.
+                    colors =
+                        ShortNavigationBarItemDefaults.colors(
+                            selectedTextColor = ChefMateTheme.colorScheme.onSurface
+                        ),
                 )
             }
         }
