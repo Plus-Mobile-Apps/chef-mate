@@ -1,18 +1,20 @@
 // Supabase Edge Function: send-invite-email
 //
-// Emails a collaboration invitee when they're invited to a shared grocery list or recipe book.
-// Invites are plain INSERTs into `grocery_list_members` / `recipe_book_members` with
-// status='pending', done directly by every client (iOS/Android/Desktop/Web). A database trigger
-// (see supabase/migrations/20260707_invite_email_notification.sql) fires `pg_net` at this function
-// on each new pending invite, so the notification is client-agnostic and needs no app-side code.
+// Emails a collaboration invitee when they're invited to a shared grocery list, recipe book, or
+// family. Invites are plain INSERTs into `grocery_list_members` / `recipe_book_members` /
+// `family_members` with status='pending', done directly by every client (iOS/Android/Desktop/Web).
+// A database trigger (see supabase/migrations/20260707_invite_email_notification.sql, extended for
+// families by 20260813_add_families.sql) fires `pg_net` at this function on each new pending
+// invite, so the notification is client-agnostic and needs no app-side code.
 //
 // Auth: callers must present `Authorization: Bearer <INVITE_HOOK_SECRET>`. Only the DB trigger
 // should reach this — it must NOT be invokable with an ordinary user JWT. Set INVITE_HOOK_SECRET
 // to a long random value and store the same value in Vault for the trigger (see the migration).
 //
 // Body (sent by the trigger):
-//   { kind: "grocery" | "recipe_book", memberId, parentId, invitedEmail, invitedBy, role }
-// `invitedBy` is only present for grocery invites; recipe-book invites fall back to the book owner.
+//   { kind: "grocery" | "recipe_book" | "family", memberId, parentId, invitedEmail, invitedBy, role }
+// `invitedBy` is present for grocery and family invites; recipe-book invites fall back to the book
+// owner.
 //
 // Deploy:  supabase functions deploy send-invite-email
 // Secrets: supabase secrets set RESEND_API_KEY=<key> INVITE_HOOK_SECRET=<random>
@@ -31,14 +33,24 @@ const corsHeaders = {
 const DEFAULT_FROM = "Chef Mate <noreply@plusmobileapps.com>";
 const DEFAULT_APP_URL = "https://chefmate.plusmobileapps.com";
 
+type InviteKind = "grocery" | "recipe_book" | "family";
+
 interface InvitePayload {
-  kind: "grocery" | "recipe_book";
+  kind: InviteKind;
   memberId: string;
   parentId: string;
   invitedEmail: string;
   invitedBy?: string | null;
   role?: string | null;
 }
+
+// Per-kind copy and the parent table to resolve the name/owner from. All three parents expose
+// `name` and `owner_id`, so one lookup shape covers them.
+const KINDS: Record<InviteKind, { table: string; label: string; fallbackName: string }> = {
+  grocery: { table: "grocery_lists", label: "grocery list", fallbackName: "a grocery list" },
+  recipe_book: { table: "recipe_books", label: "recipe book", fallbackName: "a recipe book" },
+  family: { table: "families", label: "family", fallbackName: "a family" },
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -65,24 +77,31 @@ Deno.serve(async (req) => {
       return json({ error: "Missing kind, parentId, or invitedEmail" }, 400);
     }
 
+    const kind = KINDS[payload.kind];
+    if (!kind) {
+      return json({ error: `Unknown kind: ${payload.kind}` }, 400);
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve the parent list/book: its display name and owner (the inviter fallback).
-    const table = payload.kind === "grocery" ? "grocery_lists" : "recipe_books";
+    // Resolve the parent list/book/family: its display name and owner (the inviter fallback).
     const { data: parent, error: parentError } = await admin
-      .from(table)
+      .from(kind.table)
       .select("name, owner_id")
       .eq("id", payload.parentId)
       .single();
 
     if (parentError || !parent) {
-      return json({ error: `Could not load ${table}: ${parentError?.message ?? "not found"}` }, 404);
+      return json(
+        { error: `Could not load ${kind.table}: ${parentError?.message ?? "not found"}` },
+        404,
+      );
     }
 
-    const listName = (parent.name as string) || (payload.kind === "grocery" ? "a grocery list" : "a recipe book");
-    const kindLabel = payload.kind === "grocery" ? "grocery list" : "recipe book";
+    const listName = (parent.name as string) || kind.fallbackName;
+    const kindLabel = kind.label;
 
     // Inviter: `invited_by` when present (grocery), else the parent owner (recipe books).
     const inviterId = payload.invitedBy ?? (parent.owner_id as string | null);
