@@ -137,6 +137,12 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.bugsnag.kmp)
             implementation(libs.kermit.bugsnag)
+            // AGP pins the androidTest classpath to whatever the app runtime resolved
+            // ("consistent resolution"), as a `strictly` constraint. The app otherwise settles on
+            // concurrent-futures 1.1.0 (via activity -> profileinstaller) while androidx.test:core
+            // 1.7.0 pulls concurrent-futures-ktx 1.2.0, which needs 1.2.0 — leaving
+            // :connectedDebugAndroidTest unresolvable. Raise the app side so both agree.
+            implementation(libs.androidx.concurrent.futures)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
