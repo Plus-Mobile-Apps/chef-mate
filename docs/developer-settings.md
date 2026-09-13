@@ -14,6 +14,8 @@ A debug-only screen reachable from the bottom of the **More** tab that lets you 
 
 The Supabase URL/key for **TESTING** is read at build time. PROD already has its values (see [buildconfig-setup.md](buildconfig-setup.md) for the existing `supabase.url` / `supabase.key`). FAKE re-uses PROD.
 
+> **Recommended TESTING backend:** a **local Supabase stack** (Docker) rather than a hosted staging project — it's free, isolated from prod, and works offline. See [supabase-local-development.md](supabase-local-development.md) for the full setup, including per-platform networking (`localhost` vs `10.0.2.2`) and seeded test users. The values below apply to either a local stack or a hosted staging project.
+
 ### `local.properties`
 
 ```properties
