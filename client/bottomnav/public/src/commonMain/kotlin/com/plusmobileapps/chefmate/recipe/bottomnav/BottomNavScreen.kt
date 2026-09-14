@@ -3,22 +3,34 @@
 package com.plusmobileapps.chefmate.recipe.bottomnav
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -35,18 +47,24 @@ import androidx.compose.material3.ShortNavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import chefmate.client.bottomnav.public.generated.resources.Res
 import chefmate.client.bottomnav.public.generated.resources.tab_browser
@@ -80,6 +98,7 @@ import com.plusmobileapps.chefmate.ui.components.glass.rememberAppBackdrop
 import com.plusmobileapps.chefmate.ui.components.reportBottomNavInset
 import com.plusmobileapps.chefmate.ui.fadeScalePredictiveBackAnimatable
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
+import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -285,28 +304,154 @@ private fun PlusBottomBar(
                     bottom = bottomMargin,
                 ),
     ) {
-        ShortNavigationBar(
-            containerColor = Color.Transparent,
-            contentColor = ChefMateTheme.colorScheme.onSurface,
-            windowInsets = WindowInsets(0, 0, 0, 0),
-        ) {
-            state.tabs.forEach { tab ->
-                ShortNavigationBarItem(
-                    selected = tab == state.selectedTab,
-                    onClick = { onClick(tab) },
-                    icon = { TabIcon(tab = tab, notificationCount = state.notificationCount) },
-                    label = { Text(stringResource(tab.getLabel())) },
-                    // Material defaults the selected label to `secondary`, which in this theme is
-                    // teal200 — near-invisible on the light pill. Match the selected icon's
-                    // treatment instead and let the indicator carry the selection.
-                    colors =
-                        ShortNavigationBarItemDefaults.colors(
-                            selectedTextColor = ChefMateTheme.colorScheme.onSurface
-                        ),
-                )
+        val tabCount = state.tabs.size.coerceAtLeast(1)
+        val selectedIndex = state.tabs.indexOf(state.selectedTab).coerceAtLeast(0)
+
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            // ShortNavigationBar lays its items out with equal weight, so a cell is just an even
+            // slice of the bar and the lens can be positioned arithmetically.
+            val cellWidth = maxWidth / tabCount
+            val cellWidthPx = with(density) { cellWidth.toPx() }
+            // Two sources for the lens position, and only ever one of them is live: `settle`
+            // animates it onto a cell, `dragOffset` tracks a finger. The drag must not go through
+            // the Animatable — every delta would have to launch a coroutine, and Animatable's
+            // mutator mutex cancels whichever of those is still in flight, so deltas get dropped
+            // and the lens lands on the wrong tab.
+            val settle = remember { Animatable(selectedIndex * cellWidthPx) }
+            var dragging by remember { mutableStateOf(false) }
+            var dragOffset by remember { mutableFloatStateOf(settle.value) }
+            val lensX = if (dragging) dragOffset else settle.value
+            val maxOffset = (tabCount - 1) * cellWidthPx
+
+            // Settle onto the selected cell whenever the selection or the geometry changes — a tap,
+            // a deep link, a tab reorder, a rotation — but never while a finger is on the lens.
+            LaunchedEffect(selectedIndex, cellWidthPx, dragging) {
+                if (!dragging) {
+                    settle.animateTo(
+                        targetValue = selectedIndex * cellWidthPx,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    )
+                }
+            }
+
+            val dragState = rememberDraggableState { delta ->
+                dragOffset = (dragOffset + delta).coerceIn(0f, maxOffset)
+                // Commit as the lens crosses into a cell rather than on release, so the screen
+                // behind it changes under your finger the way the iOS tab bar does.
+                val nearest = (dragOffset / cellWidthPx).roundToInt().coerceIn(0, tabCount - 1)
+                state.tabs.getOrNull(nearest)?.let { if (it != state.selectedTab) onClick(it) }
+            }
+
+            Box(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .draggable(
+                            state = dragState,
+                            orientation = Orientation.Horizontal,
+                            onDragStarted = {
+                                dragOffset = settle.value
+                                dragging = true
+                            },
+                            onDragStopped = {
+                                // Hand the position back before switching source, so the lens
+                                // doesn't jump on release; the effect above springs it home.
+                                settle.snapTo(dragOffset)
+                                dragging = false
+                            },
+                        )
+            ) {
+                // Declared first so it draws beneath the icons and labels, and sized with
+                // matchParentSize so the bar below still decides the height.
+                Box(modifier = Modifier.matchParentSize()) {
+                    SelectionLens(
+                        modifier =
+                            Modifier.offset { IntOffset(lensX.roundToInt(), 0) }
+                                .width(cellWidth)
+                                .fillMaxHeight()
+                                .padding(
+                                    horizontal = LensHorizontalInset,
+                                    vertical = LensVerticalInset,
+                                )
+                    )
+                }
+
+                ShortNavigationBar(
+                    containerColor = Color.Transparent,
+                    contentColor = ChefMateTheme.colorScheme.onSurface,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                ) {
+                    state.tabs.forEach { tab ->
+                        ShortNavigationBarItem(
+                            selected = tab == state.selectedTab,
+                            onClick = { onClick(tab) },
+                            icon = {
+                                TabIcon(tab = tab, notificationCount = state.notificationCount)
+                            },
+                            label = { Text(stringResource(tab.getLabel())) },
+                            colors =
+                                ShortNavigationBarItemDefaults.colors(
+                                    // Material defaults the selected label to `secondary`, which in
+                                    // this theme is teal200 — near-invisible on the light pill.
+                                    // Match the selected icon's treatment instead.
+                                    selectedTextColor = ChefMateTheme.colorScheme.onSurface,
+                                    // The lens is the indicator now, and it is one object that
+                                    // travels rather than a per-item pill that cross-fades.
+                                    selectedIndicatorColor = Color.Transparent,
+                                ),
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+private val LensHorizontalInset = 6.dp
+private val LensVerticalInset = 8.dp
+
+/**
+ * The draggable selection lens: a brighter piece of glass sitting on the bar, marking the active
+ * tab. It replaces Material's per-item indicator so that selection reads as one object moving along
+ * the bar — and so it can be dragged between tabs.
+ */
+@Composable
+private fun SelectionLens(modifier: Modifier = Modifier) {
+    val colorScheme = ChefMateTheme.colorScheme
+    val isDark = colorScheme.surface.luminance() < 0.5f
+    Box(
+        modifier =
+            modifier
+                .clip(GlassDefaults.shape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colorScheme.secondaryContainer.copy(
+                                alpha = if (isDark) 0.55f else 0.80f
+                            ),
+                            colorScheme.secondaryContainer.copy(
+                                alpha = if (isDark) 0.32f else 0.55f
+                            ),
+                        )
+                    )
+                )
+                // A bright top edge is what sells a piece of glass as raised rather than painted
+                // on.
+                .border(
+                    width = 1.dp,
+                    brush =
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = if (isDark) 0.28f else 0.60f),
+                                Color.White.copy(alpha = 0.04f),
+                            )
+                        ),
+                    shape = GlassDefaults.shape,
+                )
+    )
 }
 
 /**
