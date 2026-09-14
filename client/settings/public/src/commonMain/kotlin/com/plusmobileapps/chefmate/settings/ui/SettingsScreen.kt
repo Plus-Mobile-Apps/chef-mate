@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -59,6 +60,7 @@ import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -204,6 +206,9 @@ fun SettingsScreen(bloc: SettingsBloc, modifier: Modifier = Modifier) {
             }
             HorizontalDivider()
             VersionLabel(versionName = viewState.versionName)
+            // The floating nav pill overlaps the bottom of the screen; scroll the version label
+            // clear of it.
+            Spacer(modifier = Modifier.height(LocalBottomNavBarInset.current))
         },
     )
     Column(modifier = modifier.fillMaxSize()) {

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -198,6 +197,8 @@ import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.LocalRecipeWindowOpener
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalSnackbarInset
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuArea
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuItem
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
@@ -212,6 +213,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
+import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
 import com.plusmobileapps.chefmate.ui.text.toInlineMarkdownAnnotatedString
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import com.plusmobileapps.chefmate.util.rememberImagePickerLauncher
@@ -569,7 +571,13 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 CookingSessionFabStack(
                     onContinueClicked = bloc::onContinueCookingClicked,
                     onDoneCookingClicked = bloc::onDoneCookingClicked,
-                    modifier = Modifier.align(Alignment.BottomEnd),
+                    // Clear the floating nav pill, and ride up further so the app-wide cook-mode
+                    // toast never covers the FAB stack (matching MealPlanScreen).
+                    modifier =
+                        Modifier.align(Alignment.BottomEnd)
+                            .padding(
+                                bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                            ),
                 )
             }
 
@@ -1508,7 +1516,7 @@ private fun RecipeGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding =
-            PaddingValues(
+            bottomNavContentPadding(
                 start = 8.dp,
                 end = 8.dp,
                 top = 8.dp,
@@ -1636,7 +1644,7 @@ private fun RecipeList(
     LazyColumn(
         state = state,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(bottom = bottomContentPadding),
+        contentPadding = bottomNavContentPadding(bottom = bottomContentPadding),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
             val recipe = recipes[index]

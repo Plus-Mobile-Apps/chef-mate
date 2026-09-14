@@ -148,6 +148,7 @@ import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -401,6 +402,11 @@ fun GroceryListScreen(
                         },
                         onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
                         forceShowSuggestions = forceShowAutocompleteSuggestions,
+                        // The add row is anchored at the bottom of the screen, where the floating
+                        // nav pill now sits. It can't scroll under the pill like the list does, so
+                        // it takes real padding. The pill slides away with the keyboard, so this
+                        // animates to zero and the row lands directly on the keyboard.
+                        modifier = Modifier.padding(bottom = LocalBottomNavBarInset.current),
                     )
                 }
             },
