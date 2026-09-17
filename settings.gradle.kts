@@ -82,6 +82,8 @@ include(":client:family:data:public")
 
 include(":client:family:data:testing")
 
+include(":client:family:manage:public")
+
 include(":client:featureflag:impl")
 
 include(":client:featureflag:public")
