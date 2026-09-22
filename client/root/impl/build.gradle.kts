@@ -13,6 +13,7 @@ kotlin {
             implementation(projects.client.bottomnav.public)
             implementation(projects.client.browser.public)
             implementation(projects.client.cook.public)
+            implementation(projects.client.family.manage.public)
             implementation(projects.client.featureflag.public)
             implementation(projects.client.grocery.core.public)
             implementation(projects.client.notifications.public)
