@@ -40,6 +40,7 @@ class SettingsBlocImpl(
                 showSignOutConfirmationDialog = it.showSignOutConfirmationDialog,
                 isDebugBuild = isDebugBuild,
                 isAiChatEnabled = it.isAiChatEnabled,
+                isManageFamilyEnabled = it.isManageFamilyEnabled,
                 isSubscribed = it.isSubscribed,
                 showPremiumRequiredDialog = it.showPremiumRequiredDialog,
                 versionName = BuildConfig.VERSION_NAME,
@@ -72,6 +73,10 @@ class SettingsBlocImpl(
 
     override fun onNotificationsClicked() {
         output.onNext(Output.OpenNotifications)
+    }
+
+    override fun onManageFamilyClicked() {
+        output.onNext(Output.OpenManageFamily)
     }
 
     override fun onUrlClicked(url: String) {
