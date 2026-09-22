@@ -11,6 +11,7 @@ kotlin {
             api(projects.client.browser.public)
             api(projects.client.cook.public)
             api(projects.client.developerSettings.public)
+            api(projects.client.family.manage.public)
             api(projects.client.featureflag.public)
             api(projects.client.grocery.core.public)
             api(projects.client.notifications.public)
