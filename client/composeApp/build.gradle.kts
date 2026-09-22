@@ -182,6 +182,8 @@ kotlin {
             implementation(projects.client.profile.implRobots)
             implementation(projects.client.notifications.implRobots)
             implementation(projects.client.onboarding.implRobots)
+            implementation(projects.client.family.manage.implRobots)
+            implementation(projects.client.family.data.testing)
         }
         val jvmTest by getting {
             dependencies {
