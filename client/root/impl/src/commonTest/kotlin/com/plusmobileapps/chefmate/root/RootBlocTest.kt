@@ -12,6 +12,7 @@ import com.plusmobileapps.chefmate.auth.ui.otp.OtpBloc
 import com.plusmobileapps.chefmate.browser.BrowserRootBloc
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.di.OnboardingRepository
+import com.plusmobileapps.chefmate.family.manage.ManageFamilyRootBloc
 import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.notifications.NotificationsBloc
 import com.plusmobileapps.chefmate.onboarding.OnboardingRootBloc
@@ -46,6 +47,7 @@ class RootBlocTest {
     var notificationsOutput:
         Consumer<com.plusmobileapps.chefmate.notifications.NotificationsBloc.Output> =
         Consumer {}
+    var manageFamilyOutput: Consumer<ManageFamilyRootBloc.Output> = Consumer {}
     var developerSettingsOutput:
         Consumer<com.plusmobileapps.chefmate.devsettings.DeveloperSettingsBloc.Output> =
         Consumer {}
@@ -128,6 +130,10 @@ class RootBlocTest {
             },
             notifications = { _, output ->
                 notificationsOutput = output
+                mock()
+            },
+            manageFamilyRoot = { _, output ->
+                manageFamilyOutput = output
                 mock()
             },
             developerSettings = { _, output ->
@@ -340,6 +346,76 @@ class RootBlocTest {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenNotifications)
         rootBloc.instance() should instanceOf<RootBloc.Child.Notifications>()
         notificationsOutput.onNext(NotificationsBloc.Output.Back)
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_signed_in_When_bottom_nav_opens_manage_family_Then_it_is_shown_directly() {
+        authRepository.setAuthenticated()
+
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+    }
+
+    @Test
+    fun Given_signed_out_When_bottom_nav_opens_manage_family_Then_sign_in_is_shown_first() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.Authentication>()
+        authProps shouldBe AuthenticationBloc.Props.SignIn
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_auth_succeeds_Then_manage_family_is_shown() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        authOutput.onNext(AuthenticationBloc.Output.AuthenticationSuccess)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+        // The auth screen it came from is gone, so back returns to the More tab.
+        rootBloc.state.value.backStack.size shouldBe 1
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_otp_verified_Then_manage_family_is_shown() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+        authOutput.onNext(AuthenticationBloc.Output.EmailVerificationRequired("a@b.com"))
+
+        otpOutput.onNext(OtpBloc.Output.Verified)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_it_is_abandoned_Then_a_later_sign_in_stays_put() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+        authOutput.onNext(AuthenticationBloc.Output.Finished)
+
+        // An unrelated sign-in later must not strand the user on Manage Family.
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenSignIn)
+        authOutput.onNext(AuthenticationBloc.Output.AuthenticationSuccess)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_anonymous_user_When_bottom_nav_opens_manage_family_Then_sign_in_is_shown_first() {
+        // A guest has no account email, and family invites are addressed to one.
+        authRepository.setAnonymous()
+
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.Authentication>()
+    }
+
+    @Test
+    fun Given_manage_family_When_back_outputted_Then_bottom_nav_is_shown() {
+        authRepository.setAuthenticated()
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        manageFamilyOutput.onNext(ManageFamilyRootBloc.Output.Back)
+
         rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
     }
 

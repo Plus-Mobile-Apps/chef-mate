@@ -24,6 +24,7 @@ import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.devsettings.DeveloperSettingsBloc
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.OnboardingRepository
+import com.plusmobileapps.chefmate.family.manage.ManageFamilyRootBloc
 import com.plusmobileapps.chefmate.featureflag.FeatureFlags
 import com.plusmobileapps.chefmate.featureflag.FeatureFlagsBloc
 import com.plusmobileapps.chefmate.grocery.core.edit.EditGroceryListBloc
@@ -64,6 +65,7 @@ class RootBlocImpl(
     private val settingsRoot: SettingsRootBloc.Factory,
     private val manageProfile: ManageProfileBloc.Factory,
     private val notifications: NotificationsBloc.Factory,
+    private val manageFamilyRoot: ManageFamilyRootBloc.Factory,
     private val developerSettings: DeveloperSettingsBloc.Factory,
     private val cookMode: CookModeBloc.Factory,
     private val featureFlags: FeatureFlags,
@@ -308,6 +310,15 @@ class RootBlocImpl(
                         )
                 )
 
+            Configuration.ManageFamily ->
+                RootBloc.Child.ManageFamily(
+                    bloc =
+                        manageFamilyRoot.create(
+                            context = context,
+                            output = ::handleManageFamilyOutput,
+                        )
+                )
+
             Configuration.DeveloperSettings ->
                 RootBloc.Child.DeveloperSettings(
                     bloc =
@@ -386,6 +397,29 @@ class RootBlocImpl(
         (authenticationRepository.state.value as? AuthState.Authenticated)?.user?.isAnonymous ==
             false
 
+    /**
+     * Where to go once the user finishes signing in, for destinations that need a real account. Set
+     * by [openWhenSignedIn] and consumed by [finishAuthentication]; cleared if the auth flow is
+     * abandoned so a later, unrelated sign-in doesn't strand the user somewhere they didn't ask
+     * for.
+     */
+    private var destinationAfterAuth: Configuration? = null
+
+    /**
+     * Opens [configuration] for a signed-in user, or sends them through sign-in first and lands
+     * them there once it succeeds. An anonymous session counts as signed out: family membership is
+     * keyed on an account email, which a guest doesn't have.
+     */
+    private fun openWhenSignedIn(configuration: Configuration) {
+        if (isSignedIn()) {
+            destinationAfterAuth = null
+            navigation.bringToFront(configuration)
+        } else {
+            destinationAfterAuth = configuration
+            navigation.bringToFront(Configuration.Authentication(AuthenticationBloc.Props.SignIn))
+        }
+    }
+
     private fun handleOnboardingOutput(output: OnboardingRootBloc.Output) {
         when (output) {
             // Onboarding marks itself completed; swap the whole stack for the main app so back
@@ -454,6 +488,10 @@ class RootBlocImpl(
 
             BottomNavBloc.Output.OpenNotifications -> {
                 navigation.bringToFront(Configuration.Notifications)
+            }
+
+            BottomNavBloc.Output.OpenManageFamily -> {
+                openWhenSignedIn(Configuration.ManageFamily)
             }
 
             BottomNavBloc.Output.OpenAppSettings -> {
@@ -561,6 +599,12 @@ class RootBlocImpl(
         }
     }
 
+    private fun handleManageFamilyOutput(output: ManageFamilyRootBloc.Output) {
+        when (output) {
+            ManageFamilyRootBloc.Output.Back -> navigation.pop()
+        }
+    }
+
     private fun handleDeveloperSettingsOutput(output: DeveloperSettingsBloc.Output) {
         when (output) {
             DeveloperSettingsBloc.Output.Back -> navigation.pop()
@@ -665,7 +709,11 @@ class RootBlocImpl(
 
     private fun handleAuthenticationOutput(output: AuthenticationBloc.Output) {
         when (output) {
-            AuthenticationBloc.Output.Finished -> navigation.pop()
+            AuthenticationBloc.Output.Finished -> {
+                // Backing out of sign-in abandons whatever it was gating.
+                destinationAfterAuth = null
+                navigation.pop()
+            }
             AuthenticationBloc.Output.AuthenticationSuccess -> finishAuthentication()
             is AuthenticationBloc.Output.EmailVerificationRequired ->
                 navigation.bringToFront(
@@ -693,7 +741,10 @@ class RootBlocImpl(
             // the
             // user in the same place a password sign-in does — not on top of the auth stack.
             OtpBloc.Output.Verified -> finishAuthentication()
-            OtpBloc.Output.Cancelled -> navigation.pop()
+            OtpBloc.Output.Cancelled -> {
+                destinationAfterAuth = null
+                navigation.pop()
+            }
         }
     }
 
@@ -708,6 +759,8 @@ class RootBlocImpl(
      *   preserving whatever the user was doing underneath (e.g. a deep-linked recipe).
      */
     private fun finishAuthentication() {
+        val destination = destinationAfterAuth
+        destinationAfterAuth = null
         val cameFromOnboarding = stack.value.items.any { it.instance is RootBloc.Child.Onboarding }
         if (cameFromOnboarding) {
             onboardingRepository.setOnboardingCompleted()
@@ -717,6 +770,9 @@ class RootBlocImpl(
                 it is Configuration.Authentication || it is Configuration.OtpVerification
             }
         }
+        // A screen the user asked for before they were signed in (Manage Family today) opens now
+        // that they are, on top of whatever the auth flow was covering.
+        destination?.let { navigation.bringToFront(it) }
     }
 
     @Serializable
@@ -750,6 +806,8 @@ class RootBlocImpl(
         @Serializable data object ManageProfile : Configuration()
 
         @Serializable data object Notifications : Configuration()
+
+        @Serializable data object ManageFamily : Configuration()
 
         @Serializable data object DeveloperSettings : Configuration()
 
