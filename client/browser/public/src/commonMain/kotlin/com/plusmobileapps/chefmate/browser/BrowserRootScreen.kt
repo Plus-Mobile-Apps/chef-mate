@@ -10,16 +10,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
 
 @Composable
 fun BrowserRootScreen(bloc: BrowserRootBloc, modifier: Modifier = Modifier) {
     val childStack by bloc.routerState.subscribeAsState()
 
-    SharedTransitionLayout(modifier = modifier) {
+    // The browser tab is the one tab that can't scroll under the floating nav pill: the page is a
+    // platform WebView — an interop view drawn outside Compose's draw pass — so it can neither take
+    // a content inset nor be captured as a backdrop to blur. Inset the whole tab instead, which
+    // also keeps the address bar and the Download row clear.
+    SharedTransitionLayout(modifier = modifier.padding(bottom = LocalBottomNavBarInset.current)) {
         AnimatedContent(
             targetState = childStack.active.instance,
             transitionSpec = {

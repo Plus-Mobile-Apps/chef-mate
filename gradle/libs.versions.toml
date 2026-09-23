@@ -5,6 +5,7 @@ android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.11.0"
 androidx-appcompat = "1.7.1"
+androidx-concurrent = "1.2.0"
 androidx-core = "1.17.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.9.5"
@@ -23,6 +24,7 @@ coroutines = "1.10.2"
 kermit = "2.1.0"
 decompose = "3.4.0"
 essenty = "2.5.0"
+haze = "2.0.0-alpha03"
 junit = "4.13.2"
 mokkery = "3.3.0"
 napier = "2.7.1"
@@ -66,6 +68,7 @@ androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "an
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 androidx-annotation = "androidx.annotation:annotation:1.9.1"
+androidx-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version.ref = "androidx-concurrent" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
@@ -86,6 +89,8 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 essenty-lifecycle = { group = "com.arkivanov.essenty", name = "lifecycle", version.ref = "essenty" }
 essenty-backhandler = { group = "com.arkivanov.essenty", name = "back-handler", version.ref = "essenty" }
 essenty-lifecycle-coroutines = {group = "com.arkivanov.essenty", name = "lifecycle-coroutines", version.ref = "essenty" }
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kermit" }
 kotest-assertions = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }
