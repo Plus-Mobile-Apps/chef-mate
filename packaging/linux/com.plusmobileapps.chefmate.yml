@@ -1,0 +1,79 @@
+# Flatpak manifest for Chef Mate (Linux desktop).
+#
+# This is the file that gets submitted to https://github.com/flathub/flathub — it lives here so it
+# can be reviewed and version-bumped alongside the app. See README.md in this directory for the
+# build/test/submit workflow.
+#
+# The module consumes the jpackage app image tarball published by the Desktop Release workflow
+# (`chef-mate-<version>-linux-x86_64.tar.gz` on the GitHub Release). That tarball already contains a
+# jlink'd JRE, so the flatpak needs no JDK extension — see README.md for why this isn't built from
+# source.
+id: com.plusmobileapps.chefmate
+
+# GNOME rather than Freedesktop: JavaFX (used by the in-app recipe browser's WebView) links against
+# GTK 3, which org.freedesktop.Platform does not ship.
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+
+command: chef-mate
+
+finish-args:
+  - --share=ipc
+  # Plain x11, not fallback-x11: Compose Desktop renders through AWT/Skiko and JavaFX renders
+  # through GTK, and neither has a Wayland backend — both need XWayland even in a Wayland session.
+  - --socket=x11
+  - --device=dri
+  # Supabase sync, AI chat, and the in-app recipe browser.
+  - --share=network
+  # The file pickers are java.awt.FileDialog (ImagePickerUtil / ZipPickerUtil / ZipSaveUtil), which
+  # browses the sandbox filesystem directly instead of going through the portal, so the user-facing
+  # directories have to be mounted for import/export to work at all.
+  - --filesystem=xdg-pictures
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+
+modules:
+  - name: chef-mate
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/chef-mate
+      - cp -r chefmate/app/. /app/chef-mate/
+      - chmod +x /app/chef-mate/bin/chef-mate
+      - install -Dm755 chef-mate.sh /app/bin/chef-mate
+      - install -Dm644 com.plusmobileapps.chefmate.desktop -t /app/share/applications
+      - install -Dm644 com.plusmobileapps.chefmate.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 chefmate/icons/64.png
+        /app/share/icons/hicolor/64x64/apps/com.plusmobileapps.chefmate.png
+      - install -Dm644 chefmate/icons/128.png
+        /app/share/icons/hicolor/128x128/apps/com.plusmobileapps.chefmate.png
+      - install -Dm644 chefmate/icons/256.png
+        /app/share/icons/hicolor/256x256/apps/com.plusmobileapps.chefmate.png
+      - install -Dm644 chefmate/icons/512.png
+        /app/share/icons/hicolor/512x512/apps/com.plusmobileapps.chefmate.png
+      - install -Dm644 chefmate/LICENSE
+        /app/share/licenses/com.plusmobileapps.chefmate/LICENSE
+    sources:
+      - type: archive
+        url: https://github.com/Plus-Mobile-Apps/chef-mate/releases/download/v1.9.40/chef-mate-1.9.40-linux-x86_64.tar.gz
+        # Replace on every release — `sha256sum` of the uploaded tarball.
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        # The tarball root is `chef-mate-<version>/`; strip it so the paths below are stable
+        # across releases.
+        strip-components: 1
+        dest: chefmate
+        only-arches:
+          - x86_64
+        # Lets Flathub's external-data-checker open the version-bump PR automatically when a new
+        # GitHub Release lands, instead of hand-editing the url/sha256 above.
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/Plus-Mobile-Apps/chef-mate/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .assets[] | select(.name | endswith("-linux-x86_64.tar.gz")) | .browser_download_url
+      - type: file
+        path: chef-mate.sh
+      - type: file
+        path: com.plusmobileapps.chefmate.desktop
+      - type: file
+        path: com.plusmobileapps.chefmate.metainfo.xml

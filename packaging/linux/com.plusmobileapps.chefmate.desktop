@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Chef Mate
+GenericName=Recipe Manager
+Comment=Save, organize, and cook your recipes with an AI kitchen assistant
+Exec=chef-mate %u
+Icon=com.plusmobileapps.chefmate
+Terminal=false
+Categories=Utility;
+Keywords=recipe;cooking;kitchen;food;meal;grocery;
+StartupNotify=true
+StartupWMClass=com.plusmobileapps.chefmate
+MimeType=x-scheme-handler/chefmate;

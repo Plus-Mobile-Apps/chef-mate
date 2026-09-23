@@ -205,6 +205,8 @@ GitHub always serves `releases/latest/download/<asset>` from the newest non-prer
 
 This is a *signed-installer* model (download + run the new signed package), **not** in-place jar patching.
 
+It is also a no-op in the Flathub build (`isRunningInFlatpak`), where Flatpak owns updates and the sandbox is read-only. See [Linux: Flathub](#linux-flathub).
+
 **`latest.json` shape:**
 
 ```json
@@ -216,6 +218,23 @@ This is a *signed-installer* model (download + run the new signed package), **no
   }
 }
 ```
+
+---
+
+## Linux: Flathub
+
+Linux ships two ways: the `.deb` on the GitHub Release (self-updating via the feed above), and a
+Flatpak on Flathub.
+
+The Flatpak manifest and its AppStream/desktop metadata live in [`packaging/linux/`](../packaging/linux/README.md),
+which is also the runbook for building, linting, submitting, and maintaining it. In short:
+
+- App id `com.plusmobileapps.chefmate`, runtime `org.gnome.Platform//50` (GTK 3 is needed by JavaFX).
+- The manifest consumes `chef-mate-<version>-linux-x86_64.tar.gz` — the jpackage app image, bundled
+  jlink runtime included — which the `Desktop Release` workflow builds and attaches to the release.
+  It is **not** built from source on Flathub infrastructure; the reasons are in the packaging README.
+- Once submitted, Flathub's external-data-checker opens the version-bump PR when a new release
+  publishes a matching tarball. Nothing in this repo pushes to Flathub.
 
 ---
 

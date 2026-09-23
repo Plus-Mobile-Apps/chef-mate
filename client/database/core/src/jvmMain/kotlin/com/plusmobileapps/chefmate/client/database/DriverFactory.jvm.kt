@@ -50,7 +50,16 @@ actual class DriverFactory {
         return when {
             os.contains("mac") -> File(userHome, "Library/Application Support/Chef Mate")
             os.contains("win") -> File(System.getenv("APPDATA") ?: userHome, "Chef Mate")
-            else -> File(userHome, ".local/share/chef-mate") // Linux
+            // Linux: honor XDG_DATA_HOME, falling back to its spec default of ~/.local/share.
+            // Outside a sandbox the two are the same path, but the Flatpak build has no access to
+            // the real ~/.local/share — Flatpak points XDG_DATA_HOME at the app's private
+            // ~/.var/app/<id>/data instead, and writing the hardcoded path there fails.
+            else -> {
+                val dataHome =
+                    System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }
+                        ?: File(userHome, ".local/share").path
+                File(dataHome, "chef-mate")
+            }
         }
     }
 }

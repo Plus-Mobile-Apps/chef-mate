@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.deeplink
 
 import co.touchlab.kermit.Logger
 import com.plusmobileapps.chefmate.ChefMateUrls
+import com.plusmobileapps.chefmate.platform.isRunningInFlatpak
 import java.io.File
 
 /**
@@ -25,6 +26,11 @@ object SchemeRegistrar {
      * `--args` instead).
      */
     fun registerIfPackaged() {
+        // The Flathub build declares x-scheme-handler/chefmate in its exported .desktop file, so
+        // the sandbox already routes the scheme. Self-registering there would only write a handler
+        // inside the sandbox pointing at the sandbox-internal launcher path, which the host session
+        // can neither see nor run.
+        if (isRunningInFlatpak) return
         val launcher = launcherPath() ?: return
         runCatching {
             when (desktopOs()) {

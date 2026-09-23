@@ -50,6 +50,13 @@ private const val KEY_WINDOW_PLACEMENT = "window.placement"
 
 @OptIn(ExperimentalTime::class, FlowPreview::class)
 fun main(args: Array<String>) {
+    // X11 derives a window's WM_CLASS from the main class name unless this is set, which would make
+    // it `com-plusmobileapps-chefmate-MainKt`. Desktop shells match a running window to its
+    // launcher by comparing WM_CLASS against the .desktop file's StartupWMClass, so pin it to the
+    // app id the Linux .desktop files declare — otherwise the window shows up as a second,
+    // unnamed entry in the dock instead of the Chef Mate icon. Must run before AWT initializes.
+    System.setProperty("sun.awt.X11.XToolkit.awtAppClassName", "com.plusmobileapps.chefmate")
+
     // Windows/Linux spawn a fresh process for every `chefmate://…` open. If another instance is
     // already running, forward this launch's link to it and exit without opening a second window.
     if (!SingleInstance.acquireOrForward(args)) return
