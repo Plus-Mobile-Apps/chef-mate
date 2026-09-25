@@ -93,6 +93,8 @@ kotlin {
             api(projects.client.featureflag.impl)
             api(projects.client.featureflag.public)
             api(projects.client.family.data.impl)
+            api(projects.client.family.manage.impl)
+            api(projects.client.family.manage.public)
             api(projects.client.grocery.autocomplete.impl)
             api(projects.client.grocery.autocomplete.public)
             api(projects.client.grocery.categoryRules.impl)
@@ -180,6 +182,8 @@ kotlin {
             implementation(projects.client.profile.implRobots)
             implementation(projects.client.notifications.implRobots)
             implementation(projects.client.onboarding.implRobots)
+            implementation(projects.client.family.manage.implRobots)
+            implementation(projects.client.family.data.testing)
         }
         val jvmTest by getting {
             dependencies {

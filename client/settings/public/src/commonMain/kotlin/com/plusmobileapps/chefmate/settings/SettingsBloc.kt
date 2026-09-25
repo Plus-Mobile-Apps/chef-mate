@@ -31,6 +31,8 @@ interface SettingsBloc : ComposeScreen {
 
     fun onNotificationsClicked()
 
+    fun onManageFamilyClicked()
+
     fun onUrlClicked(url: String)
 
     fun onAppSettingsClicked()
@@ -63,6 +65,11 @@ interface SettingsBloc : ComposeScreen {
         val isDebugBuild: Boolean = false,
         val isAiChatEnabled: Boolean = false,
         /**
+         * Manage Family is behind a flag and shown in every auth state: a signed-out user still
+         * sees the row, and tapping it routes them through sign-in first.
+         */
+        val isManageFamilyEnabled: Boolean = false,
+        /**
          * ChefMate Premium entitlement. Unlike [isAiChatEnabled] this doesn't hide the row: a
          * non-subscriber still sees it, badged as premium, and tapping it opens the upsell.
          */
@@ -80,6 +87,8 @@ interface SettingsBloc : ComposeScreen {
         data object OpenManageProfile : Output()
 
         data object OpenNotifications : Output()
+
+        data object OpenManageFamily : Output()
 
         data object OpenAppSettings : Output()
 

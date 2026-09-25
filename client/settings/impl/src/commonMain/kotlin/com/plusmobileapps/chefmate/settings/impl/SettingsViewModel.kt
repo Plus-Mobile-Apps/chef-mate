@@ -33,12 +33,22 @@ class SettingsViewModel(
     private val aiChatEnabled: StateFlow<Boolean> =
         featureFlags.isEnabled(FeatureFlagRegistry.AiChat)
 
+    private val manageFamilyEnabled: StateFlow<Boolean> =
+        featureFlags.isEnabled(FeatureFlagRegistry.ManageFamily)
+
     private val isSubscribed: StateFlow<Boolean> = subscriptionRepository.isSubscribed
 
     init {
         observeAuthState()
         observeAiChatFlag()
+        observeManageFamilyFlag()
         observeSubscription()
+    }
+
+    private fun observeManageFamilyFlag() {
+        manageFamilyEnabled
+            .onEach { enabled -> _state.update { it.copy(isManageFamilyEnabled = enabled) } }
+            .launchIn(scope)
     }
 
     private fun observeAiChatFlag() {
@@ -138,12 +148,13 @@ class SettingsViewModel(
         val emailAwaitingVerification: String? = null,
         val showSignOutConfirmationDialog: Boolean = false,
         val isAiChatEnabled: Boolean = false,
+        val isManageFamilyEnabled: Boolean = false,
         val isSubscribed: Boolean = false,
         val showPremiumRequiredDialog: Boolean = false,
     ) {
         /**
          * Apply an auth-state change, leaving everything the auth stream doesn't own alone. Written
-         * as a copy rather than a fresh [State] because the AI Chat flag and the premium
+         * as a copy rather than a fresh [State] because the feature flags and the premium
          * entitlement arrive on their own streams — rebuilding the object here used to silently
          * reset them to `false` whenever auth emitted after they had resolved.
          */

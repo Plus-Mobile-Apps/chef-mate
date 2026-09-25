@@ -40,6 +40,7 @@ import chefmate.client.settings.public.generated.resources.privacy_policy
 import chefmate.client.settings.public.generated.resources.settings
 import chefmate.client.settings.public.generated.resources.settings_ai_chat
 import chefmate.client.settings.public.generated.resources.settings_guest_banner
+import chefmate.client.settings.public.generated.resources.settings_manage_family
 import chefmate.client.settings.public.generated.resources.settings_notifications
 import chefmate.client.settings.public.generated.resources.settings_replay_onboarding
 import chefmate.client.settings.public.generated.resources.sign_in
@@ -150,6 +151,16 @@ fun SettingsScreen(bloc: SettingsBloc, modifier: Modifier = Modifier) {
                 SettingsRow(
                     name = Res.string.settings_notifications.asTextData(),
                     onClick = bloc::onNotificationsClicked,
+                )
+            }
+            // Unlike Notifications, this row shows in every auth state: a signed-out or anonymous
+            // user can tap it and is taken through sign-in on the way, landing on Manage Family.
+            if (viewState.isManageFamilyEnabled) {
+                HorizontalDivider()
+                SettingsRow(
+                    name = Res.string.settings_manage_family.asTextData(),
+                    onClick = bloc::onManageFamilyClicked,
+                    modifier = Modifier.testTag(SettingsTestTags.MANAGE_FAMILY_ROW),
                 )
             }
             HorizontalDivider()
@@ -334,6 +345,8 @@ private val previewBlocUnauthenticated =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -376,6 +389,8 @@ private val previewBlocAuthenticated =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -414,6 +429,8 @@ private val previewBlocAnonymous =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -425,6 +442,15 @@ private val previewBlocAnonymous =
         override fun onDeveloperSettingsClicked() = Unit
 
         override fun onReplayOnboardingClicked() = Unit
+    }
+
+/** The More tab with the flagged Manage Family row visible. */
+val previewSettingsBlocManageFamily: SettingsBloc =
+    object : SettingsBloc by previewBlocAuthenticated {
+        override val state =
+            MutableStateFlow(
+                previewBlocAuthenticated.state.value.copy(isManageFamilyEnabled = true)
+            )
     }
 
 /**
@@ -453,6 +479,12 @@ val previewSettingsBlocAiChatLocked: SettingsBloc =
                 )
             )
     }
+
+@Preview(showBackground = true)
+@Composable
+internal fun SettingsScreenManageFamilyPreview() {
+    ChefMateTheme { SettingsScreen(bloc = previewSettingsBlocManageFamily) }
+}
 
 @Preview(showBackground = true)
 @Composable

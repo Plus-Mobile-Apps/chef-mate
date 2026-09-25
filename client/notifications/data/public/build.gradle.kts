@@ -5,6 +5,7 @@ kotlin {
         commonMain.dependencies {
             api(projects.client.grocery.data.public)
             api(projects.client.recipebook.data.public)
+            api(projects.client.family.data.public)
             implementation(projects.client.shared)
         }
     }
