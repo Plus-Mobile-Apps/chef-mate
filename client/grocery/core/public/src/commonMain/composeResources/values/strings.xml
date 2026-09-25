@@ -99,4 +99,6 @@
     <string name="grocery_save_autocomplete">Save “{item}” for autocomplete</string>
     <string name="grocery_autocomplete_saved">Saved to autocomplete</string>
     <string name="grocery_autocomplete_manage">Manage</string>
+    <string name="grocery_item_deleted">Deleted “{item}”</string>
+    <string name="grocery_undo">Undo</string>
 </resources>
