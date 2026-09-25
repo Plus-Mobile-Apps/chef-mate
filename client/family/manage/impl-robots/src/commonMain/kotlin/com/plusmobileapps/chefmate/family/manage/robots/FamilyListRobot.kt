@@ -31,10 +31,6 @@ class FamilyListRobot(private val test: ComposeUiTest) {
         test.onNodeWithTag(FamilyListTestTags.SCREEN).assertIsDisplayed()
     }
 
-    fun assertNotDisplayed(): FamilyListRobot = apply {
-        test.onNodeWithTag(FamilyListTestTags.SCREEN).assertDoesNotExist()
-    }
-
     /** Waits for the empty state's "Create your first family" button and taps it. */
     fun createFirstFamily(): FamilyListRobot = apply {
         test.waitUntilExactlyOneExists(hasTestTag(FamilyListTestTags.CREATE_FIRST_BUTTON))

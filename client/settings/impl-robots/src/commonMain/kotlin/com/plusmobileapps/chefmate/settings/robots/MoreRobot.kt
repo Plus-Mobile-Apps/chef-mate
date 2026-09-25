@@ -35,6 +35,10 @@ class MoreRobot(private val test: ComposeUiTest) {
 
     fun clickManageFamilyRow(): MoreRobot = clickRow("Manage Family")
 
+    fun assertManageFamilyRowShown(): MoreRobot = apply {
+        test.waitUntilExactlyOneExists(hasTestTag(SettingsTestTags.MANAGE_FAMILY_ROW))
+    }
+
     fun assertManageFamilyRowNotShown(): MoreRobot = apply {
         test.onNodeWithTag(SettingsTestTags.MANAGE_FAMILY_ROW).assertDoesNotExist()
     }
