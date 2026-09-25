@@ -63,8 +63,10 @@ fun Modifier.reportBottomNavInset(): Modifier {
  * A single queued snackbar. [id] is stable so the UI can dequeue exactly what it showed.
  *
  * Optionally carries an action: when [actionLabel] is non-null the snackbar shows a button, and
- * tapping it invokes [onAction]. [onAction] runs only on tap, never on plain dismissal. The lambda
- * is held for the message's lifetime only (until shown + dequeued), so keep what it captures cheap.
+ * tapping it invokes [onAction]. [onAction] runs only on tap, never on plain dismissal. [onDismiss]
+ * is the complement: it runs on every other outcome (timeout, swipe, or the host leaving
+ * composition), never after the action. The lambdas are held for the message's lifetime only (until
+ * shown + dequeued), so keep what they capture cheap.
  */
 @Immutable
 data class SnackbarMessage(
@@ -73,6 +75,7 @@ data class SnackbarMessage(
     val actionLabel: TextData? = null,
     val duration: SnackbarDuration = SnackbarDuration.Short,
     val onAction: (() -> Unit)? = null,
+    val onDismiss: (() -> Unit)? = null,
 )
 
 /**
@@ -103,9 +106,12 @@ data class SnackbarQueue(
         actionLabel: TextData? = null,
         duration: SnackbarDuration = SnackbarDuration.Short,
         onAction: (() -> Unit)? = null,
+        onDismiss: (() -> Unit)? = null,
     ): SnackbarQueue =
         copy(
-            messages = messages + SnackbarMessage(nextId, text, actionLabel, duration, onAction),
+            messages =
+                messages +
+                    SnackbarMessage(nextId, text, actionLabel, duration, onAction, onDismiss),
             nextId = nextId + 1,
         )
 
@@ -118,7 +124,8 @@ data class SnackbarQueue(
  * [onSnackbarShown] so the BLoC can dequeue and the next message plays. No messages are dropped.
  *
  * If the head carries an [SnackbarMessage.actionLabel], its button is shown and tapping it runs
- * [SnackbarMessage.onAction] before the message is dequeued.
+ * [SnackbarMessage.onAction] before the message is dequeued. Any other outcome — timeout, swipe, or
+ * this host leaving composition mid-display — runs [SnackbarMessage.onDismiss] instead.
  *
  * @param queue the queue from BLoC state.
  * @param onSnackbarShown called with the shown message's id once it is dismissed.
@@ -137,6 +144,7 @@ fun PlusSnackbarHost(
 
     LaunchedEffect(head?.id) {
         if (head != null && text != null) {
+            var actionPerformed = false
             try {
                 val result =
                     hostState.showSnackbar(
@@ -144,8 +152,12 @@ fun PlusSnackbarHost(
                         actionLabel = actionLabel,
                         duration = head.duration,
                     )
-                if (result == SnackbarResult.ActionPerformed) head.onAction?.invoke()
+                if (result == SnackbarResult.ActionPerformed) {
+                    actionPerformed = true
+                    head.onAction?.invoke()
+                }
             } finally {
+                if (!actionPerformed) head.onDismiss?.invoke()
                 onSnackbarShown(head.id)
             }
         }

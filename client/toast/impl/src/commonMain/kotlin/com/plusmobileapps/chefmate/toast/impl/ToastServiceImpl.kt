@@ -26,8 +26,9 @@ class ToastServiceImpl : ToastService {
         actionLabel: TextData?,
         duration: SnackbarDuration,
         onAction: (() -> Unit)?,
+        onDismiss: (() -> Unit)?,
     ) {
-        _queue.update { it.enqueue(message, actionLabel, duration, onAction) }
+        _queue.update { it.enqueue(message, actionLabel, duration, onAction, onDismiss) }
     }
 
     override fun onShown(id: Long) {
