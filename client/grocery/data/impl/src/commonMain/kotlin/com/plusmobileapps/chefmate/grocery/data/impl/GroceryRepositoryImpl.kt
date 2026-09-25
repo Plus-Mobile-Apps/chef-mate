@@ -80,6 +80,10 @@ class GroceryRepositoryImpl(
     // re-emit.
     private val categoryOverrides = MutableStateFlow<Map<String, GroceryCategory>>(emptyMap())
 
+    // Items hidden by [stageDelete] while an undo window is open, keyed by id. Filtered out of the
+    // [getGroceries] flows; the rows stay in the database until [commitDelete].
+    private val pendingDeletes = MutableStateFlow<Map<Long, GroceryItem>>(emptyMap())
+
     private var realtimeJob: Job? = null
     private var realtimeUserId: String? = null
 
@@ -137,8 +141,9 @@ class GroceryRepositoryImpl(
                 queries.readAll().asFlow().map { it.executeAsList() },
                 syncingIds,
                 categoryOverrides,
-            ) { items, syncing, overrides ->
-                items.map { fromEntity(it, syncing, overrides) }
+                pendingDeletes,
+            ) { items, syncing, overrides, pending ->
+                items.filter { it.id !in pending }.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
@@ -147,8 +152,9 @@ class GroceryRepositoryImpl(
                 queries.readByListId(listId).asFlow().map { it.executeAsList() },
                 syncingIds,
                 categoryOverrides,
-            ) { items, syncing, overrides ->
-                items.map { fromEntity(it, syncing, overrides) }
+                pendingDeletes,
+            ) { items, syncing, overrides, pending ->
+                items.filter { it.id !in pending }.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
@@ -299,6 +305,26 @@ class GroceryRepositoryImpl(
                     if (t is CancellationException) throw t
                     Logger.e(throwable = t, tag = TAG) { "grocery remote sync operation failed" }
                 }
+            }
+        }
+    }
+
+    override fun stageDelete(item: GroceryItem) {
+        pendingDeletes.update { it + (item.id to item) }
+    }
+
+    override fun undoDelete(itemId: Long) {
+        pendingDeletes.update { it - itemId }
+    }
+
+    override fun commitDelete(itemId: Long) {
+        val item = pendingDeletes.value[itemId] ?: return
+        scope.launch {
+            try {
+                deleteGrocery(item)
+            } finally {
+                // Unhide only after the row is gone so it doesn't flash back in between.
+                pendingDeletes.update { it - itemId }
             }
         }
     }
