@@ -25,8 +25,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -135,7 +137,14 @@ private fun GroceryDisplayListItem(
     onSwipeToDelete: (() -> Unit)? = null,
 ) {
     if (onSwipeToDelete != null) {
-        val dismissState = rememberSwipeToDismissBoxState()
+        // Deliberately not rememberSwipeToDismissBoxState(): that state is saveable, and the keyed
+        // LazyColumn keeps saved state for a key after its row leaves. When a deleted row comes
+        // back (Undo), it would be restored already dismissed, and SwipeToDismissBox fires
+        // onDismiss for any non-Settled state on composition — deleting the item again.
+        val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+        val dismissState = remember {
+            SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold)
+        }
         SwipeToDismissBox(
             state = dismissState,
             modifier = modifier,

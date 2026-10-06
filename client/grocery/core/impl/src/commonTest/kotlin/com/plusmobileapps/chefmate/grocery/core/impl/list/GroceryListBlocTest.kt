@@ -7,6 +7,8 @@ import app.cash.turbine.test
 import chefmate.client.grocery.core.public.generated.resources.Res
 import chefmate.client.grocery.core.public.generated.resources.grocery_autocomplete_manage
 import chefmate.client.grocery.core.public.generated.resources.grocery_autocomplete_saved
+import chefmate.client.grocery.core.public.generated.resources.grocery_item_deleted
+import chefmate.client.grocery.core.public.generated.resources.grocery_undo
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.CoachMarkController
 import com.plusmobileapps.chefmate.di.CoachMarkId
@@ -20,6 +22,8 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
+import com.plusmobileapps.chefmate.text.FixedString
+import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
 import com.russhwolf.settings.MapSettings
@@ -28,6 +32,8 @@ import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
+import dev.mokkery.verify
+import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
@@ -82,6 +88,7 @@ class GroceryListBlocTest {
                     autocompleteRepository = autocompleteRepository,
                     settings = settings,
                     coachMarkController = coachMarkController,
+                    toastService = toastService,
                 )
             },
             groceryDetailFactory = groceryDetailFactory,
@@ -131,11 +138,41 @@ class GroceryListBlocTest {
     }
 
     @Test
-    fun When_grocery_item_deleted_Then_repository_is_updated() = runTest {
+    fun When_grocery_item_deleted_Then_staged_and_undo_toast_shown() = runTest {
         val item = GroceryItem(id = 1, name = "Apples", isChecked = false)
-        everySuspend { repository.deleteGrocery(item) } returns Unit
+        every { repository.stageDelete(item) } returns Unit
         bloc.onGroceryItemDelete(item)
-        verifySuspend { repository.deleteGrocery(item) }
+        verify { repository.stageDelete(item) }
+        toastService.shown shouldContain
+            PhraseModel(Res.string.grocery_item_deleted, "item" to FixedString("Apples"))
+        toastService.shownActionLabels shouldContain ResourceString(Res.string.grocery_undo)
+        verifySuspend(VerifyMode.not) { repository.deleteGrocery(item) }
+    }
+
+    @Test
+    fun When_delete_undo_tapped_Then_item_restored_and_not_deleted() = runTest {
+        val item = GroceryItem(id = 1, name = "Apples", isChecked = false)
+        every { repository.stageDelete(item) } returns Unit
+        every { repository.undoDelete(item.id) } returns Unit
+        bloc.onGroceryItemDelete(item)
+
+        toastService.lastOnAction?.invoke()
+
+        verify { repository.undoDelete(item.id) }
+        verify(VerifyMode.not) { repository.commitDelete(item.id) }
+    }
+
+    @Test
+    fun When_delete_toast_dismissed_Then_delete_committed() = runTest {
+        val item = GroceryItem(id = 1, name = "Apples", isChecked = false)
+        every { repository.stageDelete(item) } returns Unit
+        every { repository.commitDelete(item.id) } returns Unit
+        bloc.onGroceryItemDelete(item)
+
+        toastService.lastOnDismiss?.invoke()
+
+        verify { repository.commitDelete(item.id) }
+        verify(VerifyMode.not) { repository.undoDelete(item.id) }
     }
 
     @Test
@@ -594,6 +631,7 @@ class GroceryListBlocTest {
                         autocompleteRepository = autocompleteRepository,
                         settings = MapSettings(),
                         coachMarkController = controller,
+                        toastService = toastService,
                     )
                 },
                 groceryDetailFactory = groceryDetailFactory,

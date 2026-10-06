@@ -26,6 +26,21 @@ interface GroceryRepository {
 
     suspend fun deleteGrocery(item: GroceryItem)
 
+    /**
+     * Hides [item] from the [getGroceries] flows immediately without deleting anything, so the UI
+     * can offer an undo window. Follow up with exactly one of [undoDelete] or [commitDelete].
+     */
+    fun stageDelete(item: GroceryItem)
+
+    /** Restores an item hidden by [stageDelete]. No-op if it isn't staged. */
+    fun undoDelete(itemId: Long)
+
+    /**
+     * Permanently deletes an item hidden by [stageDelete] (local + remote). Runs on the
+     * repository's own app-lifetime scope, so it completes even if the caller's screen is gone.
+     */
+    fun commitDelete(itemId: Long)
+
     suspend fun getGrocery(id: Long): GroceryItem?
 
     suspend fun updateGrocery(item: GroceryItem)
