@@ -5,6 +5,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -57,6 +59,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,6 +82,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -214,6 +219,14 @@ fun GroceryListScreen(
         knownItemIds = currentIds
     }
 
+    val density = LocalDensity.current
+    // Height of the add row's field (not its upward-opening suggestions): the list pads its bottom
+    // by this so the last item can scroll clear of the row floating over it. It is measured after
+    // layout, so it starts at the field's spec height — which is what it measures at normal font
+    // scale — rather than 0, so the first frame is already laid out right and nothing re-centres
+    // a frame later.
+    var inputRowHeight by remember { mutableStateOf(OutlinedTextFieldDefaults.MinHeight) }
+
     PlusResponsiveContainer(
         modifier = modifier.testTag(GroceryListTestTags.SCREEN).fillMaxSize()
     ) { windowSizeClass ->
@@ -313,101 +326,122 @@ fun GroceryListScreen(
                     remember(state.groupedItems) {
                         state.groupedItems.flatMap { it.items }.associateBy { it.id }
                     }
-                PullToRefreshBox(
-                    isRefreshing = state.isSyncing,
-                    onRefresh = bloc::onSyncClicked,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    val hasNoItems = state.groupedItems.isEmpty()
-                    val filtersApplied =
-                        state.filter != GroceryListBloc.GroceryFilter.ALL ||
-                            state.recipeFilter != null
-                    val showEmptyState = hasNoItems && !filtersApplied && !state.isSyncing
-                    val showFilteredEmptyState = hasNoItems && filtersApplied && !state.isSyncing
-                    if (showEmptyState) {
-                        EmptyGroceryListState(
-                            onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else if (showFilteredEmptyState) {
-                        FilteredEmptyGroceryListState(
-                            onClearFiltersClicked = bloc::onClearFiltersClicked,
-                            onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        GroceryGroupedList(
-                            groups =
-                                state.groupedItems.map { group ->
-                                    GroceryDisplayGroup(
-                                        category = group.category,
-                                        items =
-                                            group.items.map { item ->
-                                                GroceryDisplayItem(
-                                                    key = item.id,
-                                                    displayName = item.displayName,
-                                                    quantity = item.quantity,
-                                                    isChecked = item.isChecked,
-                                                    recipeName = item.recipeName,
-                                                )
-                                            },
+                // The list runs to the bottom of the screen and scrolls behind both the add row and
+                // the floating glass nav bar beneath it, so it can be seen through the glass. Its
+                // bottom padding is what keeps the last item reachable above them.
+                val showInput = state.currentUserRole != ListRole.VIEWER
+                val navBarInset = LocalBottomNavBarInset.current
+                val listBottomPadding = (if (showInput) inputRowHeight else 0.dp) + navBarInset
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    PullToRefreshBox(
+                        isRefreshing = state.isSyncing,
+                        onRefresh = bloc::onSyncClicked,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        val hasNoItems = state.groupedItems.isEmpty()
+                        val filtersApplied =
+                            state.filter != GroceryListBloc.GroceryFilter.ALL ||
+                                state.recipeFilter != null
+                        val showEmptyState = hasNoItems && !filtersApplied && !state.isSyncing
+                        val showFilteredEmptyState =
+                            hasNoItems && filtersApplied && !state.isSyncing
+                        if (showEmptyState) {
+                            EmptyGroceryListState(
+                                onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
+                                modifier =
+                                    Modifier.fillMaxSize().padding(bottom = listBottomPadding),
+                            )
+                        } else if (showFilteredEmptyState) {
+                            FilteredEmptyGroceryListState(
+                                onClearFiltersClicked = bloc::onClearFiltersClicked,
+                                onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
+                                modifier =
+                                    Modifier.fillMaxSize().padding(bottom = listBottomPadding),
+                            )
+                        } else {
+                            GroceryGroupedList(
+                                groups =
+                                    state.groupedItems.map { group ->
+                                        GroceryDisplayGroup(
+                                            category = group.category,
+                                            items =
+                                                group.items.map { item ->
+                                                    GroceryDisplayItem(
+                                                        key = item.id,
+                                                        displayName = item.displayName,
+                                                        quantity = item.quantity,
+                                                        isChecked = item.isChecked,
+                                                        recipeName = item.recipeName,
+                                                    )
+                                                },
+                                        )
+                                    },
+                                onItemClick = { key ->
+                                    itemLookup[key as Long]?.let { bloc.onGroceryItemClicked(it) }
+                                },
+                                onCheckedChange = { key ->
+                                    itemLookup[key as Long]?.let {
+                                        bloc.onGroceryItemCheckedChange(it, !it.isChecked)
+                                    }
+                                },
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .nestedScroll(dismissKeyboardOnScroll)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(onTap = { focusManager.clearFocus() })
+                                        },
+                                state = listState,
+                                showHeaders = state.sort == GroceryListBloc.GrocerySort.AISLE,
+                                highlightedKey = highlightedItemKey,
+                                trailingContent = { displayItem ->
+                                    val item = itemLookup[displayItem.key as Long]
+                                    if (item != null) {
+                                        GroceryItemTrailingContent(
+                                            item = item,
+                                            onDeleteClick = { bloc.onGroceryItemDelete(item) },
+                                            // Where the row can be swiped away, the always-visible
+                                            // delete button sits right under a thumb and is too
+                                            // easy
+                                            // to hit by accident; the swipe is the deliberate
+                                            // gesture.
+                                            showDeleteButton = !supportsSwipeToDelete,
+                                        )
+                                    }
+                                },
+                                swipeToDeleteEnabled = supportsSwipeToDelete,
+                                onSwipeToDelete = { displayItem ->
+                                    itemLookup[displayItem.key as Long]?.let(
+                                        bloc::onGroceryItemDelete
                                     )
                                 },
-                            onItemClick = { key ->
-                                itemLookup[key as Long]?.let { bloc.onGroceryItemClicked(it) }
+                                contentPadding = PaddingValues(bottom = listBottomPadding),
+                            )
+                        }
+                    }
+                    if (showInput) {
+                        GroceryListInput(
+                            name = bloc.newGroceryItemName,
+                            suggestions = state.autocompleteSuggestions,
+                            queryMatchesSavedAutocomplete = state.queryMatchesSavedAutocomplete,
+                            onNameChange = bloc::onNewGroceryItemNameChange,
+                            onAddClick = {
+                                awaitingAddedItem = true
+                                bloc.saveGroceryItem()
                             },
-                            onCheckedChange = { key ->
-                                itemLookup[key as Long]?.let {
-                                    bloc.onGroceryItemCheckedChange(it, !it.isChecked)
-                                }
+                            onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
+                            forceShowSuggestions = forceShowAutocompleteSuggestions,
+                            onFieldRowHeightChanged = {
+                                inputRowHeight = with(density) { it.toDp() }
                             },
+                            // Floats over the list, directly on top of the nav pill. The pill
+                            // slides
+                            // away with the keyboard, so this padding animates to zero and the row
+                            // lands directly on the keyboard.
                             modifier =
-                                Modifier.fillMaxSize()
-                                    .nestedScroll(dismissKeyboardOnScroll)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onTap = { focusManager.clearFocus() })
-                                    },
-                            state = listState,
-                            showHeaders = state.sort == GroceryListBloc.GrocerySort.AISLE,
-                            highlightedKey = highlightedItemKey,
-                            trailingContent = { displayItem ->
-                                val item = itemLookup[displayItem.key as Long]
-                                if (item != null) {
-                                    GroceryItemTrailingContent(
-                                        item = item,
-                                        onDeleteClick = { bloc.onGroceryItemDelete(item) },
-                                        // Where the row can be swiped away, the always-visible
-                                        // delete button sits right under a thumb and is too easy
-                                        // to hit by accident; the swipe is the deliberate gesture.
-                                        showDeleteButton = !supportsSwipeToDelete,
-                                    )
-                                }
-                            },
-                            swipeToDeleteEnabled = supportsSwipeToDelete,
-                            onSwipeToDelete = { displayItem ->
-                                itemLookup[displayItem.key as Long]?.let(bloc::onGroceryItemDelete)
-                            },
+                                Modifier.align(Alignment.BottomCenter)
+                                    .padding(bottom = navBarInset),
                         )
                     }
-                }
-                if (state.currentUserRole != ListRole.VIEWER) {
-                    GroceryListInput(
-                        name = bloc.newGroceryItemName,
-                        suggestions = state.autocompleteSuggestions,
-                        queryMatchesSavedAutocomplete = state.queryMatchesSavedAutocomplete,
-                        onNameChange = bloc::onNewGroceryItemNameChange,
-                        onAddClick = {
-                            awaitingAddedItem = true
-                            bloc.saveGroceryItem()
-                        },
-                        onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
-                        forceShowSuggestions = forceShowAutocompleteSuggestions,
-                        // The add row is anchored at the bottom of the screen, where the floating
-                        // nav pill now sits. It can't scroll under the pill like the list does, so
-                        // it takes real padding. The pill slides away with the keyboard, so this
-                        // animates to zero and the row lands directly on the keyboard.
-                        modifier = Modifier.padding(bottom = LocalBottomNavBarInset.current),
-                    )
                 }
             },
         )
@@ -868,6 +902,7 @@ private fun GroceryListInput(
     onSaveAutocompleteItem: (String) -> Unit,
     modifier: Modifier = Modifier,
     forceShowSuggestions: Boolean = false,
+    onFieldRowHeightChanged: (Int) -> Unit = {},
 ) {
     val state = name.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -893,7 +928,10 @@ private fun GroceryListInput(
         keyboardController?.hide()
     }
 
-    Column(modifier = modifier) {
+    // List rows now scroll underneath, so the transparent outlined field needs a ground of its own.
+    // It goes on the column rather than the field row: drawn first, it sits under the suggestion
+    // panel's shadow instead of painting over it. The suggestions themselves are opaque.
+    Column(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
         // Suggestions render directly above the field rather than as a downward dropdown: the input
         // is anchored at the bottom of the screen, so a dropdown would open behind the keyboard
         // (especially on iOS, where it doesn't flip above the anchor). They sit above the
@@ -907,7 +945,12 @@ private fun GroceryListInput(
                 onSaveClick = { saveQuery?.let(onSaveAutocompleteItem) },
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            // Only this row is measured: the suggestions above it open over the list, and feeding
+            // them into the list's padding would make it jump with every keystroke.
+            modifier = Modifier.onSizeChanged { onFieldRowHeightChanged(it.height) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             GroceryItemNameTextField(
                 value = state.value,
                 onValueChange = onNameChange,
