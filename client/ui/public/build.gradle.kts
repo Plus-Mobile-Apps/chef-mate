@@ -18,7 +18,7 @@ kotlin {
             // `implementation` (not `api`) — AppBackdrop wraps HazeState so no
             // Haze type leaks into this module's public signatures.
             implementation(libs.haze)
-            implementation(libs.haze.blur)
+            implementation(libs.haze.glass)
         }
     }
 }

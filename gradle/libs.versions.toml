@@ -1,6 +1,6 @@
 [versions]
 agp = "9.1.1"
-android-compileSdk = "36"
+android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.11.0"
@@ -24,7 +24,7 @@ coroutines = "1.10.2"
 kermit = "2.1.0"
 decompose = "3.4.0"
 essenty = "2.5.0"
-haze = "2.0.0-alpha03"
+haze = "2.0.0"
 junit = "4.13.2"
 mokkery = "3.5.1"
 napier = "2.7.1"
@@ -90,7 +90,7 @@ essenty-lifecycle = { group = "com.arkivanov.essenty", name = "lifecycle", versi
 essenty-backhandler = { group = "com.arkivanov.essenty", name = "back-handler", version.ref = "essenty" }
 essenty-lifecycle-coroutines = {group = "com.arkivanov.essenty", name = "lifecycle-coroutines", version.ref = "essenty" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
-haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
+haze-glass = { module = "dev.chrisbanes.haze:haze-glass", version.ref = "haze" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kermit" }
 kotest-assertions = { group = "io.kotest", name = "kotest-assertions-core", version.ref = "kotest" }

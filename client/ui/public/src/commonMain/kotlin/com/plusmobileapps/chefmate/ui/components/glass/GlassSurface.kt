@@ -1,29 +1,33 @@
+@file:OptIn(ExperimentalHazeApi::class)
+
 package com.plusmobileapps.chefmate.ui.components.glass
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
-import dev.chrisbanes.haze.blur.HazeColorEffect
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.hazeGlass
 
 /** Shared look of the app's floating "glass" navigation surfaces. */
 object GlassDefaults {
     /** A true pill — the floating bottom bar and nav rail are both fully rounded. */
-    val shape: Shape = RoundedCornerShape(percent = 50)
+    val shape: RoundedCornerShape = RoundedCornerShape(percent = 50)
 
     /**
      * Minimum gap between a floating surface and the bottom of the screen. On devices with a system
@@ -37,8 +41,21 @@ private val BlurRadiusLight = 28.dp
 private val BlurRadiusDark = 32.dp
 private const val NoiseFactorLight = 0.04f
 private const val NoiseFactorDark = 0.06f
-private const val TintAlphaLight = 0.55f
-private const val TintAlphaDark = 0.42f
+// Lighter than a plain blur would need: the glass already draws backgroundColor behind the
+// refracted content, so a heavy tint on top would flatten the optics into a solid pill.
+private const val TintAlphaLight = 0.28f
+// Heavier in dark mode: with the white point pulling toward black, a light tint is what keeps the
+// pill distinguishable from a dark screen behind it.
+private const val TintAlphaDark = 0.5f
+// GlassStyle.regular grades the refracted backdrop with `whitePoint = 0.55`, i.e. mixes it 55% of
+// the
+// way to white — iOS's light material. Left alone in dark mode that turns the bar a flat mid-grey
+// (~RGB 124 over a near-black screen) and drops the unselected labels to ~2.5:1 contrast. A
+// negative
+// white point mixes toward black instead, so dark mode keeps the glass dark and the labels legible
+// even when something bright scrolls underneath.
+private const val WhitePointLight = 0.5f
+private const val WhitePointDark = -0.35f
 private const val FallbackTintAlphaLight = 0.94f
 private const val FallbackTintAlphaDark = 0.92f
 private val BorderWidth = 1.dp
@@ -48,14 +65,17 @@ private const val ShadowAlphaLight = 0.30f
 private const val ShadowAlphaDark = 0.45f
 
 /**
- * A translucent, blurred, rounded container — the "liquid glass" surface the floating navigation
+ * A translucent, refracting, rounded container — the "liquid glass" surface the floating navigation
  * bar and nav rail are built from.
  *
  * [backdrop] is the content rendered behind this surface (see [appBackdropSource]). When it is
- * `null` — screenshot tests and previews, where the platform has no blur pipeline — the surface
- * renders a near-opaque tint of the same shape, margins and border instead, so layout still reads
- * correctly and goldens stay deterministic. On Android below API 31 Haze itself falls back to a
- * scrim using the same tint, so that case needs no branch here.
+ * `null` — screenshot tests and previews, where the platform has no shader pipeline — the surface
+ * renders a near-opaque tint of the same shape and border instead, so layout still reads correctly
+ * and goldens stay deterministic. Where a renderer can't do the full optics (older Android), Haze
+ * degrades to a plainer blur or scrim on its own, so that case needs no branch here.
+ *
+ * [interactionSource], when given, lets the glass respond to press and hover the way a physical
+ * lens would — the specular highlight tracks the pointer and the material dips under a press.
  *
  * Sizing is the caller's job: pass the margins and any inset on [modifier], and let [content]
  * (typically a navigation bar with a transparent container) establish the height.
@@ -64,14 +84,19 @@ private const val ShadowAlphaDark = 0.45f
 fun GlassSurface(
     backdrop: AppBackdrop?,
     modifier: Modifier = Modifier,
-    shape: Shape = GlassDefaults.shape,
+    shape: RoundedCornerShape = GlassDefaults.shape,
+    interactionSource: InteractionSource? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colorScheme = ChefMateTheme.colorScheme
     val isDark = colorScheme.surface.luminance() < 0.5f
 
     val tint =
-        colorScheme.surfaceContainer.copy(alpha = if (isDark) TintAlphaDark else TintAlphaLight)
+        if (isDark) {
+            colorScheme.surfaceContainerHigh.copy(alpha = TintAlphaDark)
+        } else {
+            colorScheme.surfaceContainer.copy(alpha = TintAlphaLight)
+        }
     val fallback =
         colorScheme.surfaceContainer.copy(
             alpha = if (isDark) FallbackTintAlphaDark else FallbackTintAlphaLight
@@ -91,22 +116,29 @@ fun GlassSurface(
 
     val glass =
         if (backdrop == null) {
-            Modifier.background(fallback)
+            Modifier.clip(shape)
+                .background(fallback)
+                .border(width = BorderWidth, brush = borderBrush, shape = shape)
         } else {
-            Modifier.hazeEffect(backdrop.state) {
-                blurEffect {
-                    blurRadius = if (isDark) BlurRadiusDark else BlurRadiusLight
-                    noiseFactor = if (isDark) NoiseFactorDark else NoiseFactorLight
-                    // Drawn behind the blurred content so a translucent window background can
-                    // never show through the pill.
-                    backgroundColor = colorScheme.surface
-                    colorEffects = listOf(HazeColorEffect.tint(tint))
-                    // Used verbatim when the platform can't blur (Android < 12). Note this is
-                    // HazeColorEffect.tint, not HazeBlurDefaults.tint — the latter silently
-                    // multiplies alpha by 0.7.
-                    fallbackTint = HazeColorEffect.tint(fallback)
+            // `regular` carries Haze's full optical response — refraction, specular, Fresnel edges.
+            // The shape goes into the style rather than a clip() so the optics know where the edges
+            // are and can bend content around them; backgroundColor sits behind the refracted
+            // content so a translucent window can never show through. The style is remembered so a
+            // recomposition doesn't hand the node a new instance and reset its interaction state.
+            val style =
+                remember(shape, colorScheme.surface, tint, isDark) {
+                    GlassStyle.regular.then {
+                        shape(shape)
+                        backgroundColor(colorScheme.surface)
+                        tint(tint)
+                        whitePoint(if (isDark) WhitePointDark else WhitePointLight)
+                    }
                 }
-            }
+            Modifier.hazeGlass(
+                input = HazeInput.Sources(backdrop.state),
+                style = style,
+                interactionSource = interactionSource,
+            )
         }
 
     Box(
@@ -119,9 +151,7 @@ fun GlassSurface(
                     ambientColor = shadowColor,
                     spotColor = shadowColor,
                 )
-                .clip(shape)
-                .then(glass)
-                .border(width = BorderWidth, brush = borderBrush, shape = shape),
+                .then(glass),
         content = content,
     )
 }
