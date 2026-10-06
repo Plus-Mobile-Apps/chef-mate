@@ -151,6 +151,8 @@ import chefmate.client.recipe.list.public.generated.resources.recipe_list_menu_s
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_menu_sync
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_more_actions
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_open_in_new_window
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_recipe_count
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_recipe_count_one
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scan_failed_title
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scan_from_photo
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scanning_message
@@ -302,6 +304,15 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     title =
                         if (showBookSelector) FixedString("")
                         else Res.string.recipe_list_title.asTextData(),
+                    center =
+                        letIfTrue(state.recipes.isNotEmpty()) {
+                            {
+                                RecipeCountLabel(
+                                    count = state.recipes.size,
+                                    compact = windowSizeClass == WindowSizeClass.COMPACT,
+                                )
+                            }
+                        },
                     leading =
                         letIfTrue(showBookSelector) {
                             {
@@ -967,6 +978,35 @@ private fun BulkAddToCategorySheet(
             Spacer(Modifier.height(ChefMateTheme.dimens.paddingNormal))
         }
     }
+}
+
+/**
+ * The number of recipes currently on screen — after the active book, search and filters have been
+ * applied. Compact widths get the bare number: the app bar's middle slot is only the sliver left
+ * between the book selector and the five actions, which the spelled-out label doesn't fit.
+ */
+@Composable
+private fun RecipeCountLabel(count: Int, compact: Boolean) {
+    val label =
+        if (count == 1) {
+            stringResource(Res.string.recipe_list_recipe_count_one)
+        } else {
+            PhraseModel(
+                    Res.string.recipe_list_recipe_count,
+                    "count" to FixedString(count.toString()),
+                )
+                .localized()
+        }
+    Text(
+        text = if (compact) count.toString() else label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier =
+            Modifier.testTag(RecipeListTestTags.RECIPE_COUNT).semantics {
+                contentDescription = label
+            },
+    )
 }
 
 @Composable

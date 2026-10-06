@@ -1,6 +1,8 @@
 <resources>
     <!-- Recipe List Screen -->
     <string name="recipe_list_title">Recipes</string>
+    <string name="recipe_list_recipe_count_one">1 recipe</string>
+    <string name="recipe_list_recipe_count">{count} recipes</string>
     <string name="recipe_list_add_recipe">Add recipe</string>
     <string name="recipe_list_create_recipe">Create recipe</string>
     <!-- First-run coach marks -->
