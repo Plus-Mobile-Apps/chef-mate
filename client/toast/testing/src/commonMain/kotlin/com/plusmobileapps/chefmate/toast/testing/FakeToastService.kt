@@ -35,16 +35,22 @@ class FakeToastService : ToastService {
     var lastOnAction: (() -> Unit)? = null
         private set
 
+    /** The dismiss callback from the most recent [show], so tests can simulate a timeout. */
+    var lastOnDismiss: (() -> Unit)? = null
+        private set
+
     override fun show(
         message: TextData,
         actionLabel: TextData?,
         duration: SnackbarDuration,
         onAction: (() -> Unit)?,
+        onDismiss: (() -> Unit)?,
     ) {
         _shown += message
         _shownActionLabels += actionLabel
         lastOnAction = onAction
-        _queue.update { it.enqueue(message, actionLabel, duration, onAction) }
+        lastOnDismiss = onDismiss
+        _queue.update { it.enqueue(message, actionLabel, duration, onAction, onDismiss) }
     }
 
     override fun onShown(id: Long) {

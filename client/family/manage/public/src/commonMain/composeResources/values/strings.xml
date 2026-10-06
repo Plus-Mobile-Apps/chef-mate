@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Family list -->
+    <string name="family_list_title">Manage Family</string>
+    <string name="family_list_section">Your families</string>
+    <string name="family_list_empty_title">No families yet</string>
+    <string name="family_list_empty_message">Create a family to start adding the people you cook and shop with.</string>
+    <string name="family_list_create_first">Create your first family</string>
+    <string name="family_list_create_a11y">Create family</string>
+    <string name="family_list_member_count">Members: {count} · {role}</string>
+    <string name="family_list_load_error">Couldn’t load your families. Check your connection and try again.</string>
+    <string name="family_retry">Try again</string>
+    <string name="family_create_title">New family</string>
+    <string name="family_create_confirm">Create</string>
+    <string name="family_create_error">Couldn’t create the family. Try again.</string>
+    <string name="family_name_label">Family name</string>
+    <string name="family_cancel">Cancel</string>
+
+    <!-- Roles -->
+    <string name="family_role_owner">Owner</string>
+    <string name="family_role_admin">Admin</string>
+    <string name="family_role_member">Member</string>
+
+    <!-- Family detail -->
+    <string name="family_detail_members">Members</string>
+    <string name="family_detail_invites">Invites</string>
+    <string name="family_detail_you">{name} (you)</string>
+    <string name="family_detail_pending">Pending</string>
+    <string name="family_detail_declined">Declined</string>
+    <string name="family_detail_member_actions_a11y">Actions for {name}</string>
+    <string name="family_detail_make_admin">Make admin</string>
+    <string name="family_detail_make_member">Remove admin role</string>
+    <string name="family_detail_remove">Remove from family</string>
+    <string name="family_detail_cancel_invite">Cancel invite</string>
+    <string name="family_detail_rename_a11y">Rename family</string>
+    <string name="family_detail_invite_section">Invite someone</string>
+    <string name="family_detail_invite_email_label">Email address</string>
+    <string name="family_detail_invite_as">Invite as</string>
+    <string name="family_detail_invite_button">Send invite</string>
+    <string name="family_detail_invite_email_error">Enter a valid email address.</string>
+    <string name="family_detail_invite_error">Couldn’t send the invite. They may already be invited.</string>
+    <string name="family_detail_invite_sent">Invite sent to {email}</string>
+    <string name="family_detail_rename_title">Rename family</string>
+    <string name="family_detail_rename_confirm">Save</string>
+    <string name="family_detail_remove_title">Remove member?</string>
+    <string name="family_detail_remove_message">{name} will no longer be part of this family.</string>
+    <string name="family_detail_remove_confirm">Remove</string>
+    <string name="family_detail_leave_button">Leave family</string>
+    <string name="family_detail_leave_title">Leave family?</string>
+    <string name="family_detail_leave_message">You’ll need a new invite to rejoin “{name}”.</string>
+    <string name="family_detail_leave_confirm">Leave</string>
+    <string name="family_detail_delete_button">Delete family</string>
+    <string name="family_detail_delete_title">Delete family?</string>
+    <string name="family_detail_delete_message">“{name}” will be deleted for everyone in it. This can’t be undone.</string>
+    <string name="family_detail_delete_confirm">Delete</string>
+    <string name="family_detail_load_error">Couldn’t load this family. Check your connection and try again.</string>
+    <string name="family_detail_action_error">Something went wrong. Check your connection and try again.</string>
+</resources>

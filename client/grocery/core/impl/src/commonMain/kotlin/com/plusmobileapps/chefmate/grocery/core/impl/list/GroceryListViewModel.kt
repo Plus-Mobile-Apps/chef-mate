@@ -2,6 +2,9 @@
 
 package com.plusmobileapps.chefmate.grocery.core.impl.list
 
+import chefmate.client.grocery.core.public.generated.resources.Res
+import chefmate.client.grocery.core.public.generated.resources.grocery_item_deleted
+import chefmate.client.grocery.core.public.generated.resources.grocery_undo
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.combineStates
 import com.plusmobileapps.chefmate.di.CoachMarkController
@@ -18,6 +21,10 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
 import com.plusmobileapps.chefmate.grocery.data.IngredientParser
 import com.plusmobileapps.chefmate.grocery.data.ListRole
+import com.plusmobileapps.chefmate.text.FixedString
+import com.plusmobileapps.chefmate.text.PhraseModel
+import com.plusmobileapps.chefmate.text.ResourceString
+import com.plusmobileapps.chefmate.toast.ToastService
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.string
 import dev.zacsweers.metro.Inject
@@ -41,6 +48,7 @@ class GroceryListViewModel(
     private val autocompleteRepository: GroceryAutocompleteRepository,
     settings: Settings,
     private val coachMarkController: CoachMarkController,
+    private val toastService: ToastService,
 ) : ViewModel(mainContext) {
     private var sortPref by settings.string(KEY_SORT, GrocerySort.AISLE.name)
     private var filterPref by settings.string(KEY_FILTER, GroceryFilter.ALL.name)
@@ -206,8 +214,24 @@ class GroceryListViewModel(
         scope.launch { repository.updateChecked(item, isChecked) }
     }
 
+    /**
+     * Hides [item] right away and offers an "Undo" toast; the row is only deleted once the toast
+     * goes away untouched. The toast callbacks capture the app-scoped repository rather than this
+     * ViewModel, so undo/commit still work if the user leaves the screen while the toast is up.
+     */
     fun onGroceryItemDelete(item: GroceryItem) {
-        scope.launch { repository.deleteGrocery(item) }
+        val repository = repository
+        repository.stageDelete(item)
+        toastService.show(
+            message =
+                PhraseModel(
+                    Res.string.grocery_item_deleted,
+                    "item" to FixedString(item.displayName.ifBlank { item.name }),
+                ),
+            actionLabel = ResourceString(Res.string.grocery_undo),
+            onAction = { repository.undoDelete(item.id) },
+            onDismiss = { repository.commitDelete(item.id) },
+        )
     }
 
     fun onNewGroceryItemNameChange(name: String) {

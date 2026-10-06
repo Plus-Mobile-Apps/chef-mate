@@ -50,5 +50,13 @@ object FeatureFlagRegistry {
                     "option. When off, the add button opens the blank editor directly.",
         )
 
-    val all: List<FeatureFlag<*>> = listOf(CookModeV2, HomeBannerText, AiChat, ScanRecipeFromPhoto)
+    object ManageFamily :
+        BooleanFlag(
+            key = "manage_family",
+            defaultValue = false,
+            description = "Show the Manage Family entry in the More tab.",
+        )
+
+    val all: List<FeatureFlag<*>> =
+        listOf(CookModeV2, HomeBannerText, AiChat, ScanRecipeFromPhoto, ManageFamily)
 }

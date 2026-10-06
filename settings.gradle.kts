@@ -76,6 +76,14 @@ include(":client:cook:public")
 
 include(":client:database:core")
 
+include(":client:family:data:impl")
+
+include(":client:family:data:public")
+
+include(":client:family:data:testing")
+
+include(":client:family:manage:public")
+
 include(":client:featureflag:impl")
 
 include(":client:featureflag:public")

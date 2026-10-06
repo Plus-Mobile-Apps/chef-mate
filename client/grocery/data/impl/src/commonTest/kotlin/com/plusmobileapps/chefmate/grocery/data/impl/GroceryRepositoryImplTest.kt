@@ -18,6 +18,7 @@ import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryCategoryOverr
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryRemoteDataSource
 import com.plusmobileapps.chefmate.util.testing.FakeDateTimeUtil
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -558,6 +559,63 @@ class GroceryRepositoryImplTest {
             repository.getListCollaborators(staleListId).test {
                 awaitItem().isEmpty() shouldBe true
             }
+        }
+
+    // ─── staged delete (undo) ─────────────────────────────────────────────────
+
+    @Test
+    fun stageDelete_hides_item_from_flows_without_deleting_the_row() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+
+            repository.stageDelete(apples)
+
+            repository.getGroceries(listId).first().isEmpty() shouldBe true
+            repository.getGroceries().first().isEmpty() shouldBe true
+            db.groceryQueries.getGroceryById(apples.id).executeAsOneOrNull() shouldNotBe null
+        }
+
+    @Test
+    fun undoDelete_restores_a_staged_item() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+            repository.stageDelete(apples)
+
+            repository.undoDelete(apples.id)
+
+            repository.getGroceries(listId).first().map { it.id } shouldBe listOf(apples.id)
+        }
+
+    @Test
+    fun commitDelete_removes_the_staged_row_from_local_db() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+            repository.stageDelete(apples)
+
+            repository.commitDelete(apples.id)
+            advanceUntilIdle()
+
+            db.groceryQueries.getGroceryById(apples.id).executeAsOneOrNull() shouldBe null
+            repository.getGroceries(listId).first().isEmpty() shouldBe true
+        }
+
+    @Test
+    fun commitDelete_is_a_no_op_for_an_item_that_was_not_staged() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+
+            repository.commitDelete(apples.id)
+            advanceUntilIdle()
+
+            repository.getGroceries(listId).first().map { it.id } shouldBe listOf(apples.id)
         }
 
     // ─── deleteAllGroceries ───────────────────────────────────────────────────
