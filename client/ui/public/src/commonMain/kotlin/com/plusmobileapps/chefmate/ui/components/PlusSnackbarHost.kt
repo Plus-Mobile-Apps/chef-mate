@@ -33,13 +33,14 @@ import com.plusmobileapps.chefmate.text.TextData
 val LocalSnackbarInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
 /**
- * A holder for the live height of the app's bottom navigation bar (its content plus the system
- * navigation-bar inset it absorbs), or `0.dp` when no bottom bar is showing. Provided by the
- * app-root toast scaffold so the global snackbar host can float its snackbars *above* the bar
- * instead of rendering on top of it.
+ * A holder for the live height of the block the app's bottom navigation occupies — the floating
+ * pill plus the margin between it and the bottom of the screen — or `0.dp` when no bottom bar is
+ * showing. Provided by the app-root toast scaffold so the global snackbar host can float its
+ * snackbars *above* the bar instead of rendering on top of it.
  *
  * The bottom bar reports its measured height by applying [reportBottomNavInset] to itself; nothing
- * else should write to this. Read it only inside the toast scaffold.
+ * else should write to this. Read it only inside the toast scaffold. For clearing screen content of
+ * the floating bar, read [LocalBottomNavBarInset] instead.
  */
 val LocalBottomNavInset: ProvidableCompositionLocal<MutableState<Dp>> = compositionLocalOf {
     mutableStateOf(0.dp)
@@ -50,6 +51,10 @@ val LocalBottomNavInset: ProvidableCompositionLocal<MutableState<Dp>> = composit
  * above it, and resets the reported height to `0.dp` when the composable leaves composition (e.g.
  * navigating away from a screen that shows a bottom bar). Apply it to the app's bottom navigation
  * bar.
+ *
+ * Place it *before* the bar's outer margins in the modifier chain: `onSizeChanged` measures the
+ * node as it stands at that point, and the toast host needs the distance from the bottom of the
+ * screen, not the bare height of the pill.
  */
 @Composable
 fun Modifier.reportBottomNavInset(): Modifier {

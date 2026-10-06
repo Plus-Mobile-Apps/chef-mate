@@ -88,8 +88,15 @@ class GroceryListRobot(private val test: ComposeUiTest) {
         test.onNode(matcher).performClick()
     }
 
+    /**
+     * Waits for a list row named [displayName]. The add-item field is excluded: right after typing
+     * a name and submitting it, the field still holds that same text until the add lands, and
+     * matching it would let this return before the item exists.
+     */
     fun awaitItemDisplayed(displayName: String): GroceryListRobot = apply {
-        test.waitUntilAtLeastOneExists(hasText(displayName) and onScreen)
+        test.waitUntilAtLeastOneExists(
+            hasText(displayName) and onScreen and !hasTestTag(GroceryListTestTags.ITEM_INPUT)
+        )
     }
 
     /** Opens the list selector (bottom sheet on phones, dropdown on tablets). */

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -101,6 +100,7 @@ import com.plusmobileapps.chefmate.meal.data.SyncStatus
 import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
 import com.plusmobileapps.chefmate.ui.components.LocalSnackbarInset
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
@@ -109,6 +109,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
+import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -245,10 +246,13 @@ fun MealPlanScreen(bloc: MealPlanBloc, modifier: Modifier = Modifier) {
             CookingSessionFabStack(
                 onContinueClicked = bloc::onContinueCookingClicked,
                 onDoneCookingClicked = bloc::onDoneCookingClicked,
-                // Ride up so the app-wide cook-mode toast never covers the FAB stack.
+                // Clear the floating nav pill, and ride up further so the app-wide cook-mode
+                // toast never covers the FAB stack.
                 modifier =
                     Modifier.align(Alignment.BottomEnd)
-                        .padding(bottom = LocalSnackbarInset.current),
+                        .padding(
+                            bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                        ),
             )
         }
 
@@ -417,7 +421,7 @@ private fun MonthView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = PaddingValues(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         item(key = "month_calendar") {
             MonthCalendar(
@@ -649,7 +653,7 @@ private fun DayView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = PaddingValues(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         if (dayMeals.breakfast.isNotEmpty()) {
             stickyHeader(key = "breakfast") {
@@ -737,7 +741,7 @@ private fun WeekView(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = spacedBy(ChefMateTheme.dimens.paddingSmall),
-        contentPadding = PaddingValues(bottom = ChefMateTheme.dimens.fabClearance),
+        contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         weekMeals.forEach { dayGroup ->
             if (dayGroup.meals.isNotEmpty()) {
