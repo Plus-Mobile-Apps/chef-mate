@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -410,8 +411,14 @@ private fun PlusBottomBar(
     }
 }
 
-private val LensHorizontalInset = 6.dp
-private val LensVerticalInset = 8.dp
+// The lens frames the whole item — icon and label — so it runs nearly the full bar height. Material
+// lays the label out low in the item, so anything shorter cuts across it.
+private val LensHorizontalInset = 3.dp
+private val LensVerticalInset = 3.dp
+
+// Not a full stadium: at this height a semicircular end would curve in across a wide label like
+// "Browser". This radius still sits inside the bar's own rounded ends at the first and last tab.
+private val LensShape = RoundedCornerShape(24.dp)
 
 /**
  * The draggable selection lens: a brighter piece of glass sitting on the bar, marking the active
@@ -425,7 +432,7 @@ private fun SelectionLens(modifier: Modifier = Modifier) {
     Box(
         modifier =
             modifier
-                .clip(GlassDefaults.shape)
+                .clip(LensShape)
                 .background(
                     Brush.verticalGradient(
                         listOf(
@@ -449,7 +456,7 @@ private fun SelectionLens(modifier: Modifier = Modifier) {
                                 Color.White.copy(alpha = 0.04f),
                             )
                         ),
-                    shape = GlassDefaults.shape,
+                    shape = LensShape,
                 )
     )
 }
