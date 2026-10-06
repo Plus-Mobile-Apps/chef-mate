@@ -1043,19 +1043,23 @@ private fun GroceryItemNameTextField(
     modifier: Modifier = Modifier,
 ) {
     var fieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
-    // The name is owned externally (the BLoC). When it changes from outside the field — a
-    // suggestion tap or the clear after adding — sync it in and move the cursor to the end. Normal
-    // typing keeps text and value equal, so this leaves the user's cursor alone.
-    LaunchedEffect(value) {
-        if (value != fieldValue.text) {
-            fieldValue = TextFieldValue(value, TextRange(value.length))
-        }
-    }
+    // The name is owned externally (the BLoC); this only keeps the cursor and composition. When the
+    // name changes from outside the field — a suggestion tap, or the clear after adding — show it
+    // straight away with the cursor at the end. This is derived during composition rather than
+    // synced in a LaunchedEffect a frame later: that lag left a window where the field still held
+    // text the BLoC had already moved past. Normal typing keeps the two equal, so the user's cursor
+    // is left alone.
+    val shownValue =
+        if (fieldValue.text == value) fieldValue else TextFieldValue(value, TextRange(value.length))
     OutlinedTextField(
-        value = fieldValue,
+        value = shownValue,
         onValueChange = {
             fieldValue = it
-            onValueChange(it.text)
+            // Only forward real edits. On blur the field re-reports its input session's buffer
+            // (composition cleared) whether or not anything changed — and when Done has just added
+            // the item and cleared the name, that buffer can still hold the old text. Forwarding it
+            // put the item's name straight back into the field.
+            if (it.text != value) onValueChange(it.text)
         },
         modifier =
             modifier
