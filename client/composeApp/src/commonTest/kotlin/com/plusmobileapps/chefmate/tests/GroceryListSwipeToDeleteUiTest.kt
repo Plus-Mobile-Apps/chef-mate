@@ -40,6 +40,21 @@ class GroceryListSwipeToDeleteUiTest {
     }
 
     @Test
+    fun a_swiped_row_that_comes_back_is_not_deleted_again() = runComposeUiTest {
+        val deleted = mutableStateListOf<GroceryDisplayItem>()
+        setGroceryListContent(deleted, swipeToDeleteEnabled = true)
+        onNodeWithText("Apples").performTouchInput { swipeLeft() }
+        waitUntilDoesNotExist(hasText("Apples"))
+
+        // Undo: the row returns under the same key.
+        val restored = deleted.removeAt(0)
+        waitForIdle()
+
+        onNodeWithText("Apples").assertIsDisplayed()
+        assertTrue(restored !in deleted, "restored row was deleted again")
+    }
+
+    @Test
     fun swiping_does_nothing_when_swipe_to_delete_is_disabled() = runComposeUiTest {
         val deleted = mutableStateListOf<GroceryDisplayItem>()
         setGroceryListContent(deleted, swipeToDeleteEnabled = false)
