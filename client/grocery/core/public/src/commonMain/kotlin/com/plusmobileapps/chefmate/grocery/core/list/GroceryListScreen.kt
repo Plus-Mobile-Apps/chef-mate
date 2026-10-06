@@ -965,10 +965,13 @@ private fun GroceryListInput(
                 exit = fadeOut() + shrinkHorizontally(),
             ) {
                 // Done finishes what the user was typing: anything left in the field is added
-                // before the keyboard goes away, so half-typed text isn't silently abandoned.
+                // before the keyboard goes away, so half-typed text isn't silently abandoned. It
+                // reads the name as it stands at the tap, not `trimmedQuery` from the last
+                // composition — a tap landing before the recomposition that carries the latest
+                // keystrokes would otherwise see stale text and drop the item.
                 TextButton(
                     onClick = {
-                        if (trimmedQuery.isNotEmpty()) onAddClick()
+                        if (name.value.isNotBlank()) onAddClick()
                         dismissKeyboard()
                     },
                     modifier = Modifier.testTag(GroceryListTestTags.DONE_BUTTON),
