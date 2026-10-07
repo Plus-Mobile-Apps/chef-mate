@@ -306,7 +306,7 @@ fun PlusHeader(
             scrollBehavior.state.collapsedFraction < 0.5f -> 2
             else -> 1
         }
-    val title: @Composable () -> Unit = {
+    val titleText: @Composable () -> Unit = {
         Text(
             text = data.title.localized(),
             color = ChefMateTheme.colorScheme.onBackground,
@@ -314,6 +314,21 @@ fun PlusHeader(
             overflow = TextOverflow.Ellipsis,
         )
     }
+    val centerContent = (data as? PlusHeaderData.Parent)?.center
+    // The title area is the only middle slot an app bar offers, so centered content is overlaid on
+    // it: the title keeps its start alignment while the centered content sits in the middle of
+    // whatever space is left between the leading content and the actions.
+    val title: @Composable () -> Unit =
+        if (centerContent == null) {
+            titleText
+        } else {
+            {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.align(Alignment.CenterStart)) { titleText() }
+                    Box(modifier = Modifier.align(Alignment.Center)) { centerContent() }
+                }
+            }
+        }
     val navigationIcon: @Composable () -> Unit =
         when (data) {
             is PlusHeaderData.Child -> {
