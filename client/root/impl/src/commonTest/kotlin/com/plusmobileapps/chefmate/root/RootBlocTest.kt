@@ -321,6 +321,24 @@ class RootBlocTest {
     }
 
     @Test
+    fun When_recipe_root_outputs_open_grocery_list_Then_recipe_is_removed_from_the_stack() {
+        val bottomNavChild =
+            rootBloc.state.value.items
+                .map { it.instance }
+                .filterIsInstance<RootBloc.Child.BottomNavigation>()
+                .first()
+                .bloc
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenGroceryList)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+        rootBloc.state.value.backStack.size shouldBe 0
+        dev.mokkery.verify { bottomNavChild.onTabSelected(BottomNavBloc.Tab.GROCERIES) }
+    }
+
+    @Test
     fun When_bottom_nav_outputs_open_app_settings_Then_settings_root_is_shown() {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenAppSettings)
         rootBloc.instance() should instanceOf<RootBloc.Child.SettingsRoot>()

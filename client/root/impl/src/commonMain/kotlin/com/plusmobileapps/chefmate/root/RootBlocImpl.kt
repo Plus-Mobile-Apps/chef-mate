@@ -583,13 +583,14 @@ class RootBlocImpl(
                 navigation.bringToFront(Configuration.Browser(output.url))
             }
             RecipeRootBloc.Output.OpenGroceryList -> {
-                val bottomNavChild =
-                    stack.value.items
-                        .map { it.instance }
-                        .filterIsInstance<BottomNavigation>()
-                        .firstOrNull()
-                bottomNavChild?.bloc?.onTabSelected(BottomNavBloc.Tab.GROCERIES)
-                navigation.bringToFront(Configuration.BottomNavigation)
+                selectBottomNavTab(BottomNavBloc.Tab.GROCERIES)
+                // Unwind to the bottom nav rather than bringing it to the front, so the recipe
+                // detail isn't left underneath the grocery list for back to return to.
+                navigation.navigate { stack ->
+                    stack
+                        .dropLastWhile { it != Configuration.BottomNavigation }
+                        .ifEmpty { listOf(Configuration.BottomNavigation) }
+                }
             }
             is RecipeRootBloc.Output.OpenMealPlanner -> {
                 navigation.bringToFront(Configuration.MealPlanner(output.props))
