@@ -161,6 +161,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
+import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -1067,6 +1068,7 @@ private fun GroceryItemNameTextField(
                 .onFocusChanged { onFocusChanged(it.isFocused) }
                 .testTag(GroceryListTestTags.ITEM_INPUT),
         singleLine = true,
+        shape = PlusTextFieldDefaults.RoundedShape,
         placeholder = { Text(stringResource(Res.string.grocery_add_item_hint)) },
         keyboardOptions =
             KeyboardOptions(

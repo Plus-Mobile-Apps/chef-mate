@@ -212,6 +212,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
+import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
@@ -1353,6 +1354,7 @@ private fun SearchBar(
             placeholder = { Text(stringResource(Res.string.recipe_list_search_placeholder)) },
             leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
             singleLine = true,
+            shape = PlusTextFieldDefaults.RoundedShape,
         )
         // The clear/close control lives OUTSIDE PlusTextField rather than in its trailing slot. On
         // iOS the field renders through the native text input (usingNativeTextInput), whose UIView
