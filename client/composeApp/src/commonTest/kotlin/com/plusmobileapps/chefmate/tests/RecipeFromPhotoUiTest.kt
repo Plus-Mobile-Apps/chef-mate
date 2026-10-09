@@ -37,8 +37,8 @@ class RecipeFromPhotoUiTest {
 
     @Test
     fun add_button_opens_editor_directly_when_scan_flag_disabled() = runRootBlocTest {
-        // Flag defaults to off: the add button must open the blank editor with no chooser.
-        recipeList().openAddMenu()
+        // Flag defaults to off: adding a recipe must open the blank editor with no chooser.
+        recipeList().tapAddRecipe()
 
         editRecipe().awaitDisplayed()
     }
