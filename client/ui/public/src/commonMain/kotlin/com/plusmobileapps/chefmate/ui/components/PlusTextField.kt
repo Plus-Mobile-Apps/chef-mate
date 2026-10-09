@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActionScope
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,11 +25,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
+
+object PlusTextFieldDefaults {
+    /**
+     * Pill-shaped corners for prominent single-line inputs (browser search bar, recipe search,
+     * grocery quick-add). Half the 56dp outlined field height, so the ends are fully rounded.
+     */
+    val RoundedShape: Shape = RoundedCornerShape(28.dp)
+}
 
 @Composable
 fun PlusTextField(
@@ -50,6 +61,7 @@ fun PlusTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     contentType: ContentType? = null,
+    shape: Shape = PlusTextFieldDefaults.RoundedShape,
 ) {
     val isError = error != null
 
@@ -123,6 +135,7 @@ fun PlusTextField(
             outputTransformation = outputTransformation,
             keyboardOptions = keyboardOptions.withNativeTextInput(),
             onKeyboardAction = keyboardActions.toKeyboardActionHandler(keyboardOptions.imeAction),
+            shape = shape,
         )
         AnimatedVisibility(visible = isError) {
             error?.let {

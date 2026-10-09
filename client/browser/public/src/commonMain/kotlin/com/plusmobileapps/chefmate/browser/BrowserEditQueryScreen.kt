@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -53,6 +52,7 @@ import chefmate.client.browser.public.generated.resources.browser_history_delete
 import chefmate.client.browser.public.generated.resources.browser_landing_hint
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
+import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -136,7 +136,7 @@ fun BrowserEditQueryScreen(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(28.dp),
+            shape = PlusTextFieldDefaults.RoundedShape,
             keyboardOptions =
                 KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
             keyboardActions =
