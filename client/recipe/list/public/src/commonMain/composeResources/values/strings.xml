@@ -9,6 +9,7 @@
     <string name="recipe_list_add_onboarding">Tap here to add your first recipe</string>
     <string name="recipe_list_view_mode_onboarding">Switch between grid and list views</string>
     <string name="recipe_list_filter_onboarding">Sort and filter to find recipes fast</string>
+    <string name="recipe_list_overflow_onboarding">Add recipes, switch views, and sort &amp; filter from here</string>
     <string name="recipe_list_scan_from_photo">Scan from photo</string>
     <string name="recipe_list_scanning_title">Scanning photo…</string>
     <string name="recipe_list_scanning_message">Reading the recipe from your photo.</string>
