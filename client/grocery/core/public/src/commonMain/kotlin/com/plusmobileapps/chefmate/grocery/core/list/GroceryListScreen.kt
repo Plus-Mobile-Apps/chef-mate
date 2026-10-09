@@ -949,7 +949,9 @@ private fun GroceryListInput(
         Row(
             // Only this row is measured: the suggestions above it open over the list, and feeding
             // them into the list's padding would make it jump with every keystroke.
-            modifier = Modifier.onSizeChanged { onFieldRowHeightChanged(it.height) },
+            modifier =
+                Modifier.onSizeChanged { onFieldRowHeightChanged(it.height) }
+                    .padding(horizontal = ChefMateTheme.dimens.paddingSmall),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             GroceryItemNameTextField(
