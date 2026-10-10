@@ -12,6 +12,8 @@ import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeIngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
+import com.plusmobileapps.chefmate.review.ReviewMilestone
+import com.plusmobileapps.chefmate.review.testing.FakeInAppReviewService
 import com.plusmobileapps.chefmate.subscription.testing.FakeSubscriptionRepository
 import com.russhwolf.settings.MapSettings
 import dev.mokkery.answering.returns
@@ -38,6 +40,7 @@ class CookModeViewModelTest {
         everySuspend { stopAll() } returns Unit
     }
     private val scalePreferences = FakeIngredientScalePreferences()
+    private val inAppReviewService = FakeInAppReviewService()
 
     private fun createViewModel(
         coachMarkController: CoachMarkController = CoachMarkController(MapSettings()),
@@ -55,6 +58,7 @@ class CookModeViewModelTest {
             coachMarkController = coachMarkController,
             featureFlags = featureFlags,
             subscriptionRepository = subscriptionRepository,
+            inAppReviewService = inAppReviewService,
         )
 
     @Test
@@ -147,6 +151,27 @@ class CookModeViewModelTest {
 
         verifySuspend { sessionRepository.stopAll() }
         finished shouldBe true
+    }
+
+    @Test
+    fun When_one_recipe_cooking_Then_no_review_milestone() {
+        recipes.value = listOf(Recipe.Sample.copy(id = 1L))
+        recipeIds.value = listOf(1L)
+
+        createViewModel()
+
+        inAppReviewService.milestones shouldBe emptyList()
+    }
+
+    @Test
+    fun When_second_recipe_added_to_cook_mode_Then_review_milestone_reported() {
+        recipes.value = listOf(Recipe.Sample.copy(id = 1L), Recipe.Sample.copy(id = 2L))
+        recipeIds.value = listOf(1L)
+        createViewModel()
+
+        recipeIds.value = listOf(2L, 1L)
+
+        inAppReviewService.milestones shouldBe listOf(ReviewMilestone.MultipleRecipesInCookMode)
     }
 
     @Test

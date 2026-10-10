@@ -20,6 +20,8 @@ import com.plusmobileapps.chefmate.recipe.data.RecipePhotoStorage
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBookRepository
+import com.plusmobileapps.chefmate.review.InAppReviewService
+import com.plusmobileapps.chefmate.review.ReviewMilestone
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
@@ -52,6 +54,7 @@ class EditRecipeViewModel(
     private val pendingRecipePhotoStore: PendingRecipePhotoStore,
     private val markdownEditorModeRepository: MarkdownEditorModeRepository,
     private val coachMarkController: CoachMarkController,
+    private val inAppReviewService: InAppReviewService,
 ) : ViewModel(mainContext) {
     private val _output = Channel<Output>(Channel.BUFFERED)
     val output: Flow<Output> = _output.receiveAsFlow()
@@ -385,7 +388,9 @@ class EditRecipeViewModel(
                 if (originalRecipe != null) {
                     repository.updateRecipe(currentRecipe)
                 } else {
-                    repository.createRecipe(currentRecipe)
+                    repository.createRecipe(currentRecipe).also {
+                        inAppReviewService.onMilestone(ReviewMilestone.RecipeSaved)
+                    }
                 }
             _output.send(Output.Finished(savedRecipe.id))
         }
