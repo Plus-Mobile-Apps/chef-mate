@@ -7,6 +7,7 @@ import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.settings.ui.SettingsScreen
 import com.plusmobileapps.chefmate.settings.ui.previewSettingsBlocAiChatLocked
 import com.plusmobileapps.chefmate.settings.ui.previewSettingsBlocAiChatUnlocked
+import com.plusmobileapps.chefmate.settings.ui.previewSettingsBlocManageFamily
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 // Covers the two states of the More tab's AI Chat row. The row is present either way — only the
@@ -31,4 +32,14 @@ fun SettingsAiChatRowLockedScreenshot() {
 @Composable
 fun SettingsAiChatRowLockedDarkScreenshot() {
     ChefMateTheme(darkTheme = true) { SettingsScreen(bloc = previewSettingsBlocAiChatLocked) }
+}
+
+// The flagged Manage Family row in the More tab. Off by default, so this is the only reference
+// that shows it.
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+fun SettingsManageFamilyRowScreenshot() {
+    ChefMateTheme { SettingsScreen(bloc = previewSettingsBlocManageFamily) }
 }

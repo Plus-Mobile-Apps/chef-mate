@@ -1,6 +1,7 @@
 package com.plusmobileapps.chefmate.notifications.data.impl
 
 import com.plusmobileapps.chefmate.di.AppScope
+import com.plusmobileapps.chefmate.family.data.FamilyRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
 import com.plusmobileapps.chefmate.notifications.data.AppNotification
 import com.plusmobileapps.chefmate.notifications.data.NotificationsRepository
@@ -23,26 +24,31 @@ import kotlinx.coroutines.flow.update
 class NotificationsRepositoryImpl(
     private val groceryRepository: GroceryRepository,
     private val recipeBookCollaborationRepository: RecipeBookCollaborationRepository,
+    private val familyRepository: FamilyRepository,
 ) : NotificationsRepository {
 
-    // Bumped by refresh()/accept()/decline() to force both the grocery flow and the recipe-book
-    // fetch to re-run. flatMapLatest re-subscribes to the grocery flow on each tick — the grocery
-    // pending-invites flow is cold, so re-subscribing re-fetches from the backend. This is what
-    // keeps the list (and the badge) current after a user acts on an invite, since neither source
-    // pushes updates on its own.
+    // Bumped by refresh()/accept()/decline() to force the grocery flow and the one-shot
+    // recipe-book/family fetches to re-run. flatMapLatest re-subscribes to the grocery flow on
+    // each tick — the grocery pending-invites flow is cold, so re-subscribing re-fetches from the
+    // backend. This is what keeps the list (and the badge) current after a user acts on an invite,
+    // since no source pushes updates on its own.
     private val refreshTrigger = MutableStateFlow(0L)
 
     override val notifications: Flow<List<AppNotification>> = refreshTrigger.flatMapLatest {
         combine(
             groceryRepository.getPendingInvitations(),
-            // pendingInvites() is one-shot; wrap it so it re-runs whenever we re-subscribe.
+            // pendingInvites() is one-shot; wrap it so it re-runs whenever we re-subscribe. Each
+            // source is caught on its own so one being unreachable doesn't blank the other kinds.
             flow {
                 emit(
                     runCatching { recipeBookCollaborationRepository.pendingInvites() }
                         .getOrDefault(emptyList())
                 )
             },
-        ) { groceryInvites, recipeBookInvites ->
+            flow {
+                emit(runCatching { familyRepository.pendingInvites() }.getOrDefault(emptyList()))
+            },
+        ) { groceryInvites, recipeBookInvites, familyInvites ->
             groceryInvites.map {
                 AppNotification.GroceryInvite(
                     memberId = it.memberId,
@@ -56,6 +62,13 @@ class NotificationsRepositoryImpl(
                         bookName = it.bookName,
                         role = it.role,
                     )
+                } +
+                familyInvites.map {
+                    AppNotification.FamilyInvite(
+                        memberId = it.memberId,
+                        familyName = it.familyName,
+                        role = it.role,
+                    )
                 }
         }
     }
@@ -66,6 +79,7 @@ class NotificationsRepositoryImpl(
                 groceryRepository.acceptInvitation(notification.memberId)
             is AppNotification.RecipeBookInvite ->
                 recipeBookCollaborationRepository.acceptInvite(notification.memberId)
+            is AppNotification.FamilyInvite -> familyRepository.acceptInvite(notification.memberId)
         }
         refresh()
     }
@@ -76,6 +90,7 @@ class NotificationsRepositoryImpl(
                 groceryRepository.rejectInvitation(notification.memberId)
             is AppNotification.RecipeBookInvite ->
                 recipeBookCollaborationRepository.declineInvite(notification.memberId)
+            is AppNotification.FamilyInvite -> familyRepository.declineInvite(notification.memberId)
         }
         refresh()
     }

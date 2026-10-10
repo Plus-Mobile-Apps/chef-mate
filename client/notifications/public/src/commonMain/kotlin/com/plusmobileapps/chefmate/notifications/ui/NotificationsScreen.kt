@@ -25,6 +25,7 @@ import chefmate.client.notifications.public.generated.resources.notifications_ac
 import chefmate.client.notifications.public.generated.resources.notifications_decline
 import chefmate.client.notifications.public.generated.resources.notifications_empty_message
 import chefmate.client.notifications.public.generated.resources.notifications_empty_title
+import chefmate.client.notifications.public.generated.resources.notifications_family_invite_message
 import chefmate.client.notifications.public.generated.resources.notifications_grocery_invite_message
 import chefmate.client.notifications.public.generated.resources.notifications_recipe_book_invite_message
 import chefmate.client.notifications.public.generated.resources.notifications_signed_out
@@ -184,5 +185,10 @@ private fun AppNotification.message(): TextData =
             PhraseModel(
                 resource = Res.string.notifications_recipe_book_invite_message,
                 "book" to FixedString(bookName),
+            )
+        is AppNotification.FamilyInvite ->
+            PhraseModel(
+                resource = Res.string.notifications_family_invite_message,
+                "family" to FixedString(familyName),
             )
     }
