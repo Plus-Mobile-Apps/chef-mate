@@ -15,6 +15,7 @@ kotlin {
             implementation(projects.client.toast.public)
             implementation(projects.client.featureflag.public)
             implementation(projects.client.subscription.public)
+            implementation(projects.client.review.public)
             implementation(libs.arkivanov.decompose.core)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(projects.client.shared)
@@ -34,6 +35,7 @@ kotlin {
             implementation(projects.client.toast.testing)
             implementation(projects.client.featureflag.testing)
             implementation(projects.client.subscription.testing)
+            implementation(projects.client.review.testing)
             implementation(libs.multiplatform.settings.test)
         }
     }

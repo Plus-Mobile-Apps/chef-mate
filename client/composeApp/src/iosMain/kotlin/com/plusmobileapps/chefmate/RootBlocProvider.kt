@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate
 
 import com.arkivanov.decompose.ComponentContext
 import com.plusmobileapps.chefmate.di.IosApplicationComponent
+import com.plusmobileapps.chefmate.review.InAppReviewService
 import com.plusmobileapps.chefmate.root.DeepLink
 import com.plusmobileapps.chefmate.root.RootBloc
 import com.plusmobileapps.chefmate.toast.ToastService
@@ -16,6 +17,13 @@ object RootBlocProvider {
      * widening the Swift glue signatures.
      */
     lateinit var toastService: ToastService
+        private set
+
+    /**
+     * The app-scoped [InAppReviewService], threaded to [MainViewController] the same way as
+     * [toastService] so the review host observes the instance ViewModels report milestones to.
+     */
+    lateinit var inAppReviewService: InAppReviewService
         private set
 
     /**
@@ -43,6 +51,7 @@ object RootBlocProvider {
         val applicationComponent =
             createGraphFactory<IosApplicationComponent.Factory>().create(application)
         toastService = applicationComponent.toastService
+        inAppReviewService = applicationComponent.inAppReviewService
         watchDataBridge = applicationComponent.watchDataBridge
         return applicationComponent.rootBlocFactory.create(
             context = DefaultBlocContext(componentContext = componentContext),

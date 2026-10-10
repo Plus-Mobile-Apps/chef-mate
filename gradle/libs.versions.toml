@@ -39,6 +39,7 @@ metro = "1.4.5"
 metroExtensions = "0.2.0"
 multiplatform-markdown-renderer = "0.41.0"
 multiplatform-settings = "1.3.0"
+play-review = "2.0.2"
 multiplatform-webview = "2.0.3"
 openjfx = "21.0.7"
 richeditor = "1.0.0-rc14"
@@ -112,6 +113,7 @@ multiplatform-webview = { module = "io.github.kevinnzou:compose-webview-multipla
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 multiplatform-settings-noarg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
 multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatform-settings" }
+play-review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "play-review" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 richeditor-compose = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version.ref = "richeditor" }
 ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }

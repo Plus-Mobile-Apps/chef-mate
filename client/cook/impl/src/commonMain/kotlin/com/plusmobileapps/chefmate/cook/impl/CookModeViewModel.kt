@@ -15,6 +15,8 @@ import com.plusmobileapps.chefmate.recipe.data.DEFAULT_INGREDIENT_SCALE
 import com.plusmobileapps.chefmate.recipe.data.IngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
+import com.plusmobileapps.chefmate.review.InAppReviewService
+import com.plusmobileapps.chefmate.review.ReviewMilestone
 import com.plusmobileapps.chefmate.subscription.SubscriptionRepository
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.boolean
@@ -45,6 +47,7 @@ class CookModeViewModel(
     private val coachMarkController: CoachMarkController,
     featureFlags: FeatureFlags,
     subscriptionRepository: SubscriptionRepository,
+    private val inAppReviewService: InAppReviewService,
 ) : ViewModel(mainContext) {
 
     private val showAiChat = featureFlags.isEnabled(FeatureFlagRegistry.AiChat)
@@ -97,6 +100,9 @@ class CookModeViewModel(
                     ids.mapNotNull { byId[it] }
                 }
                 .collect { recipes ->
+                    if (recipes.size >= 2) {
+                        inAppReviewService.onMilestone(ReviewMilestone.MultipleRecipesInCookMode)
+                    }
                     // Recipes arrive ordered by lastSelectedAt DESC, so the first is active.
                     _state.update { current ->
                         current.copy(

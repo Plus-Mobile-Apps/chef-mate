@@ -30,6 +30,7 @@ object MainViewController {
                 App(
                     rootBloc = rootBloc,
                     toastService = RootBlocProvider.toastService,
+                    inAppReviewService = RootBlocProvider.inAppReviewService,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
