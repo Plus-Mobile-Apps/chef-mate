@@ -200,6 +200,12 @@ include(":client:recipebook:edit:impl-robots")
 
 include(":client:recipebook:edit:public")
 
+include(":client:review:impl")
+
+include(":client:review:public")
+
+include(":client:review:testing")
+
 include(":client:root:impl")
 
 include(":client:root:public")
