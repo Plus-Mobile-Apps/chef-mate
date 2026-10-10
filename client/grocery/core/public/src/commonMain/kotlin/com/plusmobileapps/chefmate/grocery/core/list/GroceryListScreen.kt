@@ -5,7 +5,6 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +44,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -929,10 +929,10 @@ private fun GroceryListInput(
         keyboardController?.hide()
     }
 
-    // List rows now scroll underneath, so the transparent outlined field needs a ground of its own.
-    // It goes on the column rather than the field row: drawn first, it sits under the suggestion
-    // panel's shadow instead of painting over it. The suggestions themselves are opaque.
-    Column(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
+    // List rows scroll underneath. Only the field and the Done button are filled — each clipped to
+    // its own pill — so the list stays visible around their perimeter instead of being cut off by
+    // a hard-edged rectangle. The suggestions above are an opaque surface of their own.
+    Column(modifier = modifier) {
         // Suggestions render directly above the field rather than as a downward dropdown: the input
         // is anchored at the bottom of the screen, so a dropdown would open behind the keyboard
         // (especially on iOS, where it doesn't flip above the anchor). They sit above the
@@ -978,6 +978,10 @@ private fun GroceryListInput(
                         dismissKeyboard()
                     },
                     modifier = Modifier.testTag(GroceryListTestTags.DONE_BUTTON),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
                 ) {
                     Text(stringResource(Res.string.grocery_done))
                 }
@@ -1071,6 +1075,14 @@ private fun GroceryItemNameTextField(
                 .testTag(GroceryListTestTags.ITEM_INPUT),
         singleLine = true,
         shape = PlusTextFieldDefaults.RoundedShape,
+        // Opaque inside the pill so list rows scrolling underneath don't show through the text.
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                errorContainerColor = MaterialTheme.colorScheme.surface,
+            ),
         placeholder = { Text(stringResource(Res.string.grocery_add_item_hint)) },
         keyboardOptions =
             KeyboardOptions(
