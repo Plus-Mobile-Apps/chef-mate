@@ -434,10 +434,9 @@ fun GroceryListScreen(
                             onFieldRowHeightChanged = {
                                 inputRowHeight = with(density) { it.toDp() }
                             },
-                            // Floats over the list, directly on top of the nav pill. The pill
-                            // slides
-                            // away with the keyboard, so this padding animates to zero and the row
-                            // lands directly on the keyboard.
+                            // Floats over the list, directly on top of the nav pill. The inset
+                            // shrinks as the keyboard covers the pill, so the row stays at
+                            // max(keyboard, pill) and lands directly on the keyboard.
                             modifier =
                                 Modifier.align(Alignment.BottomCenter)
                                     .padding(bottom = navBarInset),

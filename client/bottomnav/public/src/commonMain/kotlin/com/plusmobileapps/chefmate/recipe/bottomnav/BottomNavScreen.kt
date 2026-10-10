@@ -5,7 +5,6 @@ package com.plusmobileapps.chefmate.recipe.bottomnav
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -202,10 +201,16 @@ private fun MobileBottomNavContent(
     // away instead of trying to float it above a rising keyboard: the tab content then owns the
     // whole area above the keyboard, which is what a bottom-anchored input (the grocery add row)
     // wants anyway.
-    val imeVisible = WindowInsets.ime.getBottom(density) > 0
+    val imeBottom = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+    val imeVisible = imeBottom > 0.dp
     var barBlockHeight by remember { mutableStateOf(0.dp) }
-    val barInset by
-        animateDpAsState(if (imeVisible) 0.dp else barBlockHeight, label = "bottomNavBarInset")
+    // The content is already imePadding()-ed, so the bar only needs to contribute whatever part of
+    // its block the keyboard doesn't yet cover. Deriving this from the live IME inset (rather than
+    // springing it to 0 when the keyboard appears) keeps a bottom-anchored input at
+    // max(keyboard, bar) on every frame: it waits on top of the bar until the rising keyboard
+    // overtakes it, then rides the keyboard — and on close it settles back onto the bar instead of
+    // dropping to the screen edge and bouncing up once the keyboard is gone.
+    val barInset = (barBlockHeight - imeBottom).coerceAtLeast(0.dp)
 
     Box(modifier = modifier.fillMaxSize()) {
         // No Scaffold here: the tab content fills the screen so it can be seen through the glass,
