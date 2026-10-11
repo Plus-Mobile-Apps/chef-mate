@@ -154,9 +154,9 @@ class CookModeViewModelTest {
     }
 
     @Test
-    fun When_one_recipe_cooking_Then_no_review_milestone() {
-        recipes.value = listOf(Recipe.Sample.copy(id = 1L))
-        recipeIds.value = listOf(1L)
+    fun When_recipes_cooking_Then_no_review_milestone() {
+        recipes.value = listOf(Recipe.Sample.copy(id = 1L), Recipe.Sample.copy(id = 2L))
+        recipeIds.value = listOf(2L, 1L)
 
         createViewModel()
 
@@ -164,14 +164,12 @@ class CookModeViewModelTest {
     }
 
     @Test
-    fun When_second_recipe_added_to_cook_mode_Then_review_milestone_reported() {
-        recipes.value = listOf(Recipe.Sample.copy(id = 1L), Recipe.Sample.copy(id = 2L))
-        recipeIds.value = listOf(1L)
-        createViewModel()
+    fun When_finish_cooking_Then_review_milestone_reported() {
+        val vm = createViewModel()
 
-        recipeIds.value = listOf(2L, 1L)
+        vm.finishCooking {}
 
-        inAppReviewService.milestones shouldBe listOf(ReviewMilestone.MultipleRecipesInCookMode)
+        inAppReviewService.milestones shouldBe listOf(ReviewMilestone.CookingFinished)
     }
 
     @Test

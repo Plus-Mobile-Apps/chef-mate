@@ -4,11 +4,11 @@ import kotlinx.coroutines.flow.StateFlow
 
 /** A moment of user success after which it is a good time to ask for a store review. */
 enum class ReviewMilestone {
-    /** The user saved a new recipe of their own. */
+    /** The user saved a new recipe of their own. Prompts once enough have been saved. */
     RecipeSaved,
 
-    /** The user has two or more recipes going in cook mode at once. */
-    MultipleRecipesInCookMode,
+    /** The user finished a cook-mode session. */
+    CookingFinished,
 }
 
 /**

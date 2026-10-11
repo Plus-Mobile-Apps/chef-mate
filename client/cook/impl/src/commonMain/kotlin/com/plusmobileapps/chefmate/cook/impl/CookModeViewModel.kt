@@ -100,9 +100,6 @@ class CookModeViewModel(
                     ids.mapNotNull { byId[it] }
                 }
                 .collect { recipes ->
-                    if (recipes.size >= 2) {
-                        inAppReviewService.onMilestone(ReviewMilestone.MultipleRecipesInCookMode)
-                    }
                     // Recipes arrive ordered by lastSelectedAt DESC, so the first is active.
                     _state.update { current ->
                         current.copy(
@@ -150,6 +147,7 @@ class CookModeViewModel(
     fun finishCooking(onDone: () -> Unit) {
         scope.launch {
             sessionRepository.stopAll()
+            inAppReviewService.onMilestone(ReviewMilestone.CookingFinished)
             onDone()
         }
     }
