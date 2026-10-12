@@ -49,6 +49,11 @@ class BrowserLandingBlocImpl(
         output.onNext(BrowserLandingBloc.Output.OpenEditQuery)
     }
 
+    override fun onOpenEngineHomeClicked() {
+        dismissCoachMark(CoachMarkId.BROWSER_SEARCH)
+        output.onNext(BrowserLandingBloc.Output.OpenUrl(state.value.selectedEngine.homeUrl))
+    }
+
     override fun onCoachMarkDismissed(id: String) {
         dismissCoachMark(id)
     }

@@ -145,6 +145,23 @@ class BrowserRootBlocImplTest {
     }
 
     @Test
+    fun When_landing_emits_open_url_Then_browser_pushed_on_top_of_landing() {
+        val bloc = createBloc()
+        landingOutput.onNext(BrowserLandingBloc.Output.OpenUrl(SearchEngine.GOOGLE.homeUrl))
+        bloc.activeChild().shouldBeInstanceOf<BrowserRootBloc.Child.Browser>()
+        // Back from the engine's page returns to Landing.
+        bloc.stackSize() shouldBe 2
+    }
+
+    @Test
+    fun When_landing_emits_open_url_twice_Then_single_browser_on_stack() {
+        val bloc = createBloc()
+        landingOutput.onNext(BrowserLandingBloc.Output.OpenUrl(SearchEngine.GOOGLE.homeUrl))
+        landingOutput.onNext(BrowserLandingBloc.Output.OpenUrl(SearchEngine.GOOGLE.homeUrl))
+        bloc.stackSize() shouldBe 2
+    }
+
+    @Test
     fun When_edit_query_emits_cancel_Then_stack_pops_to_previous_child() {
         val bloc = createBloc()
         landingOutput.onNext(BrowserLandingBloc.Output.OpenEditQuery)

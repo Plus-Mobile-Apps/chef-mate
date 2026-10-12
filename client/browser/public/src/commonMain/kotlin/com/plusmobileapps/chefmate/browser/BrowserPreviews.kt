@@ -14,6 +14,8 @@ private fun landingBloc(model: BrowserLandingBloc.Model): BrowserLandingBloc =
 
         override fun onSearchFieldFocused() = Unit
 
+        override fun onOpenEngineHomeClicked() = Unit
+
         override fun onCoachMarkDismissed(id: String) = Unit
 
         override fun onSearchEngineSelected(engine: SearchEngine) = Unit

@@ -33,6 +33,20 @@ class BrowserLandingBlocImplTest {
     }
 
     @Test
+    fun When_open_engine_home_clicked_Then_selected_engine_home_url_emitted() {
+        browserPreferences.setDefaultSearchEngine(SearchEngine.DUCK_DUCK_GO)
+        bloc.onOpenEngineHomeClicked()
+        output.lastValue shouldBe
+            BrowserLandingBloc.Output.OpenUrl(SearchEngine.DUCK_DUCK_GO.homeUrl)
+    }
+
+    @Test
+    fun When_open_engine_home_clicked_Then_coach_mark_dismissed() {
+        bloc.onOpenEngineHomeClicked()
+        coachMarkController.hasSeen(CoachMarkId.BROWSER_SEARCH) shouldBe true
+    }
+
+    @Test
     fun When_screen_opens_Then_search_coach_mark_active() {
         bloc.state.value.activeCoachMark shouldBe CoachMarkId.BROWSER_SEARCH
     }
