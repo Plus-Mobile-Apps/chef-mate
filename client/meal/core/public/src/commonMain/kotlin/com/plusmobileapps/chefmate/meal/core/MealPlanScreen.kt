@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -424,13 +425,20 @@ private fun MonthView(
         contentPadding = bottomNavContentPadding(bottom = ChefMateTheme.dimens.fabClearance),
     ) {
         item(key = "month_calendar") {
-            MonthCalendar(
-                firstDayOfMonth = monthModel.firstDayOfMonth,
-                selectedDay = monthModel.selectedDay,
-                daysWithMeals = monthModel.daysWithMeals,
-                onDaySelected = onDaySelected,
-                modifier = Modifier.fillMaxWidth().padding(ChefMateTheme.dimens.paddingNormal),
-            )
+            // Centered and capped so the grid stays compact on wide windows instead of spreading
+            // the day cells across the full width.
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                MonthCalendar(
+                    firstDayOfMonth = monthModel.firstDayOfMonth,
+                    selectedDay = monthModel.selectedDay,
+                    daysWithMeals = monthModel.daysWithMeals,
+                    onDaySelected = onDaySelected,
+                    modifier =
+                        Modifier.widthIn(max = ChefMateTheme.dimens.maxCalendarWidth)
+                            .fillMaxWidth()
+                            .padding(ChefMateTheme.dimens.paddingNormal),
+                )
+            }
         }
         if (allEmpty) {
             item(key = "month_empty") {
