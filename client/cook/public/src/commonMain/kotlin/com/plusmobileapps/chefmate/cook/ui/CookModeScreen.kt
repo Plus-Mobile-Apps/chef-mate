@@ -327,6 +327,15 @@ private fun CookModeTabletLayout(
                                     )
                                 }
                             }
+                            if (state.activeRecipe != null) {
+                                IconButton(onClick = bloc::onViewRecipeClicked) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                        contentDescription =
+                                            stringResource(Res.string.cook_mode_view_recipe),
+                                    )
+                                }
+                            }
                             CookModeAiChatButton(
                                 visible = state.showAiChat,
                                 subscribed = state.isSubscribed,
@@ -488,8 +497,10 @@ private fun CookModeMobileLayout(
                         trailingAccessory =
                             PlusHeaderData.TrailingAccessory.Custom {
                                 // Phone widths can't fit every control, so everything but Finish
-                                // collapses behind an overflow menu. The coach marks anchor on the
-                                // overflow button since that's where those controls now live.
+                                // collapses behind an overflow menu, which sits last. The coach
+                                // marks anchor on the overflow button since that's where those
+                                // controls now live.
+                                CookModeFinishButton(onFinish = bloc::onFinishClicked)
                                 CookModeCoachMark(
                                     id = CoachMarkId.COOK_MODE_KEEP_SCREEN_ON,
                                     text =
@@ -511,7 +522,6 @@ private fun CookModeMobileLayout(
                                         )
                                     }
                                 }
-                                CookModeFinishButton(onFinish = bloc::onFinishClicked)
                             },
                     ),
                 modifier = Modifier.fillMaxSize(),
