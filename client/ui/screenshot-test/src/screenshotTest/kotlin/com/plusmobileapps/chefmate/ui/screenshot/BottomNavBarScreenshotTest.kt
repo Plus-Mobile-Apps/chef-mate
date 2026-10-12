@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBarPreview
+import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavRailPreview
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 @PreviewTest
@@ -27,4 +28,19 @@ fun BottomNavBarWithBadgeScreenshot() {
 @Composable
 fun BottomNavBarWithBadgeDarkScreenshot() {
     ChefMateTheme(darkTheme = true) { Surface { BottomNavBarPreview(notificationCount = 3) } }
+}
+
+// The compact side rail a phone shows in landscape: the same lens, sliding vertically.
+@PreviewTest
+@Preview(showBackground = true)
+@Composable
+fun BottomNavRailWithBadgeScreenshot() {
+    ChefMateTheme { Surface { BottomNavRailPreview(notificationCount = 3) } }
+}
+
+@PreviewTest
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun BottomNavRailWithBadgeDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) { Surface { BottomNavRailPreview(notificationCount = 3) } }
 }
