@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.ShortNavigationBarItemDefaults
@@ -48,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -58,13 +60,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.node.requireLayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import chefmate.client.bottomnav.public.generated.resources.Res
 import chefmate.client.bottomnav.public.generated.resources.tab_browser
@@ -326,7 +342,9 @@ private fun PlusBottomBar(
             val settle = remember { Animatable(selectedIndex * cellWidthPx) }
             var dragging by remember { mutableStateOf(false) }
             var dragOffset by remember { mutableFloatStateOf(settle.value) }
-            val lensX = if (dragging) dragOffset else settle.value
+            // Read through a lambda so the offset and the tint below pick it up in the layout/draw
+            // phases — a moving lens then never recomposes the bar.
+            val lensX = { if (dragging) dragOffset else settle.value }
             val maxOffset = (tabCount - 1) * cellWidthPx
 
             // Settle onto the selected cell whenever the selection or the geometry changes — a tap,
@@ -352,9 +370,36 @@ private fun PlusBottomBar(
                 state.tabs.getOrNull(nearest)?.let { if (it != state.selectedTab) onClick(it) }
             }
 
+            val lensInsetPx = with(density) { LensHorizontalInset.toPx() }
+            val lensVerticalInsetPx = with(density) { LensVerticalInset.toPx() }
+            val lensCornerPx = with(density) { LensCornerRadius.toPx() }
+            val focusTint =
+                if (ChefMateTheme.colorScheme.surface.luminance() < 0.5f) {
+                    LensFocusTintDark
+                } else {
+                    LensFocusTintLight
+                }
+            val lensTint =
+                remember(focusTint, cellWidthPx, lensInsetPx, lensVerticalInsetPx, lensCornerPx) {
+                    LensTint(
+                        color = focusTint,
+                        cornerRadius = lensCornerPx,
+                        lensRect = { barSize ->
+                            Rect(
+                                left = lensX() + lensInsetPx,
+                                top = lensVerticalInsetPx,
+                                right = lensX() + cellWidthPx - lensInsetPx,
+                                bottom = barSize.height - lensVerticalInsetPx,
+                            )
+                        },
+                    )
+                }
+
             Box(
                 modifier =
                     Modifier.fillMaxWidth()
+                        // The lens is laid out relative to this Box, so the tint measures from it.
+                        .onPlaced { lensTint.barCoordinates = it }
                         .draggable(
                             state = dragState,
                             orientation = Orientation.Horizontal,
@@ -375,7 +420,7 @@ private fun PlusBottomBar(
                 Box(modifier = Modifier.matchParentSize()) {
                     SelectionLens(
                         modifier =
-                            Modifier.offset { IntOffset(lensX.roundToInt(), 0) }
+                            Modifier.offset { IntOffset(lensX().roundToInt(), 0) }
                                 .width(cellWidth)
                                 .fillMaxHeight()
                                 .padding(
@@ -385,30 +430,45 @@ private fun PlusBottomBar(
                     )
                 }
 
-                ShortNavigationBar(
-                    containerColor = Color.Transparent,
-                    contentColor = ChefMateTheme.colorScheme.onSurface,
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                ) {
-                    state.tabs.forEach { tab ->
-                        ShortNavigationBarItem(
-                            selected = tab == state.selectedTab,
-                            onClick = { onClick(tab) },
-                            icon = {
-                                TabIcon(tab = tab, notificationCount = state.notificationCount)
-                            },
-                            label = { Text(stringResource(tab.getLabel())) },
-                            colors =
-                                ShortNavigationBarItemDefaults.colors(
-                                    // Material defaults the selected label to `secondary`, which in
-                                    // this theme is teal200 — near-invisible on the light pill.
-                                    // Match the selected icon's treatment instead.
-                                    selectedTextColor = ChefMateTheme.colorScheme.onSurface,
-                                    // The lens is the indicator now, and it is one object that
-                                    // travels rather than a per-item pill that cross-fades.
-                                    selectedIndicatorColor = Color.Transparent,
-                                ),
-                        )
+                // No ripple: the lens is the press feedback. A ripple blooming from the icon under
+                // a piece of glass reads as a smudge rather than a response.
+                CompositionLocalProvider(LocalRippleConfiguration provides null) {
+                    ShortNavigationBar(
+                        containerColor = Color.Transparent,
+                        contentColor = ChefMateTheme.colorScheme.onSurface,
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                    ) {
+                        state.tabs.forEach { tab ->
+                            ShortNavigationBarItem(
+                                selected = tab == state.selectedTab,
+                                onClick = { onClick(tab) },
+                                icon = {
+                                    TabIcon(
+                                        tab = tab,
+                                        notificationCount = state.notificationCount,
+                                        iconModifier = Modifier.lensTinted(lensTint),
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = stringResource(tab.getLabel()),
+                                        modifier = Modifier.lensTinted(lensTint),
+                                    )
+                                },
+                                colors =
+                                    ShortNavigationBarItemDefaults.colors(
+                                        // Selection is carried by the lens and its blue tint, so
+                                        // selected and unselected items share one base color.
+                                        // (Material's default selected label is `secondary` —
+                                        // teal200 here, near-invisible on the light pill.)
+                                        selectedIconColor = ChefMateTheme.colorScheme.onSurface,
+                                        selectedTextColor = ChefMateTheme.colorScheme.onSurface,
+                                        // The lens is the indicator now, and it is one object that
+                                        // travels rather than a per-item pill that cross-fades.
+                                        selectedIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                        }
                     }
                 }
             }
@@ -423,7 +483,75 @@ private val LensVerticalInset = 3.dp
 
 // Not a full stadium: at this height a semicircular end would curve in across a wide label like
 // "Browser". This radius still sits inside the bar's own rounded ends at the first and last tab.
-private val LensShape = RoundedCornerShape(24.dp)
+// The blue the lens lends the icon and label beneath it. A system-style blue rather than the
+// theme's purple primary, so it reads as a property of the glass, not of the brand.
+private val LensFocusTintLight = Color(0xFF007AFF)
+private val LensFocusTintDark = Color(0xFF0A84FF)
+
+private val LensCornerRadius = 24.dp
+private val LensShape = RoundedCornerShape(LensCornerRadius)
+
+/**
+ * Where the selection lens currently sits, for [lensTinted]. [lensRect] maps the bar's size to the
+ * lens's bounds in the bar's coordinates, and is read at draw time so a sliding lens only redraws.
+ */
+@Stable
+private class LensTint(
+    val color: Color,
+    val cornerRadius: Float,
+    val lensRect: (IntSize) -> Rect,
+) {
+    var barCoordinates: LayoutCoordinates? = null
+}
+
+/**
+ * Paints the part of this element that sits under the selection lens in the lens's focus color, as
+ * if the glass were tinting what it magnifies. Only the element's own pixels are recolored
+ * (`SrcAtop` inside an offscreen layer), and only the overlapping slice — so an icon half under a
+ * moving lens is half blue.
+ *
+ * Applied per icon and label rather than once over the whole bar so the More tab's badge keeps its
+ * own colors; tinting it would flatten it into a solid blue blob.
+ */
+private fun Modifier.lensTinted(tint: LensTint): Modifier = this then LensTintElement(tint)
+
+private data class LensTintElement(val tint: LensTint) : ModifierNodeElement<LensTintNode>() {
+    override fun create() = LensTintNode(tint)
+
+    override fun update(node: LensTintNode) {
+        node.tint = tint
+        node.invalidateDraw()
+    }
+}
+
+private class LensTintNode(var tint: LensTint) : Modifier.Node(), DrawModifierNode {
+    override fun ContentDrawScope.draw() {
+        val bar = tint.barCoordinates
+        if (bar == null || !bar.isAttached) {
+            drawContent()
+            return
+        }
+        val lens =
+            tint.lensRect(bar.size).translate(requireLayoutCoordinates().localPositionOf(bar))
+        val bounds = Rect(Offset.Zero, size)
+        if (!lens.overlaps(bounds)) {
+            drawContent()
+            return
+        }
+        drawIntoCanvas { canvas ->
+            canvas.saveLayer(bounds, Paint())
+            drawContent()
+            drawRoundRect(
+                color = tint.color,
+                topLeft = lens.topLeft,
+                size = lens.size,
+                cornerRadius = CornerRadius(tint.cornerRadius),
+                blendMode = BlendMode.SrcAtop,
+            )
+            canvas.restore()
+        }
+    }
+}
 
 /**
  * The draggable selection lens: a brighter piece of glass sitting on the bar, marking the active
@@ -489,13 +617,17 @@ fun BottomNavBarPreview(notificationCount: Int) {
  * pending. Shared by the bottom bar and the side nav rail so both surfaces stay in sync.
  */
 @Composable
-private fun TabIcon(tab: BottomNavBloc.Tab, notificationCount: Int) {
+private fun TabIcon(
+    tab: BottomNavBloc.Tab,
+    notificationCount: Int,
+    iconModifier: Modifier = Modifier,
+) {
     if (tab == SETTINGS && notificationCount > 0) {
         BadgedBox(badge = { Badge { Text(notificationCount.toString()) } }) {
-            Icon(imageVector = tab.getIcon(), contentDescription = null)
+            Icon(imageVector = tab.getIcon(), contentDescription = null, modifier = iconModifier)
         }
     } else {
-        Icon(imageVector = tab.getIcon(), contentDescription = null)
+        Icon(imageVector = tab.getIcon(), contentDescription = null, modifier = iconModifier)
     }
 }
 
