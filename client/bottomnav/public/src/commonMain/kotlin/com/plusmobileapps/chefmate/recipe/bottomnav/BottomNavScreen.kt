@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Language
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.LocalTextStyle
@@ -63,6 +66,7 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,6 +95,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import chefmate.client.bottomnav.public.generated.resources.Res
+import chefmate.client.bottomnav.public.generated.resources.nav_rail_collapse
+import chefmate.client.bottomnav.public.generated.resources.nav_rail_expand
 import chefmate.client.bottomnav.public.generated.resources.tab_browser
 import chefmate.client.bottomnav.public.generated.resources.tab_grocery
 import chefmate.client.bottomnav.public.generated.resources.tab_meals
@@ -186,24 +192,87 @@ private fun SideNavContent(
     modifier: Modifier = Modifier,
 ) {
     val state = bloc.state.collectAsState()
+    // Only a window with room for the wide rail offers to collapse it; the compact rail is already
+    // as small as it gets.
+    var collapsed by rememberSaveable { mutableStateOf(false) }
+    val showExpanded = expandedItems && !collapsed
 
     PlusNavRailHeaderContainer(
         modifier = modifier.fillMaxSize(),
         // Unused: railContent draws the items itself.
         navRail = emptyList(),
-        expandedItems = expandedItems,
+        // Drives the rail's shape, so a collapsed rail goes back to the compact one's stadium.
+        expandedItems = showExpanded,
         // Both rails are the bottom bar on its side, lens and all: the compact one (a phone turned
         // sideways) stacks icon over label, the expanded one lays them out as wide rows.
         railContent = {
-            LensNavRail(
+            SideRail(
                 state = state.value,
                 onClick = bloc::onTabSelected,
-                expanded = expandedItems,
+                expanded = showExpanded,
+                onToggleCollapsed =
+                    if (expandedItems) {
+                        { collapsed = !collapsed }
+                    } else {
+                        null
+                    },
             )
         },
         content = { content(Modifier.padding(it)) },
     )
 }
+
+/**
+ * The side rail's contents: [LensNavRail], topped with a collapse toggle when [onToggleCollapsed]
+ * is given. Collapsing swaps the wide label rows for the compact icon-over-label column; the
+ * container measures the rail, so screen content reflows to the new width on its own.
+ */
+@Composable
+private fun SideRail(
+    state: BottomNavBloc.Model,
+    onClick: (BottomNavBloc.Tab) -> Unit,
+    expanded: Boolean,
+    onToggleCollapsed: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        if (onToggleCollapsed != null) {
+            IconButton(
+                onClick = onToggleCollapsed,
+                modifier =
+                    if (expanded) {
+                        // Lines the toggle's icon up with the tab icons below it.
+                        Modifier.padding(
+                            start = ExpandedRailPadding + ExpandedRailItemPadding - ToggleIconInset,
+                            top = ExpandedRailPadding,
+                        )
+                    } else {
+                        Modifier.align(Alignment.CenterHorizontally)
+                            .padding(top = ChefMateTheme.dimens.paddingSmall)
+                    },
+            ) {
+                Icon(
+                    imageVector =
+                        if (expanded) {
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                        } else {
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight
+                        },
+                    contentDescription =
+                        stringResource(
+                            if (expanded) Res.string.nav_rail_collapse
+                            else Res.string.nav_rail_expand
+                        ),
+                    tint = ChefMateTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        LensNavRail(state = state, onClick = onClick, expanded = expanded)
+    }
+}
+
+// IconButton centers its 24dp icon in a 48dp target, leaving 12dp either side.
+private val ToggleIconInset = 12.dp
 
 @Composable
 private fun MobileBottomNavContent(
@@ -773,16 +842,21 @@ fun BottomNavRailPreview(notificationCount: Int) {
 
 /**
  * Renders just the expanded side rail — the wide one a desktop or tablet window shows — for
- * screenshot tests, with [notificationCount] driving the More-tab badge. Not used in production;
- * the app always renders the rail through [BottomNavigationScreen].
+ * screenshot tests, with [notificationCount] driving the More-tab badge and [collapsed] showing it
+ * folded down to the compact column. Not used in production; the app always renders the rail
+ * through [BottomNavigationScreen].
  */
 @Composable
-fun BottomNavExpandedRailPreview(notificationCount: Int) {
-    GlassSurface(backdrop = null, shape = RoundedCornerShape(28.dp)) {
-        LensNavRail(
+fun BottomNavExpandedRailPreview(notificationCount: Int, collapsed: Boolean = false) {
+    GlassSurface(
+        backdrop = null,
+        shape = if (collapsed) GlassDefaults.shape else RoundedCornerShape(28.dp),
+    ) {
+        SideRail(
             state = BottomNavBloc.Model(notificationCount = notificationCount),
             onClick = {},
-            expanded = true,
+            expanded = !collapsed,
+            onToggleCollapsed = {},
         )
     }
 }
