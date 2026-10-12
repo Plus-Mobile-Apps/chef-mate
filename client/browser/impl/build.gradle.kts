@@ -13,6 +13,10 @@ kotlin {
             implementation(projects.client.database.core)
             implementation(projects.client.text.public)
             implementation(projects.client.ui.public)
+            implementation(projects.client.auth.data.public)
+            implementation(projects.client.util.core.public)
+            implementation(libs.supabase.client)
+            implementation(libs.supabase.postgrest)
             implementation(libs.arkivanov.decompose.core)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(libs.kotlinx.serialization.json)
@@ -24,6 +28,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.multiplatform.settings.test)
             implementation(projects.client.recipe.data.testing)
+            implementation(projects.client.auth.data.testing)
+            implementation(projects.client.browser.testing)
+            implementation(projects.client.util.testing)
         }
         getByName("androidMain").dependencies { implementation(libs.ktor.client.cio) }
         getByName("jvmMain").dependencies { implementation(libs.ktor.client.cio) }

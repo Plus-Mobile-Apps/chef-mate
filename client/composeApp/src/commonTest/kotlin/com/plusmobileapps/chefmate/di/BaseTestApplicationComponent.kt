@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.di
 
 import com.plusmobileapps.chefmate.database.AiChatConversationQueries
 import com.plusmobileapps.chefmate.database.AiChatMessageQueries
+import com.plusmobileapps.chefmate.database.BrowserBookmarkQueries
 import com.plusmobileapps.chefmate.database.BrowserHistoryQueries
 import com.plusmobileapps.chefmate.database.CategoryQueries
 import com.plusmobileapps.chefmate.database.CookingSessionQueries
@@ -61,6 +62,10 @@ abstract class BaseTestApplicationComponent : TestApplicationComponent {
     @Provides
     fun providesBrowserHistoryQueries(database: Database): BrowserHistoryQueries =
         database.browserHistoryQueries
+
+    @Provides
+    fun providesBrowserBookmarkQueries(database: Database): BrowserBookmarkQueries =
+        database.browserBookmarkQueries
 
     @Provides
     fun providesCookingSessionQueries(database: Database): CookingSessionQueries =

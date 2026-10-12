@@ -4,6 +4,7 @@ import com.plusmobileapps.chefmate.aichat.AiChatLocalDataCleaner
 import com.plusmobileapps.chefmate.auth.data.AuthState
 import com.plusmobileapps.chefmate.auth.data.AuthenticationRepository
 import com.plusmobileapps.chefmate.auth.usecase.SignInUseCase
+import com.plusmobileapps.chefmate.browser.BrowserBookmarkRepository
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.data.GroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
@@ -26,6 +27,7 @@ class SignInUseCaseImpl(
     private val categoryRepository: CategoryRepository,
     private val groceryAutocompleteRepository: GroceryAutocompleteRepository,
     private val aiChatLocalDataCleaner: AiChatLocalDataCleaner,
+    private val browserBookmarkRepository: BrowserBookmarkRepository,
 ) : SignInUseCase {
 
     override suspend fun guestRecipesToDiscard(): Int {
@@ -49,6 +51,7 @@ class SignInUseCaseImpl(
         recipeRepository.clearLocalData()
         categoryRepository.clearLocalData()
         groceryAutocompleteRepository.clearLocalData()
+        browserBookmarkRepository.clearLocalData()
         // Grocery category rules are deliberately NOT cleared. The wipe above exists to avoid
         // reconciling anon-owned rows against the new account's pull — but rules never sync, so
         // there is no pull to reconcile and clearing would just destroy a guest's rules the
