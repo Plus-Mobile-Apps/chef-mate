@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBarPreview
+import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavExpandedRailPreview
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavRailPreview
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
@@ -43,4 +44,21 @@ fun BottomNavRailWithBadgeScreenshot() {
 @Composable
 fun BottomNavRailWithBadgeDarkScreenshot() {
     ChefMateTheme(darkTheme = true) { Surface { BottomNavRailPreview(notificationCount = 3) } }
+}
+
+// The expanded rail a desktop or tablet window shows: the same lens behind wide label rows.
+@PreviewTest
+@Preview(showBackground = true)
+@Composable
+fun BottomNavExpandedRailWithBadgeScreenshot() {
+    ChefMateTheme { Surface { BottomNavExpandedRailPreview(notificationCount = 3) } }
+}
+
+@PreviewTest
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun BottomNavExpandedRailWithBadgeDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        Surface { BottomNavExpandedRailPreview(notificationCount = 3) }
+    }
 }
