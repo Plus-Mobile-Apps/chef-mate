@@ -4,15 +4,23 @@ import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealType
+import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import com.plusmobileapps.chefmate.util.DateTimeUtil
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.string
-import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
@@ -20,13 +28,23 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 
-@Inject
+@AssistedInject
 class ChooseDateViewModel(
+    @Assisted private val recipeId: Long,
     @Main mainContext: CoroutineContext,
     private val mealPlanRepository: MealPlanRepository,
+    private val recipeRepository: RecipeRepository,
     private val dateTimeUtil: DateTimeUtil,
     settings: Settings,
 ) : ViewModel(mainContext) {
+
+    @AssistedFactory
+    fun interface Factory {
+        fun create(recipeId: Long): ChooseDateViewModel
+    }
+
+    private val _output = Channel<Output>(Channel.BUFFERED)
+    val output: Flow<Output> = _output.receiveAsFlow()
 
     private var lastSelectedDatePref by settings.string(KEY_LAST_SELECTED_DATE, "")
 
@@ -50,6 +68,12 @@ class ChooseDateViewModel(
             )
         }
         observeMeals()
+        loadRecipe()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        _output.close()
     }
 
     private fun resolveInitialDate(today: LocalDate): LocalDate {
@@ -121,6 +145,32 @@ class ChooseDateViewModel(
         observeMeals()
     }
 
+    fun onMealTypeSelected(mealType: MealType) {
+        _state.update { it.copy(selectedMealType = mealType) }
+    }
+
+    fun save() {
+        val currentState = _state.value
+        val date = currentState.selectedDate ?: return
+        if (currentState.isSaving) return
+        _state.update { it.copy(isSaving = true) }
+        scope.launch {
+            mealPlanRepository.addMeal(
+                recipeId = recipeId,
+                date = date.toString(),
+                mealType = currentState.selectedMealType,
+            )
+            _output.send(Output.Finished)
+        }
+    }
+
+    private fun loadRecipe() {
+        scope.launch {
+            val recipe = recipeRepository.getRecipe(recipeId).first() ?: return@launch
+            _state.update { it.copy(recipeTitle = recipe.title) }
+        }
+    }
+
     private fun observeMeals() {
         observeJob?.cancel()
         observeJob = scope.launch {
@@ -157,7 +207,14 @@ class ChooseDateViewModel(
         val formattedSelectedDate: String = "",
         val selectedDayMeals: List<MealPlanItem> = emptyList(),
         val allMeals: List<MealPlanItem> = emptyList(),
+        val selectedMealType: MealType = MealType.DINNER,
+        val isSaving: Boolean = false,
+        val recipeTitle: String = "",
     )
+
+    sealed class Output {
+        data object Finished : Output()
+    }
 
     companion object {
         private const val KEY_LAST_SELECTED_DATE = "choose_date_last_selected"
