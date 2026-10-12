@@ -90,6 +90,7 @@ class BottomNavBlocImpl(
                 selectedTab = it.selectedTab,
                 tabs = it.tabs.toImmutableList(),
                 notificationCount = it.notificationCount,
+                railCollapsed = it.railCollapsed,
             )
         }
 
@@ -119,6 +120,10 @@ class BottomNavBlocImpl(
             .firstOrNull()
             ?.bloc
             ?.onExportFinished()
+    }
+
+    override fun onRailCollapseToggled() {
+        viewModel.toggleRailCollapsed()
     }
 
     override fun onTabSelected(tab: BottomNavBloc.Tab) {
