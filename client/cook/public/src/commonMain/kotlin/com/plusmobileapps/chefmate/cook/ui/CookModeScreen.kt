@@ -42,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
@@ -116,6 +117,7 @@ import chefmate.client.cook.public.generated.resources.cook_mode_loading
 import chefmate.client.cook.public.generated.resources.cook_mode_more_options
 import chefmate.client.cook.public.generated.resources.cook_mode_no_active_recipe
 import chefmate.client.cook.public.generated.resources.cook_mode_scale_ingredients
+import chefmate.client.cook.public.generated.resources.cook_mode_view_recipe
 import chefmate.client.cook.public.generated.resources.cook_mode_whats_cooking
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.cook.WhatsCookingBloc
@@ -538,9 +540,10 @@ private fun CookModeMobileLayout(
 }
 
 /**
- * Compact-width overflow menu holding every Cook Mode header control except Finish: AI chat (when
- * flagged on), ingredient scaling, keep-screen-on, and the layout toggle. Picking "Scale" swaps the
- * menu's items for the scale factors rather than opening a nested menu.
+ * Compact-width overflow menu holding every Cook Mode header control except Finish: view recipe
+ * (when a recipe is active), AI chat (when flagged on), ingredient scaling, keep-screen-on, and the
+ * layout toggle. Picking "Scale" swaps the menu's items for the scale factors rather than opening a
+ * nested menu.
  */
 @Composable
 private fun CookModeOverflowMenu(
@@ -579,6 +582,21 @@ private fun CookModeOverflowMenu(
                     )
                 }
                 return@DropdownMenu
+            }
+            if (state.activeRecipe != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.cook_mode_view_recipe)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        dismiss()
+                        bloc.onViewRecipeClicked()
+                    },
+                )
             }
             if (state.showAiChat) {
                 DropdownMenuItem(

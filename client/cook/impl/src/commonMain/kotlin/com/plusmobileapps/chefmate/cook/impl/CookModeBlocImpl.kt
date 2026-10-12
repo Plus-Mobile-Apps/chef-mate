@@ -81,6 +81,11 @@ class CookModeBlocImpl(
         }
     }
 
+    override fun onViewRecipeClicked() {
+        val activeRecipeId = state.value.activeRecipe?.id ?: return
+        output.onNext(CookModeBloc.Output.OpenRecipeDetail(activeRecipeId))
+    }
+
     override fun onPremiumRequiredDismissed() {
         viewModel.dismissPremiumRequiredDialog()
     }
