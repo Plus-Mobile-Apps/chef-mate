@@ -19,13 +19,14 @@ import com.plusmobileapps.chefmate.database.RecipeBookRecipeQueries
 import com.plusmobileapps.chefmate.database.RecipeCategoryQueries
 import com.plusmobileapps.chefmate.database.RecipeQueries
 import com.plusmobileapps.chefmate.di.AppScope
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 
-@SingleIn(AppScope::class)
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface DatabaseComponent {
+object DatabaseComponent {
     @SingleIn(AppScope::class)
     @Provides
     fun database(driverFactory: DriverFactory): Database =

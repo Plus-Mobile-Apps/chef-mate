@@ -111,7 +111,7 @@ abstract class BaseTestApplicationComponent : TestApplicationComponent {
 
 Metro's processor walks the class hierarchy across source sets, so the `@Provides` methods on the abstract base are picked up by the concrete `@DependencyGraph` in each platform. The `Database` binding is satisfied by the `FakeDatabase` instance, so any production code that injects `Database` or its queries gets the in-memory fake automatically.
 
-`DateTimeFormatterUtil` is bound in production by `client/util/impl/.../DateTimeFormatterComponent.kt` (a `@ContributesTo(AppScope::class)` interface), so the test graph picks it up automatically — no test-side `@Provides` needed.
+`DateTimeFormatterUtil` is bound in production by `client/util/impl/.../DateTimeFormatterComponent.kt` (a `@ContributesTo(AppScope::class)` `@BindingContainer` object), so the test graph picks it up automatically — no test-side `@Provides` needed.
 
 ### 3. Per-platform graph (4 lines each)
 

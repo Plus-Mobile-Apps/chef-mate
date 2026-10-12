@@ -8,6 +8,7 @@ import com.plusmobileapps.chefmate.devsettings.DEV_USER_INDEX_KEY
 import com.plusmobileapps.chefmate.devsettings.DeveloperPreferences
 import com.plusmobileapps.chefmate.di.AppScope
 import com.russhwolf.settings.Settings
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Provides
@@ -65,8 +66,9 @@ class DeveloperPreferencesImpl(private val settings: Settings) : DeveloperPrefer
     }
 }
 
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface DeveloperPreferencesBindingModule {
+object DeveloperPreferencesBindingModule {
     @Provides
     fun provideDeveloperPreferences(impl: DeveloperPreferencesImpl): DeveloperPreferences = impl
 
