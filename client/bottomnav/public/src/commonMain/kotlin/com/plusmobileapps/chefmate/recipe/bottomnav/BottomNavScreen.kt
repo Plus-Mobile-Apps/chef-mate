@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -107,10 +108,8 @@ import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.GROCERIES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.MEALS
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.RECIPES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.SETTINGS
-import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
-import com.plusmobileapps.chefmate.ui.components.NavRailItem
 import com.plusmobileapps.chefmate.ui.components.PlusNavRailHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.glass.AppBackdrop
 import com.plusmobileapps.chefmate.ui.components.glass.GlassDefaults
@@ -188,33 +187,20 @@ private fun SideNavContent(
 ) {
     val state = bloc.state.collectAsState()
 
-    val navRailItems =
-        remember(state.value) {
-            val currentState = state.value
-            currentState.tabs.map {
-                NavRailItem(
-                    label = it.getLabel().asTextData(),
-                    selected = it == currentState.selectedTab,
-                    icon = {
-                        TabIcon(tab = it, notificationCount = currentState.notificationCount)
-                    },
-                    onClick = { bloc.onTabSelected(it) },
-                )
-            }
-        }
-
     PlusNavRailHeaderContainer(
         modifier = modifier.fillMaxSize(),
-        navRail = navRailItems,
+        // Unused: railContent draws the items itself.
+        navRail = emptyList(),
         expandedItems = expandedItems,
-        // The compact rail (a phone turned sideways) is the bottom bar on its side, lens and all.
-        // The expanded rail's wide label rows keep the standard items.
-        railContent =
-            if (expandedItems) {
-                null
-            } else {
-                { LensNavRail(state = state.value, onClick = bloc::onTabSelected) }
-            },
+        // Both rails are the bottom bar on its side, lens and all: the compact one (a phone turned
+        // sideways) stacks icon over label, the expanded one lays them out as wide rows.
+        railContent = {
+            LensNavRail(
+                state = state.value,
+                onClick = bloc::onTabSelected,
+                expanded = expandedItems,
+            )
+        },
         content = { content(Modifier.padding(it)) },
     )
 }
@@ -389,60 +375,87 @@ private fun PlusBottomBar(
 }
 
 /**
- * The compact side rail for a short, wide window (a phone in landscape): the bottom bar turned on
- * its side, with the same glass lens sliding — and dragging — vertically between equal-height
- * cells, and the same blue tint on whatever sits beneath it. Rendered inside the rail's glass pill
- * by [PlusNavRailHeaderContainer].
+ * The side rail: the bottom bar turned on its side, with the same glass lens sliding — and dragging
+ * — vertically between equal-height cells, and the same blue tint on whatever sits beneath it.
+ * Rendered inside the rail's glass pill by [PlusNavRailHeaderContainer].
+ *
+ * The compact rail (a short, wide window such as a phone in landscape) stacks each icon over its
+ * label in a narrow column. The [expanded] rail (a large window such as desktop) lays them out as
+ * wide icon-and-label rows, inset from the rail's edges so the lens clears its rounded corners.
  */
 @Composable
 private fun LensNavRail(
     state: BottomNavBloc.Model,
     onClick: (BottomNavBloc.Tab) -> Unit,
     modifier: Modifier = Modifier,
+    expanded: Boolean = false,
 ) {
-    BoxWithConstraints(modifier = modifier) {
+    val railWidth = if (expanded) ExpandedRailWidth else RailWidth
+    val maxCellHeight = if (expanded) ExpandedRailCellHeight else RailCellMaxHeight
+    BoxWithConstraints(
+        modifier = modifier.then(if (expanded) Modifier.padding(ExpandedRailPadding) else Modifier)
+    ) {
         // Equal cells so the lens can be positioned arithmetically, as on the bottom bar. Capped so
         // a taller window doesn't stretch them, and shrunk to fit a short one.
-        val cellHeight = minOf(RailCellMaxHeight, maxHeight / state.tabs.size.coerceAtLeast(1))
+        val cellHeight = minOf(maxCellHeight, maxHeight / state.tabs.size.coerceAtLeast(1))
         LensTrack(
             state = state,
             onClick = onClick,
             orientation = Orientation.Vertical,
             cellSize = cellHeight,
-            modifier = Modifier.width(RailWidth),
+            modifier = Modifier.width(railWidth),
         ) { lensTint ->
             CompositionLocalProvider(
                 LocalContentColor provides ChefMateTheme.colorScheme.onSurface
             ) {
                 Column {
                     state.tabs.forEach { tab ->
-                        Column(
-                            modifier =
-                                Modifier.width(RailWidth)
-                                    .height(cellHeight)
-                                    .selectable(
-                                        selected = tab == state.selectedTab,
-                                        interactionSource = null,
-                                        // The lens is the press feedback, as on the bottom bar.
-                                        indication = null,
-                                        role = Role.Tab,
-                                        onClick = { onClick(tab) },
-                                    ),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            TabIcon(
-                                tab = tab,
-                                notificationCount = state.notificationCount,
-                                lensTint = lensTint,
-                            )
-                            TabLabel(
-                                tab = tab,
-                                lensTint = lensTint,
-                                style = ChefMateTheme.typography.labelMedium,
+                        val cellModifier =
+                            Modifier.width(railWidth)
+                                .height(cellHeight)
+                                .selectable(
+                                    selected = tab == state.selectedTab,
+                                    interactionSource = null,
+                                    // The lens is the press feedback, as on the bottom bar.
+                                    indication = null,
+                                    role = Role.Tab,
+                                    onClick = { onClick(tab) },
+                                )
+                        if (expanded) {
+                            Row(
                                 modifier =
-                                    Modifier.padding(top = ChefMateTheme.dimens.paddingExtraSmall),
-                            )
+                                    cellModifier.padding(horizontal = ExpandedRailItemPadding),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                TabIcon(
+                                    tab = tab,
+                                    notificationCount = state.notificationCount,
+                                    lensTint = lensTint,
+                                )
+                                TabLabel(tab = tab, lensTint = lensTint)
+                            }
+                        } else {
+                            Column(
+                                modifier = cellModifier,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                TabIcon(
+                                    tab = tab,
+                                    notificationCount = state.notificationCount,
+                                    lensTint = lensTint,
+                                )
+                                TabLabel(
+                                    tab = tab,
+                                    lensTint = lensTint,
+                                    style = ChefMateTheme.typography.labelMedium,
+                                    modifier =
+                                        Modifier.padding(
+                                            top = ChefMateTheme.dimens.paddingExtraSmall
+                                        ),
+                                )
+                            }
                         }
                     }
                 }
@@ -453,6 +466,11 @@ private fun LensNavRail(
 
 private val RailWidth = 80.dp
 private val RailCellMaxHeight = 64.dp
+private val ExpandedRailWidth = 240.dp
+private val ExpandedRailCellHeight = 56.dp
+// Keeps the lens off the expanded rail's 28dp corners, which would otherwise clip its ends.
+private val ExpandedRailPadding = 8.dp
+private val ExpandedRailItemPadding = 16.dp
 
 /**
  * The selection lens and the track of tab cells it slides along — shared by the bottom bar
@@ -749,6 +767,22 @@ fun BottomNavRailPreview(notificationCount: Int) {
         LensNavRail(
             state = BottomNavBloc.Model(notificationCount = notificationCount),
             onClick = {},
+        )
+    }
+}
+
+/**
+ * Renders just the expanded side rail — the wide one a desktop or tablet window shows — for
+ * screenshot tests, with [notificationCount] driving the More-tab badge. Not used in production;
+ * the app always renders the rail through [BottomNavigationScreen].
+ */
+@Composable
+fun BottomNavExpandedRailPreview(notificationCount: Int) {
+    GlassSurface(backdrop = null, shape = RoundedCornerShape(28.dp)) {
+        LensNavRail(
+            state = BottomNavBloc.Model(notificationCount = notificationCount),
+            onClick = {},
+            expanded = true,
         )
     }
 }
