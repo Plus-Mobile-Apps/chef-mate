@@ -609,10 +609,12 @@ class RootBlocImpl(
             CookModeBloc.Output.Finished -> navigation.pop()
             is CookModeBloc.Output.OpenAiChat ->
                 navigation.bringToFront(Configuration.AiChat(recipeContextId = output.recipeId))
-            // Swap Cook Mode for the detail screen so back doesn't return to Cook Mode. Any recipe
-            // detail already underneath (e.g. the one Cook Mode was launched from) is replaced.
+            // Cook Mode stays on the stack underneath, so back returns to it. bringToFront drops
+            // any
+            // recipe detail already in the stack (e.g. the one Cook Mode was launched from) so the
+            // configurations stay unique.
             is CookModeBloc.Output.OpenRecipeDetail ->
-                replaceCurrentBringingToFront(RecipeRoot(Detail(output.recipeId)))
+                navigation.bringToFront(RecipeRoot(Detail(output.recipeId)))
         }
     }
 
