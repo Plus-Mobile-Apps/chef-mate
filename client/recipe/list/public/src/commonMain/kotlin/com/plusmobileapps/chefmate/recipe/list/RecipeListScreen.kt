@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -94,6 +96,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -316,8 +319,10 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     title =
                         if (showBookSelector) FixedString("")
                         else Res.string.recipe_list_title.asTextData(),
+                    // With a book selector the count rides inside it ("Dinners 12"); the standalone
+                    // label is only for the no-books case.
                     center =
-                        letIfTrue(state.recipes.isNotEmpty()) {
+                        letIfTrue(!showBookSelector && state.recipes.isNotEmpty()) {
                             {
                                 RecipeCountLabel(
                                     count = state.recipes.size,
@@ -330,6 +335,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                             {
                                 BookSelector(
                                     activeBookName = bookSelectorLabel,
+                                    recipeCount = state.recipes.size,
                                     isPickerOpen = state.isBookPickerOpen,
                                     onClick = bloc::onBookSelectorClicked,
                                 ) {
@@ -1191,16 +1197,7 @@ private fun BulkAddToCategorySheet(
  */
 @Composable
 private fun RecipeCountLabel(count: Int, compact: Boolean) {
-    val label =
-        if (count == 1) {
-            stringResource(Res.string.recipe_list_recipe_count_one)
-        } else {
-            PhraseModel(
-                    Res.string.recipe_list_recipe_count,
-                    "count" to FixedString(count.toString()),
-                )
-                .localized()
-        }
+    val label = recipeCountDescription(count)
     Text(
         text = if (compact) count.toString() else label,
         style = MaterialTheme.typography.labelLarge,
@@ -1214,22 +1211,43 @@ private fun RecipeCountLabel(count: Int, compact: Boolean) {
 }
 
 @Composable
+private fun recipeCountDescription(count: Int): String =
+    if (count == 1) {
+        stringResource(Res.string.recipe_list_recipe_count_one)
+    } else {
+        PhraseModel(Res.string.recipe_list_recipe_count, "count" to FixedString(count.toString()))
+            .localized()
+    }
+
+/**
+ * The active book's name followed by the number of recipes on screen ("Dinners (12)"), drawn as an
+ * outlined pill so it reads as a tappable dropdown rather than a plain title.
+ */
+@Composable
 private fun BookSelector(
     activeBookName: String?,
+    recipeCount: Int,
     isPickerOpen: Boolean,
     onClick: () -> Unit,
     dropdown: @Composable () -> Unit,
 ) {
+    val countDescription = recipeCountDescription(recipeCount)
     Box {
         Row(
             modifier =
-                Modifier.clickable(onClick = onClick)
+                Modifier.clip(CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                    .clickable(onClick = onClick)
                     .padding(
-                        horizontal = ChefMateTheme.dimens.paddingSmall,
-                        vertical = ChefMateTheme.dimens.paddingExtraSmall,
+                        start = ChefMateTheme.dimens.paddingNormal,
+                        end = ChefMateTheme.dimens.paddingSmall,
+                        top = ChefMateTheme.dimens.paddingExtraSmall,
+                        bottom = ChefMateTheme.dimens.paddingExtraSmall,
                     )
                     .testTag(RecipeListTestTags.BOOK_SELECTOR)
-                    .semantics { contentDescription = activeBookName ?: "" },
+                    .semantics {
+                        contentDescription = "${activeBookName.orEmpty()}, $countDescription"
+                    },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -1238,6 +1256,15 @@ private fun BookSelector(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 160.dp),
+            )
+            Text(
+                text = "($recipeCount)",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier =
+                    Modifier.padding(start = ChefMateTheme.dimens.paddingSmall)
+                        .testTag(RecipeListTestTags.RECIPE_COUNT),
             )
             Icon(
                 imageVector =
