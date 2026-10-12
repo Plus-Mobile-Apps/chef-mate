@@ -14,6 +14,7 @@
     <string name="browser_landing_hint">Search {engine} or type a URL</string>
     <string name="browser_landing_tagline">Find your favorite recipes online, click download, and start cooking!</string>
     <string name="browser_landing_engine_dropdown">Change search engine</string>
+    <string name="browser_landing_open_engine">Go to {engine}</string>
     <!-- First-run search engine picker -->
     <string name="browser_select_engine_title">Choose a search engine</string>
     <string name="browser_select_engine_subtitle">Pick where Chef Mate searches the web. You can change this later.</string>

@@ -20,6 +20,13 @@ interface BrowserLandingBloc : ComposeScreen {
     /** Marks the first-run coach mark with [id] as seen so it never shows again. */
     fun onCoachMarkDismissed(id: String)
 
+    /**
+     * Opens the selected engine's own front page. Searching from the engine's form, rather than
+     * loading a results URL the app built, is what a real browser session looks like — Google
+     * answers a WebView that jumps straight to `/search?q=` with a CAPTCHA.
+     */
+    fun onOpenEngineHomeClicked()
+
     /** Changes the default search engine from the landing dropdown. */
     fun onSearchEngineSelected(engine: SearchEngine)
 
@@ -32,6 +39,8 @@ interface BrowserLandingBloc : ComposeScreen {
 
     sealed class Output {
         data object OpenEditQuery : Output()
+
+        data class OpenUrl(val url: String) : Output()
     }
 
     fun interface Factory {

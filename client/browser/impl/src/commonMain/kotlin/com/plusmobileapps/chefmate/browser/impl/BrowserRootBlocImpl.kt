@@ -192,6 +192,8 @@ class BrowserRootBlocImpl(
                         when (landingOutput) {
                             BrowserLandingBloc.Output.OpenEditQuery ->
                                 navigation.replaceTopEditQueryWith(Configuration.EditQuery(""))
+                            is BrowserLandingBloc.Output.OpenUrl ->
+                                navigation.pushBrowser(Configuration.Browser(landingOutput.url))
                         }
                     }
                 )
@@ -249,6 +251,14 @@ class BrowserRootBlocImpl(
         newConfig: Configuration.EditQuery
     ) {
         navigate { stack -> stack.filter { it !is Configuration.EditQuery } + newConfig }
+    }
+
+    /**
+     * Adds [newConfig] on top, dropping any existing Browser for the same URL first — Decompose
+     * enforces unique configurations, so opening the same page twice would otherwise crash.
+     */
+    private fun StackNavigation<Configuration>.pushBrowser(newConfig: Configuration.Browser) {
+        navigate { stack -> stack.filter { it != newConfig } + newConfig }
     }
 
     /**

@@ -46,12 +46,15 @@ import chefmate.client.browser.public.generated.resources.Res
 import chefmate.client.browser.public.generated.resources.app_icon
 import chefmate.client.browser.public.generated.resources.browser_landing_engine_dropdown
 import chefmate.client.browser.public.generated.resources.browser_landing_hint
+import chefmate.client.browser.public.generated.resources.browser_landing_open_engine
 import chefmate.client.browser.public.generated.resources.browser_landing_tagline
 import chefmate.client.browser.public.generated.resources.browser_search_onboarding
 import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
+import com.plusmobileapps.chefmate.ui.components.PlusButton
+import com.plusmobileapps.chefmate.ui.components.PlusButtonVariant
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
@@ -135,6 +138,18 @@ fun BrowserLandingScreen(
                 shape = PlusTextFieldDefaults.RoundedShape,
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+        PlusButton(
+            text =
+                PhraseModel(
+                    Res.string.browser_landing_open_engine,
+                    "engine" to FixedString(state.selectedEngine.displayName),
+                ),
+            variant = PlusButtonVariant.SECONDARY,
+            onClick = bloc::onOpenEngineHomeClicked,
+            modifier = Modifier.testTag(BrowserTestTags.LANDING_OPEN_ENGINE_HOME),
+        )
 
         Text(
             text = stringResource(Res.string.browser_landing_tagline),
