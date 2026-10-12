@@ -10,7 +10,6 @@ import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc.
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 class GroceryAutocompleteBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<GroceryAutocompleteViewModel>,
+    viewModelFactory: () -> GroceryAutocompleteViewModel,
 ) : GroceryAutocompleteBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }

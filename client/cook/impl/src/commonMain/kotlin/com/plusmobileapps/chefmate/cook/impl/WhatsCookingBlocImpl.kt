@@ -9,7 +9,6 @@ import com.plusmobileapps.chefmate.mapState
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 class WhatsCookingBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<WhatsCookingBloc.Output>,
-    viewModelFactory: Provider<WhatsCookingViewModel>,
+    viewModelFactory: () -> WhatsCookingViewModel,
 ) : WhatsCookingBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }

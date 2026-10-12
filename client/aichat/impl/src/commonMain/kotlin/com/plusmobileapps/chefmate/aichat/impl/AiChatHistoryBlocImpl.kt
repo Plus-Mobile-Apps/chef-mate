@@ -9,7 +9,6 @@ import com.plusmobileapps.chefmate.mapState
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 class AiChatHistoryBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<AiChatHistoryBloc.Output>,
-    viewModelFactory: Provider<AiChatHistoryViewModel>,
+    viewModelFactory: () -> AiChatHistoryViewModel,
 ) : AiChatHistoryBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }

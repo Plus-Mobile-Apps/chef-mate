@@ -11,7 +11,6 @@ import com.plusmobileapps.chefmate.notifications.data.AppNotification
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -22,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class NotificationsBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<NotificationsViewModel>,
+    viewModelFactory: () -> NotificationsViewModel,
 ) : NotificationsBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }
