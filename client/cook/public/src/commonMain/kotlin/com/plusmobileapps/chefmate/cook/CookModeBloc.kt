@@ -41,6 +41,9 @@ interface CookModeBloc : BackClickBloc, ComposeScreen {
      */
     fun onAiChatClicked()
 
+    /** Close Cook Mode and open the active recipe's detail screen in its place. */
+    fun onViewRecipeClicked()
+
     /** Dismiss the "ChefMate Premium required" dialog. */
     fun onPremiumRequiredDismissed()
 
@@ -91,6 +94,9 @@ interface CookModeBloc : BackClickBloc, ComposeScreen {
 
         /** Open the AI chat grounded in the recipe with this id. */
         data class OpenAiChat(val recipeId: Long) : Output()
+
+        /** Close Cook Mode and show the detail screen for the recipe with this id. */
+        data class OpenRecipeDetail(val recipeId: Long) : Output()
     }
 
     fun interface Factory {

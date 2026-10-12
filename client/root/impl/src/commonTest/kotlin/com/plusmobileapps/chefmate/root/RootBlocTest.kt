@@ -671,6 +671,48 @@ class RootBlocTest {
     }
 
     @Test
+    fun Given_cook_mode_When_it_opens_recipe_detail_Then_detail_is_pushed_over_cook_mode() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenCookMode(7L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        // Cook Mode stays underneath, so back returns to it.
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
+    }
+
+    @Test
+    fun Given_cook_mode_opened_from_a_recipe_When_it_opens_that_recipe_Then_detail_is_brought_to_front() {
+        // The detail Cook Mode was launched from is already on the stack; pushing an identical
+        // RecipeRoot configuration would crash Decompose ("Configurations must be unique").
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenCookMode(recipeId = 123L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 123L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
+    }
+
+    @Test
+    fun Given_cook_mode_opened_from_a_recipe_When_it_opens_another_recipe_Then_detail_is_not_duplicated() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenCookMode(recipeId = 123L))
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
+    }
+
+    @Test
     fun Given_ai_chat_open_When_back_clicked_Then_it_pops_back_to_the_recipe() {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
         recipeOutput.onNext(RecipeRootBloc.Output.OpenAiChat(recipeId = 123L))

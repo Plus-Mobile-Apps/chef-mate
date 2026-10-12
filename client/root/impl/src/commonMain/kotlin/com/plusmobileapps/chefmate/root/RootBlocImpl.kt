@@ -609,6 +609,12 @@ class RootBlocImpl(
             CookModeBloc.Output.Finished -> navigation.pop()
             is CookModeBloc.Output.OpenAiChat ->
                 navigation.bringToFront(Configuration.AiChat(recipeContextId = output.recipeId))
+            // Cook Mode stays on the stack underneath, so back returns to it. bringToFront drops
+            // any
+            // recipe detail already in the stack (e.g. the one Cook Mode was launched from) so the
+            // configurations stay unique.
+            is CookModeBloc.Output.OpenRecipeDetail ->
+                navigation.bringToFront(RecipeRoot(Detail(output.recipeId)))
         }
     }
 
