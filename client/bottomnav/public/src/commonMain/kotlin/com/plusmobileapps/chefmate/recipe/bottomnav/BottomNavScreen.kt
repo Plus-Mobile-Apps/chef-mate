@@ -3,6 +3,7 @@
 package com.plusmobileapps.chefmate.recipe.bottomnav
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -66,7 +67,6 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -193,9 +193,8 @@ private fun SideNavContent(
 ) {
     val state = bloc.state.collectAsState()
     // Only a window with room for the wide rail offers to collapse it; the compact rail is already
-    // as small as it gets.
-    var collapsed by rememberSaveable { mutableStateOf(false) }
-    val showExpanded = expandedItems && !collapsed
+    // as small as it gets. The choice is persisted, so it survives app restarts.
+    val showExpanded = expandedItems && !state.value.railCollapsed
 
     PlusNavRailHeaderContainer(
         modifier = modifier.fillMaxSize(),
@@ -212,7 +211,7 @@ private fun SideNavContent(
                 expanded = showExpanded,
                 onToggleCollapsed =
                     if (expandedItems) {
-                        { collapsed = !collapsed }
+                        bloc::onRailCollapseToggled
                     } else {
                         null
                     },
@@ -226,6 +225,10 @@ private fun SideNavContent(
  * The side rail's contents: [LensNavRail], topped with a collapse toggle when [onToggleCollapsed]
  * is given. Collapsing swaps the wide label rows for the compact icon-over-label column; the
  * container measures the rail, so screen content reflows to the new width on its own.
+ *
+ * The swap itself is instant, but the rail's size springs between the two layouts — and screen
+ * content follows it frame by frame. The content clips to the animating bounds, so on expand the
+ * wide rows are revealed as the glass grows rather than spilling past it.
  */
 @Composable
 private fun SideRail(
@@ -235,7 +238,7 @@ private fun SideRail(
     onToggleCollapsed: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
+    Column(modifier = modifier.animateContentSize()) {
         if (onToggleCollapsed != null) {
             IconButton(
                 onClick = onToggleCollapsed,
