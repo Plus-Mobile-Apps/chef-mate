@@ -9,6 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.browser.PreviewBrowserAddressBar
 import com.plusmobileapps.chefmate.browser.previewBrowserLandingBloc
+import com.plusmobileapps.chefmate.browser.previewBrowserLandingWithBookmarksBloc
 import com.plusmobileapps.chefmate.browser.previewBrowserSelectEngineBloc
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -46,6 +47,39 @@ fun BrowserLandingLightScreenshot() {
 fun BrowserLandingDarkScreenshot() {
     ChefMateTheme(darkTheme = true) {
         Surface(modifier = Modifier.fillMaxSize()) { previewBrowserLandingBloc.Content() }
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true)
+@Composable
+fun BrowserLandingBookmarksLightScreenshot() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            previewBrowserLandingWithBookmarksBloc.Content()
+        }
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun BrowserLandingBookmarksDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            previewBrowserLandingWithBookmarksBloc.Content()
+        }
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, widthDp = 840, heightDp = 900)
+@Composable
+fun BrowserLandingBookmarksWideScreenshot() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            previewBrowserLandingWithBookmarksBloc.Content()
+        }
     }
 }
 
