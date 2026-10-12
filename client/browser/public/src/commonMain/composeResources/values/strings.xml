@@ -29,4 +29,17 @@
     <string name="browser_bookmarks_title">Bookmarks</string>
     <string name="browser_bookmark_options">Options for {title}</string>
     <string name="browser_bookmark_delete">Delete bookmark</string>
+    <!-- Settings bookmarks manager -->
+    <string name="browser_bookmarks_empty">No bookmarks yet. Star a page from the browser’s menu to save it here.</string>
+    <string name="browser_bookmarks_select_mode_a11y">Select bookmarks</string>
+    <string name="browser_bookmarks_selection_empty_title">Select bookmarks</string>
+    <string name="browser_bookmarks_selection_count">{count} selected</string>
+    <string name="browser_bookmarks_select_all_a11y">Select all</string>
+    <string name="browser_bookmarks_deselect_all_a11y">Deselect all</string>
+    <string name="browser_bookmarks_delete_selected_a11y">Delete selected bookmarks</string>
+    <string name="browser_bookmarks_delete_title">Delete bookmarks?</string>
+    <string name="browser_bookmarks_delete_message_one">This bookmark will be removed from all your devices.</string>
+    <string name="browser_bookmarks_delete_message_other">{count} bookmarks will be removed from all your devices.</string>
+    <string name="browser_bookmarks_delete">Delete</string>
+    <string name="browser_bookmarks_cancel">Cancel</string>
 </resources>
