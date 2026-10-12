@@ -5,6 +5,8 @@ package com.plusmobileapps.chefmate.browser
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,12 +31,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
@@ -141,8 +141,20 @@ fun BrowserAddressBar(
     modifier: Modifier = Modifier,
 ) {
     var textFieldValue by remember { mutableStateOf(TextFieldValue(url)) }
-    val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val currentOnAddressBarFocused by rememberUpdatedState(onAddressBarFocused)
+    val addressBarInteractions = remember { MutableInteractionSource() }
+
+    // Editing happens on the EditQuery screen, so open it on an actual tap rather than on focus.
+    // Focus also arrives without the user asking: when EditQuery submits and its focused field
+    // leaves composition, the platform hands focus to the first focusable in the new Browser
+    // screen — this field — which would bounce the user straight back to EditQuery and leave the
+    // page they just searched for hidden underneath.
+    LaunchedEffect(addressBarInteractions) {
+        addressBarInteractions.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) currentOnAddressBarFocused()
+        }
+    }
 
     LaunchedEffect(url) {
         if (url != textFieldValue.text) {
@@ -182,15 +194,9 @@ fun BrowserAddressBar(
                 textFieldValue = newValue
                 onUrlChanged(newValue.text)
             },
-            modifier =
-                Modifier.weight(1f)
-                    .then(sharedFieldModifier)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            onAddressBarFocused()
-                        }
-                    },
+            modifier = Modifier.weight(1f).then(sharedFieldModifier),
+            readOnly = true,
+            interactionSource = addressBarInteractions,
             placeholder = { Text(stringResource(Res.string.browser_address_hint)) },
             singleLine = true,
             shape = PlusTextFieldDefaults.RoundedShape,
@@ -209,7 +215,7 @@ fun BrowserAddressBar(
                         onClick = {
                             textFieldValue = TextFieldValue("")
                             onUrlChanged("")
-                            focusRequester.requestFocus()
+                            onAddressBarFocused()
                         }
                     ) {
                         Icon(
