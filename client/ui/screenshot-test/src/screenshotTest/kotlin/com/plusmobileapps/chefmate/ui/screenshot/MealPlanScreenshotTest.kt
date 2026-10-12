@@ -12,6 +12,7 @@ import com.plusmobileapps.chefmate.meal.core.MealPlanBloc
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBloc
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocCooking
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocEmpty
+import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocMonth
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocSyncing
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocWeek
 import com.plusmobileapps.chefmate.ui.Content
@@ -71,4 +72,19 @@ fun MealPlanSyncingScreenshot() {
 @Composable
 fun MealPlanWeekViewScreenshot() {
     MealPlanScreenshot(bloc = previewMealPlanBlocWeek)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+fun MealPlanMonthViewScreenshot() {
+    MealPlanScreenshot(bloc = previewMealPlanBlocMonth)
+}
+
+// Expanded width — the month calendar stays capped and centered instead of stretching.
+@PreviewTest
+@Preview(showBackground = true, widthDp = 1280, heightDp = 900)
+@Composable
+fun MealPlanMonthViewExpandedScreenshot() {
+    MealPlanScreenshot(bloc = previewMealPlanBlocMonth)
 }

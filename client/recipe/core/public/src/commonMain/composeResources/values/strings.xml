@@ -78,6 +78,8 @@
     <string name="recipe_detail_add_to_meal_plan">Add to meal plan</string>
     <string name="add_meal_plan_choose_date">Choose Date</string>
     <string name="add_meal_plan_choose_meal_type">Choose Meal Type</string>
+    <string name="add_meal_plan_choose_date_and_meal_type">Choose Date &amp; Meal Type</string>
+    <string name="add_meal_plan_meal_type">Meal type</string>
     <string name="add_meal_plan_save">Save</string>
     <string name="add_meal_plan_breakfast">Breakfast</string>
     <string name="add_meal_plan_lunch">Lunch</string>

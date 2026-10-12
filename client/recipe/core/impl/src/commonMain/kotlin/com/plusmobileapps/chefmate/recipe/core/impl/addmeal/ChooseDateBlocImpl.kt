@@ -5,6 +5,7 @@ import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.getViewModel
 import com.plusmobileapps.chefmate.mapState
+import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc.Output
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
@@ -12,6 +13,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
 @AssistedInject
@@ -21,11 +23,16 @@ import kotlinx.datetime.LocalDate
 )
 class ChooseDateBlocImpl(
     @Assisted context: BlocContext,
+    @Assisted private val recipeId: Long,
     @Assisted private val output: Consumer<Output>,
-    private val viewModelFactory: () -> ChooseDateViewModel,
+    private val viewModelFactory: ChooseDateViewModel.Factory,
 ) : ChooseDateBloc, BlocContext by context {
 
-    private val viewModel: ChooseDateViewModel = instanceKeeper.getViewModel { viewModelFactory() }
+    private val scope = createScope()
+
+    private val viewModel: ChooseDateViewModel = instanceKeeper.getViewModel {
+        viewModelFactory.create(recipeId)
+    }
 
     override val state: StateFlow<ChooseDateBloc.Model> =
         viewModel.state.mapState {
@@ -36,8 +43,21 @@ class ChooseDateBlocImpl(
                 selectedDate = it.selectedDate,
                 formattedSelectedDate = it.formattedSelectedDate,
                 selectedDayMeals = it.selectedDayMeals.toImmutableList(),
+                selectedMealType = it.selectedMealType,
+                isSaving = it.isSaving,
+                recipeTitle = it.recipeTitle,
             )
         }
+
+    init {
+        scope.launch {
+            viewModel.output.collect {
+                when (it) {
+                    ChooseDateViewModel.Output.Finished -> output.onNext(Output.Finished)
+                }
+            }
+        }
+    }
 
     override fun onDaySelected(date: LocalDate) {
         viewModel.onDaySelected(date)
@@ -58,6 +78,14 @@ class ChooseDateBlocImpl(
 
     override fun onTodayClicked() {
         viewModel.onTodayClicked()
+    }
+
+    override fun onMealTypeSelected(mealType: MealType) {
+        viewModel.onMealTypeSelected(mealType)
+    }
+
+    override fun onSaveClicked() {
+        viewModel.save()
     }
 
     override fun onBackClicked() {

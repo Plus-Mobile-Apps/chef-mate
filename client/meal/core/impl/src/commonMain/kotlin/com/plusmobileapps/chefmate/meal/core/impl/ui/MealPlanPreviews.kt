@@ -160,6 +160,23 @@ val previewMealPlanBlocWeek: MealPlanBloc =
         )
     )
 
+/** Month view — the calendar grid stays capped and centered on wide windows. */
+val previewMealPlanBlocMonth: MealPlanBloc =
+    mealPlanBloc(
+        MealPlanBloc.Model(
+            isLoading = false,
+            viewMode = MealPlanBloc.ViewMode.MONTH,
+            dateLabel = FixedString("April 2026"),
+            monthModel =
+                MealPlanBloc.MonthModel(
+                    firstDayOfMonth = LocalDate(2026, 4, 1),
+                    selectedDay = LocalDate(2026, 4, 17),
+                    daysWithMeals = setOf("2026-04-08", "2026-04-17", "2026-04-23"),
+                    selectedDayMeals = sampleDayMeals,
+                ),
+        )
+    )
+
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 internal fun MealPlanPreview() {

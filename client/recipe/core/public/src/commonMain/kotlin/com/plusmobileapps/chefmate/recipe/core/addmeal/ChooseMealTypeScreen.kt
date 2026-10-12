@@ -60,21 +60,38 @@ fun ChooseMealTypeScreen(bloc: ChooseMealTypeBloc, modifier: Modifier = Modifier
                 )
             }
 
-            MealTypeOption.entries.forEach { option ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier.fillMaxWidth().clickable { bloc.onMealTypeSelected(option.type) },
-                ) {
-                    RadioButton(
-                        selected = state.selectedMealType == option.type,
-                        onClick = { bloc.onMealTypeSelected(option.type) },
-                    )
-                    Text(
-                        text = stringResource(option.labelRes),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+            MealTypeOptions(
+                selectedMealType = state.selectedMealType,
+                onMealTypeSelected = bloc::onMealTypeSelected,
+            )
+        }
+    }
+}
+
+/**
+ * The meal-type radio list. Shared by [ChooseMealTypeScreen] and the side pane [ChooseDateScreen]
+ * shows on wide layouts, where both choices are made on one screen.
+ */
+@Composable
+internal fun MealTypeOptions(
+    selectedMealType: MealType,
+    onMealTypeSelected: (MealType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        MealTypeOption.entries.forEach { option ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable { onMealTypeSelected(option.type) },
+            ) {
+                RadioButton(
+                    selected = selectedMealType == option.type,
+                    onClick = { onMealTypeSelected(option.type) },
+                )
+                Text(
+                    text = stringResource(option.labelRes),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
     }
