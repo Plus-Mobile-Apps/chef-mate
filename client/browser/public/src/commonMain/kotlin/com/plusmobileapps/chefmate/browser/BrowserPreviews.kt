@@ -5,6 +5,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.arkivanov.essenty.backhandler.BackDispatcher
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -49,6 +50,46 @@ val previewBrowserLandingWithBookmarksBloc: BrowserLandingBloc =
     landingBloc(
         BrowserLandingBloc.Model(selectedEngine = SearchEngine.GOOGLE, bookmarks = previewBookmarks)
     )
+
+private fun bookmarksBloc(model: BrowserBookmarksBloc.Model): BrowserBookmarksBloc =
+    object : BrowserBookmarksBloc {
+        override val state = MutableStateFlow(model)
+        override val backHandler = BackDispatcher()
+
+        override fun onBackClicked() = Unit
+
+        override fun onBookmarkClicked(bookmark: BrowserBookmark) = Unit
+
+        override fun onBookmarkLongClicked(bookmark: BrowserBookmark) = Unit
+
+        override fun onSelectModeClicked() = Unit
+
+        override fun onSelectAllClicked() = Unit
+
+        override fun onCancelSelection() = Unit
+
+        override fun onDeleteSelectedClicked() = Unit
+
+        override fun onDeleteSelectedConfirmed() = Unit
+
+        override fun onDeleteSelectedDismissed() = Unit
+    }
+
+val previewBrowserBookmarksBloc: BrowserBookmarksBloc =
+    bookmarksBloc(BrowserBookmarksBloc.Model(bookmarks = previewBookmarks, isLoading = false))
+
+val previewBrowserBookmarksSelectingBloc: BrowserBookmarksBloc =
+    bookmarksBloc(
+        BrowserBookmarksBloc.Model(
+            bookmarks = previewBookmarks,
+            isLoading = false,
+            selectionMode = true,
+            selectedIds = setOf(2L, 4L),
+        )
+    )
+
+val previewBrowserBookmarksEmptyBloc: BrowserBookmarksBloc =
+    bookmarksBloc(BrowserBookmarksBloc.Model(isLoading = false))
 
 val previewBrowserSelectEngineBloc: BrowserSelectEngineBloc =
     object : BrowserSelectEngineBloc {
@@ -101,6 +142,26 @@ internal fun BrowserLandingWithBookmarksScreenPreview() {
     ChefMateTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             BrowserLandingScreen(bloc = previewBrowserLandingWithBookmarksBloc)
+        }
+    }
+}
+
+@Preview
+@Composable
+internal fun BrowserBookmarksScreenPreview() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            BrowserBookmarksScreen(bloc = previewBrowserBookmarksBloc)
+        }
+    }
+}
+
+@Preview
+@Composable
+internal fun BrowserBookmarksSelectingScreenPreview() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            BrowserBookmarksScreen(bloc = previewBrowserBookmarksSelectingBloc)
         }
     }
 }
