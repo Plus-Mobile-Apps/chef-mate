@@ -21,9 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import chefmate.client.settings.public.generated.resources.Res
 import chefmate.client.settings.public.generated.resources.app_settings_backup_section
 import chefmate.client.settings.public.generated.resources.app_settings_bottom_nav_order
+import chefmate.client.settings.public.generated.resources.app_settings_browser_bookmarks
 import chefmate.client.settings.public.generated.resources.app_settings_browser_history_enabled
 import chefmate.client.settings.public.generated.resources.app_settings_browser_section
 import chefmate.client.settings.public.generated.resources.app_settings_clear_history
@@ -46,6 +48,7 @@ import chefmate.client.settings.public.generated.resources.import_recipes
 import com.plusmobileapps.chefmate.browser.SearchEngine
 import com.plusmobileapps.chefmate.browser.logo
 import com.plusmobileapps.chefmate.settings.AppSettingsBloc
+import com.plusmobileapps.chefmate.settings.SettingsTestTags
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusButton
@@ -95,6 +98,12 @@ fun AppSettingsScreen(bloc: AppSettingsBloc, modifier: Modifier = Modifier) {
             DefaultSearchEngineRow(
                 selectedEngine = state.selectedSearchEngine,
                 onClick = bloc::onDefaultSearchEngineClicked,
+            )
+            HorizontalDivider()
+            SettingsRow(
+                name = Res.string.app_settings_browser_bookmarks.asTextData(),
+                onClick = bloc::onBookmarksClicked,
+                modifier = Modifier.testTag(SettingsTestTags.BROWSER_BOOKMARKS),
             )
             HorizontalDivider()
             HistoryToggleRow(

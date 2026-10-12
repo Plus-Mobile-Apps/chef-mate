@@ -4,6 +4,7 @@ package com.plusmobileapps.chefmate.settings.root.impl
 
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.browser.BrowserBookmarksBloc
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
 import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavOrderBloc
@@ -29,6 +30,7 @@ class SettingsRootBlocImplTest {
     var recipeCategoriesOutput: Consumer<RecipeCategoriesBloc.Output> = Consumer {}
     var groceryAutocompleteOutput: Consumer<GroceryAutocompleteBloc.Output> = Consumer {}
     var groceryCategoryRulesOutput: Consumer<GroceryCategoryRulesBloc.Output> = Consumer {}
+    var browserBookmarksOutput: Consumer<BrowserBookmarksBloc.Output> = Consumer {}
 
     var rootOutput: SettingsRootBloc.Output? = null
 
@@ -70,6 +72,10 @@ class SettingsRootBlocImplTest {
             },
             groceryCategoryRules = { _, output ->
                 groceryCategoryRulesOutput = output
+                mock()
+            },
+            browserBookmarks = { _, output ->
+                browserBookmarksOutput = output
                 mock()
             },
         )
@@ -172,6 +178,20 @@ class SettingsRootBlocImplTest {
     fun Given_grocery_category_rules_When_it_outputs_back_Then_app_settings_is_shown() {
         appSettingsOutput.onNext(AppSettingsBloc.Output.OpenGroceryCategoryRules)
         groceryCategoryRulesOutput.onNext(GroceryCategoryRulesBloc.Output.Back)
+        bloc.instance() should instanceOf<SettingsRootBloc.Child.AppSettings>()
+    }
+
+    @Test
+    fun When_app_settings_opens_browser_bookmarks_Then_browser_bookmarks_is_shown() {
+        appSettingsOutput.onNext(AppSettingsBloc.Output.OpenBrowserBookmarks)
+        bloc.instance() should instanceOf<SettingsRootBloc.Child.BrowserBookmarks>()
+        bloc.routerState.value.backStack.size shouldBe 1
+    }
+
+    @Test
+    fun Given_browser_bookmarks_When_it_outputs_back_Then_app_settings_is_shown() {
+        appSettingsOutput.onNext(AppSettingsBloc.Output.OpenBrowserBookmarks)
+        browserBookmarksOutput.onNext(BrowserBookmarksBloc.Output.Back)
         bloc.instance() should instanceOf<SettingsRootBloc.Child.AppSettings>()
     }
 

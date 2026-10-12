@@ -11,6 +11,7 @@ import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.value.Value
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.browser.BrowserBookmarksBloc
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
 import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
@@ -42,6 +43,7 @@ class SettingsRootBlocImpl(
     private val recipeCategories: RecipeCategoriesBloc.Factory,
     private val groceryAutocomplete: GroceryAutocompleteBloc.Factory,
     private val groceryCategoryRules: GroceryCategoryRulesBloc.Factory,
+    private val browserBookmarks: BrowserBookmarksBloc.Factory,
 ) : SettingsRootBloc, BlocContext by context {
 
     private val navigation = StackNavigation<Configuration>()
@@ -132,6 +134,15 @@ class SettingsRootBlocImpl(
                             output = ::handleGroceryCategoryRulesOutput,
                         )
                 )
+
+            Configuration.BrowserBookmarks ->
+                SettingsRootBloc.Child.BrowserBookmarks(
+                    bloc =
+                        browserBookmarks.create(
+                            context = context,
+                            output = ::handleBrowserBookmarksOutput,
+                        )
+                )
         }
 
     private fun handleAppSettingsOutput(output: AppSettingsBloc.Output) {
@@ -139,6 +150,8 @@ class SettingsRootBlocImpl(
             AppSettingsBloc.Output.Back -> this.output.onNext(Output.Back)
             AppSettingsBloc.Output.OpenBottomNavOrder ->
                 navigation.bringToFront(Configuration.BottomNavOrder)
+            AppSettingsBloc.Output.OpenBrowserBookmarks ->
+                navigation.bringToFront(Configuration.BrowserBookmarks)
             AppSettingsBloc.Output.OpenImportRecipes ->
                 navigation.bringToFront(Configuration.ImportRecipes)
             AppSettingsBloc.Output.OpenExportRecipes ->
@@ -191,6 +204,12 @@ class SettingsRootBlocImpl(
         }
     }
 
+    private fun handleBrowserBookmarksOutput(output: BrowserBookmarksBloc.Output) {
+        when (output) {
+            BrowserBookmarksBloc.Output.Back -> navigation.pop()
+        }
+    }
+
     @Serializable
     private sealed class Configuration {
         @Serializable data object AppSettings : Configuration()
@@ -206,5 +225,7 @@ class SettingsRootBlocImpl(
         @Serializable data object GroceryAutocomplete : Configuration()
 
         @Serializable data object GroceryCategoryRules : Configuration()
+
+        @Serializable data object BrowserBookmarks : Configuration()
     }
 }
