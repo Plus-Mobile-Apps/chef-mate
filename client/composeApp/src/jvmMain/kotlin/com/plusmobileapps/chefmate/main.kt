@@ -192,7 +192,11 @@ fun main(args: Array<String>) {
                 // Only desktop provides this, which is what turns the recipe list's right-click
                 // "open in new window" entry on — the other targets see a null opener and omit it.
                 CompositionLocalProvider(LocalRecipeWindowOpener provides windowOpener) {
-                    App(rootBloc = rootBloc, toastService = appComponent.toastService)
+                    App(
+                        rootBloc = rootBloc,
+                        toastService = appComponent.toastService,
+                        inAppReviewService = appComponent.inAppReviewService,
+                    )
                 }
                 val updateState by updater.state.collectAsState()
                 ChefMateTheme {

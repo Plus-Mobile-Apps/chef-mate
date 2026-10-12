@@ -1,0 +1,6 @@
+<resources>
+    <string name="review_prompt_title">Enjoying Chef Mate?</string>
+    <string name="review_prompt_message">A quick rating in the Microsoft Store helps other cooks find the app.</string>
+    <string name="review_prompt_rate">Rate Chef Mate</string>
+    <string name="review_prompt_not_now">Not now</string>
+</resources>

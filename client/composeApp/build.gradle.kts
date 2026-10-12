@@ -125,6 +125,8 @@ kotlin {
             api(projects.client.settings.impl)
             api(projects.client.settings.root.impl)
             api(projects.client.developerSettings.impl)
+            api(projects.client.review.impl)
+            api(projects.client.review.public)
             api(projects.client.subscription.impl)
             api(projects.client.subscription.public)
             api(projects.client.toast.impl)

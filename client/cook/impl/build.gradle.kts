@@ -15,6 +15,7 @@ kotlin {
             implementation(projects.client.ui.public)
             implementation(projects.client.featureflag.public)
             implementation(projects.client.subscription.public)
+            implementation(projects.client.review.public)
             implementation(libs.arkivanov.decompose.core)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(libs.kotlinx.serialization.json)
@@ -26,6 +27,7 @@ kotlin {
             implementation(projects.client.recipe.data.testing)
             implementation(projects.client.featureflag.testing)
             implementation(projects.client.subscription.testing)
+            implementation(projects.client.review.testing)
         }
     }
 }
