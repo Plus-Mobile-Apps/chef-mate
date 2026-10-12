@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 
+private val DefaultAvatarSize = 40.dp
+
 /**
  * A circular user avatar. Renders [imageUrl] when present; otherwise falls back to the first letter
  * of [fallbackText] on a tonal background, or a generic person glyph when [fallbackText] is blank.
@@ -31,7 +33,7 @@ fun PlusAvatar(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     fallbackText: String = "",
-    size: Dp = 40.dp,
+    size: Dp = DefaultAvatarSize,
     shape: Shape = androidx.compose.foundation.shape.CircleShape,
 ) {
     val avatarModifier = modifier.size(size).clip(shape)
@@ -51,7 +53,12 @@ fun PlusAvatar(
             if (initial != null) {
                 Text(
                     text = initial.toString(),
-                    style = MaterialTheme.typography.titleMedium,
+                    // Scale the initial with the avatar so it stays proportional at any size; at
+                    // the default 40dp this is exactly titleMedium.
+                    style =
+                        MaterialTheme.typography.titleMedium.let {
+                            it.copy(fontSize = it.fontSize * (size / DefaultAvatarSize))
+                        },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
