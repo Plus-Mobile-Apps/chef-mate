@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
@@ -73,6 +75,14 @@ fun PlusNavRailHeaderContainer(
     // sits just clear of the cutout instead of a full margin beyond it.
     val startMargin = maxOf(cutoutStart, ChefMateTheme.dimens.paddingNormal)
     val verticalMargin = ChefMateTheme.dimens.paddingNormal
+    // NavigationRail fills its max height, so on a tall window (an unfolded Pixel Fold) the first
+    // item sits right at the top margin. A bare 16dp left it under the status bar, where the system
+    // swallows touches for the notification shade — clamp past the status bar and any top cutout.
+    val topInset =
+        with(density) {
+            WindowInsets.systemBars.union(WindowInsets.displayCutout).getTop(density).toDp()
+        }
+    val topMargin = maxOf(topInset, verticalMargin)
 
     val paddingValues: PaddingValues =
         with(density) {
@@ -103,7 +113,7 @@ fun PlusNavRailHeaderContainer(
                     // Measured before the margins so the reported block is what content has to
                     // clear from the start edge, not the bare rail width.
                     .onSizeChanged { railBlockWidth = with(density) { it.width.toDp() } }
-                    .padding(start = startMargin, top = verticalMargin, bottom = verticalMargin),
+                    .padding(start = startMargin, top = topMargin, bottom = verticalMargin),
         ) {
             NavigationRail(
                 containerColor = Color.Transparent,
