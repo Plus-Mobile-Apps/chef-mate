@@ -14,10 +14,12 @@ kotlin {
             api(libs.coil.network.ktor3)
             api(libs.richeditor.compose)
             implementation(compose.components.resources)
-            // Backdrop blur for the glass navigation surfaces. Kept as
-            // `implementation` (not `api`) — AppBackdrop wraps HazeState so no
-            // Haze type leaks into this module's public signatures.
+            // Backdrop blur for the glass navigation surfaces and the frosted
+            // header/toolbar chrome. Kept as `implementation` (not `api`) —
+            // AppBackdrop wraps HazeState so no Haze type leaks into this
+            // module's public signatures.
             implementation(libs.haze)
+            implementation(libs.haze.blur)
             implementation(libs.haze.glass)
         }
     }

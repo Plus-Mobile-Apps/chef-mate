@@ -42,10 +42,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -55,6 +59,11 @@ import androidx.compose.ui.unit.dp
 import chefmate.client.ui.public.generated.resources.Res
 import chefmate.client.ui.public.generated.resources.back
 import chefmate.client.ui.public.generated.resources.close
+import com.plusmobileapps.chefmate.ui.components.glass.AppBackdrop
+import com.plusmobileapps.chefmate.ui.components.glass.LocalAppBackdrop
+import com.plusmobileapps.chefmate.ui.components.glass.appBackdropSource
+import com.plusmobileapps.chefmate.ui.components.glass.backdropBlur
+import com.plusmobileapps.chefmate.ui.components.glass.rememberChromeBackdrop
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import org.jetbrains.compose.resources.stringResource
 
@@ -66,6 +75,10 @@ object PlusHeaderContainerDefaults {
      */
     val MaxContentWidth: Dp = 600.dp
 }
+
+// The content still reads through the header's blur, but the title and actions stay legible over
+// whatever bright imagery scrolls underneath.
+private const val HeaderBlurTintAlpha = 0.72f
 
 @Composable
 fun PlusHeaderContainer(
@@ -100,10 +113,21 @@ fun PlusHeaderContainer(
     // Use this for a screen's horizontal gutters instead of padding each child composable. Defaults
     // to none so screens that manage their own content padding are unaffected.
     contentPadding: PaddingValues = PaddingValues(),
+    // When true, non-scrolling content ([scrollEnabled] = false) is laid out full-height behind the
+    // frosted header instead of below it, and must reserve [LocalPlusHeaderOverlap] at its top
+    // itself — typically as an inner LazyColumn's top content padding, so the list scrolls up
+    // behind the header. Scrolling content always draws behind the header; the container reserves
+    // the space for it. [verticalArrangement]'s spacing is not applied below the header in this
+    // mode. Only honored in the standard (non-floating) layout.
+    drawContentBehindHeader: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
+    // Frosts the header and floating toolbar over the content scrolling behind them. Null in
+    // previews and screenshot tests, where both keep their opaque colors.
+    val backdrop = rememberChromeBackdrop()
+    val headerTint = ChefMateTheme.colorScheme.background.copy(alpha = HeaderBlurTintAlpha)
 
     if (floatingHeader) {
         val topPadding =
@@ -113,43 +137,35 @@ fun PlusHeaderContainer(
                 0.dp
             }
         Box(modifier = modifier.fillMaxSize().background(ChefMateTheme.colorScheme.background)) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = ChefMateTheme.colorScheme.background,
-                contentColor = ChefMateTheme.colorScheme.onBackground,
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ScrollingContent(
-                        scrollEnabled = scrollEnabled,
-                        scrollState = scrollState,
-                        maxContentWidth = maxContentWidth,
-                        topPadding = topPadding,
-                        applyHorizontalInsets = applyContentInsets,
-                        horizontalAlignment = horizontalAlignment,
-                        contentPadding = contentPadding,
-                        content = content,
-                    )
-                    BottomBarBox(
-                        density = density,
-                        floatingActionButton = floatingActionButton,
-                    )
-                    floatingToolbar?.let {
-                        Box(modifier = Modifier.align(BottomCenter).floatingToolbarPadding()) {
-                            it()
-                        }
-                    }
-                }
-            }
+            ContainerBody(
+                backdrop = backdrop,
+                scrollEnabled = scrollEnabled,
+                scrollState = scrollState,
+                maxContentWidth = maxContentWidth,
+                topPadding = topPadding,
+                applyHorizontalInsets = applyContentInsets,
+                horizontalAlignment = horizontalAlignment,
+                contentPadding = contentPadding,
+                floatingActionButton = floatingActionButton,
+                floatingToolbar = floatingToolbar,
+                content = content,
+            )
             if (data !is PlusHeaderData.None) {
                 PlusHeader(
                     data = data,
-                    containerAlpha = headerContainerAlpha,
+                    containerAlpha = if (backdrop != null) 0f else headerContainerAlpha,
                     centerAlign = centerAlignTitle,
                     windowInsets =
                         WindowInsets.systemBars
                             .union(WindowInsets.displayCutout)
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    modifier =
+                        Modifier.align(Alignment.TopCenter)
+                            .backdropBlur(
+                                backdrop = backdrop,
+                                tint = headerTint,
+                                background = ChefMateTheme.colorScheme.background,
+                            ),
                 )
             }
         }
@@ -162,44 +178,171 @@ fun PlusHeaderContainer(
             } else {
                 modifier
             }
-        Column(
-            modifier = rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background),
-            verticalArrangement = verticalArrangement,
-            horizontalAlignment = horizontalAlignment,
-        ) {
+        val header: @Composable () -> Unit = {
             if (data !is PlusHeaderData.None) {
                 PlusHeader(
                     data = data,
                     windowInsets = headerWindowInsets,
                     scrollBehavior = scrollBehavior,
+                    containerAlpha = if (backdrop != null) 0f else 1f,
+                    modifier =
+                        Modifier.backdropBlur(
+                            backdrop = backdrop,
+                            tint = headerTint,
+                            background = ChefMateTheme.colorScheme.background,
+                        ),
                 )
             }
-
-            Surface(
-                modifier = Modifier.weight(1f),
-                color = ChefMateTheme.colorScheme.background,
-                contentColor = ChefMateTheme.colorScheme.onBackground,
+        }
+        if (scrollEnabled || drawContentBehindHeader) {
+            // The header floats over the content so whatever scrolls up behind it shows through
+            // the frosted blur. A scrolling container reserves the header's height (plus the
+            // arrangement's spacing, which used to sit between the two) as the first thing inside
+            // its scroll, so the content still starts below the header at rest; a
+            // [drawContentBehindHeader] screen reserves it itself via [LocalPlusHeaderOverlap].
+            val headerHeight = remember { mutableStateOf(0.dp) }
+            val overlap = remember(headerHeight) { PlusHeaderOverlap(headerHeight) }
+            Box(
+                modifier =
+                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background)
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ScrollingContent(
-                        scrollEnabled = scrollEnabled,
-                        scrollState = scrollState,
-                        maxContentWidth = maxContentWidth,
-                        applyHorizontalInsets = true,
-                        horizontalAlignment = horizontalAlignment,
-                        contentPadding = contentPadding,
-                        content = content,
-                    )
-                    BottomBarBox(
-                        density = density,
-                        floatingActionButton = floatingActionButton,
-                    )
-
-                    floatingToolbar?.let {
-                        Box(modifier = Modifier.align(BottomCenter).floatingToolbarPadding()) {
-                            it()
-                        }
+                HeaderOverlayLayout(
+                    header = header,
+                    onHeaderMeasured = { headerHeight.value = it },
+                ) {
+                    CompositionLocalProvider(LocalPlusHeaderOverlap provides overlap) {
+                        ContainerBody(
+                            backdrop = backdrop,
+                            scrollEnabled = scrollEnabled,
+                            scrollState = scrollState,
+                            maxContentWidth = maxContentWidth,
+                            scrollTopPadding =
+                                if (scrollEnabled) {
+                                    overlap.contentPadding(top = verticalArrangement.spacing)
+                                } else {
+                                    PaddingValues()
+                                },
+                            horizontalAlignment = horizontalAlignment,
+                            contentPadding = contentPadding,
+                            floatingActionButton = floatingActionButton,
+                            floatingToolbar = floatingToolbar,
+                            content = content,
+                        )
                     }
+                }
+            }
+        } else {
+            // Non-scrolling content (typically an inner LazyColumn) that hasn't opted into drawing
+            // behind the header can't reserve the header's height inside its own scroll, so it
+            // keeps sitting below an opaque header.
+            Column(
+                modifier =
+                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background),
+                verticalArrangement = verticalArrangement,
+                horizontalAlignment = horizontalAlignment,
+            ) {
+                if (data !is PlusHeaderData.None) {
+                    PlusHeader(
+                        data = data,
+                        windowInsets = headerWindowInsets,
+                        scrollBehavior = scrollBehavior,
+                    )
+                }
+                ContainerBody(
+                    modifier = Modifier.weight(1f),
+                    backdrop = backdrop,
+                    scrollEnabled = false,
+                    scrollState = scrollState,
+                    maxContentWidth = maxContentWidth,
+                    horizontalAlignment = horizontalAlignment,
+                    contentPadding = contentPadding,
+                    floatingActionButton = floatingActionButton,
+                    floatingToolbar = floatingToolbar,
+                    content = content,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Lays [header] over the top of [content], reporting the header's measured height through
+ * [onHeaderMeasured] before [content] is measured in the same pass. [content] reads that height at
+ * layout time (see [PlusHeaderOverlap]), so it never renders a frame tucked under the header —
+ * including while a collapsing title changes the header's height.
+ *
+ * Deliberately a plain multi-content [Layout] rather than a SubcomposeLayout: subcomposing the
+ * content puts it in a separate composition, and when an enclosing movable content (Decompose's
+ * stack, the bottom-nav shells) moved it in the same frame as a text field inside it changed, the
+ * text field's modifier was updated while detached and the screen crashed on teardown.
+ */
+@Composable
+private fun HeaderOverlayLayout(
+    header: @Composable () -> Unit,
+    onHeaderMeasured: (Dp) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Layout(contents = listOf(header, content), modifier = Modifier.fillMaxSize()) {
+        (headerMeasurables, contentMeasurables),
+        constraints ->
+        val headerPlaceables = headerMeasurables.map { it.measure(constraints.copy(minHeight = 0)) }
+        onHeaderMeasured((headerPlaceables.maxOfOrNull { it.height } ?: 0).toDp())
+        val contentPlaceables = contentMeasurables.map { it.measure(constraints) }
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            contentPlaceables.forEach { it.place(0, 0) }
+            headerPlaceables.forEach { it.place(0, 0) }
+        }
+    }
+}
+
+/**
+ * The content surface: the (optionally scrolling) content column, the FAB and the floating toolbar.
+ * The content column is the [backdrop]'s source, so the header and the floating toolbar blur what
+ * scrolls behind them. The FAB and toolbar sit outside that source so they never blur themselves.
+ */
+@Composable
+private fun ContainerBody(
+    backdrop: AppBackdrop?,
+    scrollEnabled: Boolean,
+    scrollState: ScrollState,
+    maxContentWidth: Dp,
+    horizontalAlignment: Alignment.Horizontal,
+    contentPadding: PaddingValues,
+    floatingActionButton: @Composable () -> Unit,
+    floatingToolbar: (@Composable () -> Unit)?,
+    content: @Composable ColumnScope.() -> Unit,
+    modifier: Modifier = Modifier,
+    topPadding: Dp = 0.dp,
+    scrollTopPadding: PaddingValues = PaddingValues(),
+    applyHorizontalInsets: Boolean = true,
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = ChefMateTheme.colorScheme.background,
+        contentColor = ChefMateTheme.colorScheme.onBackground,
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            ScrollingContent(
+                modifier = Modifier.appBackdropSource(backdrop),
+                scrollEnabled = scrollEnabled,
+                scrollState = scrollState,
+                maxContentWidth = maxContentWidth,
+                topPadding = topPadding,
+                scrollTopPadding = scrollTopPadding,
+                applyHorizontalInsets = applyHorizontalInsets,
+                horizontalAlignment = horizontalAlignment,
+                contentPadding = contentPadding,
+                content = content,
+            )
+            BottomBarBox(
+                density = LocalDensity.current,
+                floatingActionButton = floatingActionButton,
+            )
+            floatingToolbar?.let {
+                // Scoped to this container's backdrop (or to none) so a toolbar never blurs an
+                // enclosing shell's backdrop, which would include the toolbar itself.
+                CompositionLocalProvider(LocalAppBackdrop provides backdrop) {
+                    Box(modifier = Modifier.align(BottomCenter).floatingToolbarPadding()) { it() }
                 }
             }
         }
@@ -242,6 +385,9 @@ private fun ScrollingContent(
     scrollState: ScrollState,
     maxContentWidth: Dp,
     topPadding: Dp = 0.dp,
+    // Space reserved as the first thing *inside* the scroll, so content scrolls up behind whatever
+    // covers it (the frosted header) rather than being clipped below it like [topPadding].
+    scrollTopPadding: PaddingValues = PaddingValues(),
     applyHorizontalInsets: Boolean = true,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     contentPadding: PaddingValues = PaddingValues(),
@@ -255,6 +401,7 @@ private fun ScrollingContent(
             if (scrollEnabled) it.verticalScroll(scrollState) else it
         }
     Column(modifier = scrollModifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(modifier = Modifier.padding(scrollTopPadding))
         val baseModifier = Modifier.fillMaxWidth().widthIn(max = maxContentWidth)
         val insetModifier =
             if (applyHorizontalInsets) baseModifier.scaffoldContentInsetPadding() else baseModifier
@@ -292,9 +439,10 @@ fun PlusHeader(
             )
     val colors =
         if (containerAlpha < 1f) {
-            TopAppBarDefaults.topAppBarColors(
-                containerColor = ChefMateTheme.colorScheme.background.copy(alpha = containerAlpha)
-            )
+            // Both colors, so a collapsing app bar doesn't turn opaque as it scrolls.
+            ChefMateTheme.colorScheme.background.copy(alpha = containerAlpha).let {
+                TopAppBarDefaults.topAppBarColors(containerColor = it, scrolledContainerColor = it)
+            }
         } else {
             TopAppBarDefaults.topAppBarColors()
         }
