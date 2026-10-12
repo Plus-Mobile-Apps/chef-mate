@@ -3,6 +3,7 @@
 package com.plusmobileapps.chefmate.recipe.bottomnav
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -37,6 +39,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Language
@@ -45,6 +49,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.LocalTextStyle
@@ -90,6 +95,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import chefmate.client.bottomnav.public.generated.resources.Res
+import chefmate.client.bottomnav.public.generated.resources.nav_rail_collapse
+import chefmate.client.bottomnav.public.generated.resources.nav_rail_expand
 import chefmate.client.bottomnav.public.generated.resources.tab_browser
 import chefmate.client.bottomnav.public.generated.resources.tab_grocery
 import chefmate.client.bottomnav.public.generated.resources.tab_meals
@@ -107,10 +114,8 @@ import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.GROCERIES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.MEALS
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.RECIPES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.SETTINGS
-import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
-import com.plusmobileapps.chefmate.ui.components.NavRailItem
 import com.plusmobileapps.chefmate.ui.components.PlusNavRailHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.glass.AppBackdrop
 import com.plusmobileapps.chefmate.ui.components.glass.GlassDefaults
@@ -187,37 +192,90 @@ private fun SideNavContent(
     modifier: Modifier = Modifier,
 ) {
     val state = bloc.state.collectAsState()
-
-    val navRailItems =
-        remember(state.value) {
-            val currentState = state.value
-            currentState.tabs.map {
-                NavRailItem(
-                    label = it.getLabel().asTextData(),
-                    selected = it == currentState.selectedTab,
-                    icon = {
-                        TabIcon(tab = it, notificationCount = currentState.notificationCount)
-                    },
-                    onClick = { bloc.onTabSelected(it) },
-                )
-            }
-        }
+    // Only a window with room for the wide rail offers to collapse it; the compact rail is already
+    // as small as it gets. The choice is persisted, so it survives app restarts.
+    val showExpanded = expandedItems && !state.value.railCollapsed
 
     PlusNavRailHeaderContainer(
         modifier = modifier.fillMaxSize(),
-        navRail = navRailItems,
-        expandedItems = expandedItems,
-        // The compact rail (a phone turned sideways) is the bottom bar on its side, lens and all.
-        // The expanded rail's wide label rows keep the standard items.
-        railContent =
-            if (expandedItems) {
-                null
-            } else {
-                { LensNavRail(state = state.value, onClick = bloc::onTabSelected) }
-            },
+        // Unused: railContent draws the items itself.
+        navRail = emptyList(),
+        // Drives the rail's shape, so a collapsed rail goes back to the compact one's stadium.
+        expandedItems = showExpanded,
+        // Both rails are the bottom bar on its side, lens and all: the compact one (a phone turned
+        // sideways) stacks icon over label, the expanded one lays them out as wide rows.
+        railContent = {
+            SideRail(
+                state = state.value,
+                onClick = bloc::onTabSelected,
+                expanded = showExpanded,
+                onToggleCollapsed =
+                    if (expandedItems) {
+                        bloc::onRailCollapseToggled
+                    } else {
+                        null
+                    },
+            )
+        },
         content = { content(Modifier.padding(it)) },
     )
 }
+
+/**
+ * The side rail's contents: [LensNavRail], topped with a collapse toggle when [onToggleCollapsed]
+ * is given. Collapsing swaps the wide label rows for the compact icon-over-label column; the
+ * container measures the rail, so screen content reflows to the new width on its own.
+ *
+ * The swap itself is instant, but the rail's size springs between the two layouts — and screen
+ * content follows it frame by frame. The content clips to the animating bounds, so on expand the
+ * wide rows are revealed as the glass grows rather than spilling past it.
+ */
+@Composable
+private fun SideRail(
+    state: BottomNavBloc.Model,
+    onClick: (BottomNavBloc.Tab) -> Unit,
+    expanded: Boolean,
+    onToggleCollapsed: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.animateContentSize()) {
+        if (onToggleCollapsed != null) {
+            IconButton(
+                onClick = onToggleCollapsed,
+                modifier =
+                    if (expanded) {
+                        // Lines the toggle's icon up with the tab icons below it.
+                        Modifier.padding(
+                            start = ExpandedRailPadding + ExpandedRailItemPadding - ToggleIconInset,
+                            top = ExpandedRailPadding,
+                        )
+                    } else {
+                        Modifier.align(Alignment.CenterHorizontally)
+                            .padding(top = ChefMateTheme.dimens.paddingSmall)
+                    },
+            ) {
+                Icon(
+                    imageVector =
+                        if (expanded) {
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                        } else {
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight
+                        },
+                    contentDescription =
+                        stringResource(
+                            if (expanded) Res.string.nav_rail_collapse
+                            else Res.string.nav_rail_expand
+                        ),
+                    tint = ChefMateTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        LensNavRail(state = state, onClick = onClick, expanded = expanded)
+    }
+}
+
+// IconButton centers its 24dp icon in a 48dp target, leaving 12dp either side.
+private val ToggleIconInset = 12.dp
 
 @Composable
 private fun MobileBottomNavContent(
@@ -389,60 +447,87 @@ private fun PlusBottomBar(
 }
 
 /**
- * The compact side rail for a short, wide window (a phone in landscape): the bottom bar turned on
- * its side, with the same glass lens sliding — and dragging — vertically between equal-height
- * cells, and the same blue tint on whatever sits beneath it. Rendered inside the rail's glass pill
- * by [PlusNavRailHeaderContainer].
+ * The side rail: the bottom bar turned on its side, with the same glass lens sliding — and dragging
+ * — vertically between equal-height cells, and the same blue tint on whatever sits beneath it.
+ * Rendered inside the rail's glass pill by [PlusNavRailHeaderContainer].
+ *
+ * The compact rail (a short, wide window such as a phone in landscape) stacks each icon over its
+ * label in a narrow column. The [expanded] rail (a large window such as desktop) lays them out as
+ * wide icon-and-label rows, inset from the rail's edges so the lens clears its rounded corners.
  */
 @Composable
 private fun LensNavRail(
     state: BottomNavBloc.Model,
     onClick: (BottomNavBloc.Tab) -> Unit,
     modifier: Modifier = Modifier,
+    expanded: Boolean = false,
 ) {
-    BoxWithConstraints(modifier = modifier) {
+    val railWidth = if (expanded) ExpandedRailWidth else RailWidth
+    val maxCellHeight = if (expanded) ExpandedRailCellHeight else RailCellMaxHeight
+    BoxWithConstraints(
+        modifier = modifier.then(if (expanded) Modifier.padding(ExpandedRailPadding) else Modifier)
+    ) {
         // Equal cells so the lens can be positioned arithmetically, as on the bottom bar. Capped so
         // a taller window doesn't stretch them, and shrunk to fit a short one.
-        val cellHeight = minOf(RailCellMaxHeight, maxHeight / state.tabs.size.coerceAtLeast(1))
+        val cellHeight = minOf(maxCellHeight, maxHeight / state.tabs.size.coerceAtLeast(1))
         LensTrack(
             state = state,
             onClick = onClick,
             orientation = Orientation.Vertical,
             cellSize = cellHeight,
-            modifier = Modifier.width(RailWidth),
+            modifier = Modifier.width(railWidth),
         ) { lensTint ->
             CompositionLocalProvider(
                 LocalContentColor provides ChefMateTheme.colorScheme.onSurface
             ) {
                 Column {
                     state.tabs.forEach { tab ->
-                        Column(
-                            modifier =
-                                Modifier.width(RailWidth)
-                                    .height(cellHeight)
-                                    .selectable(
-                                        selected = tab == state.selectedTab,
-                                        interactionSource = null,
-                                        // The lens is the press feedback, as on the bottom bar.
-                                        indication = null,
-                                        role = Role.Tab,
-                                        onClick = { onClick(tab) },
-                                    ),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            TabIcon(
-                                tab = tab,
-                                notificationCount = state.notificationCount,
-                                lensTint = lensTint,
-                            )
-                            TabLabel(
-                                tab = tab,
-                                lensTint = lensTint,
-                                style = ChefMateTheme.typography.labelMedium,
+                        val cellModifier =
+                            Modifier.width(railWidth)
+                                .height(cellHeight)
+                                .selectable(
+                                    selected = tab == state.selectedTab,
+                                    interactionSource = null,
+                                    // The lens is the press feedback, as on the bottom bar.
+                                    indication = null,
+                                    role = Role.Tab,
+                                    onClick = { onClick(tab) },
+                                )
+                        if (expanded) {
+                            Row(
                                 modifier =
-                                    Modifier.padding(top = ChefMateTheme.dimens.paddingExtraSmall),
-                            )
+                                    cellModifier.padding(horizontal = ExpandedRailItemPadding),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                TabIcon(
+                                    tab = tab,
+                                    notificationCount = state.notificationCount,
+                                    lensTint = lensTint,
+                                )
+                                TabLabel(tab = tab, lensTint = lensTint)
+                            }
+                        } else {
+                            Column(
+                                modifier = cellModifier,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                TabIcon(
+                                    tab = tab,
+                                    notificationCount = state.notificationCount,
+                                    lensTint = lensTint,
+                                )
+                                TabLabel(
+                                    tab = tab,
+                                    lensTint = lensTint,
+                                    style = ChefMateTheme.typography.labelMedium,
+                                    modifier =
+                                        Modifier.padding(
+                                            top = ChefMateTheme.dimens.paddingExtraSmall
+                                        ),
+                                )
+                            }
                         }
                     }
                 }
@@ -453,6 +538,11 @@ private fun LensNavRail(
 
 private val RailWidth = 80.dp
 private val RailCellMaxHeight = 64.dp
+private val ExpandedRailWidth = 240.dp
+private val ExpandedRailCellHeight = 56.dp
+// Keeps the lens off the expanded rail's 28dp corners, which would otherwise clip its ends.
+private val ExpandedRailPadding = 8.dp
+private val ExpandedRailItemPadding = 16.dp
 
 /**
  * The selection lens and the track of tab cells it slides along — shared by the bottom bar
@@ -749,6 +839,27 @@ fun BottomNavRailPreview(notificationCount: Int) {
         LensNavRail(
             state = BottomNavBloc.Model(notificationCount = notificationCount),
             onClick = {},
+        )
+    }
+}
+
+/**
+ * Renders just the expanded side rail — the wide one a desktop or tablet window shows — for
+ * screenshot tests, with [notificationCount] driving the More-tab badge and [collapsed] showing it
+ * folded down to the compact column. Not used in production; the app always renders the rail
+ * through [BottomNavigationScreen].
+ */
+@Composable
+fun BottomNavExpandedRailPreview(notificationCount: Int, collapsed: Boolean = false) {
+    GlassSurface(
+        backdrop = null,
+        shape = if (collapsed) GlassDefaults.shape else RoundedCornerShape(28.dp),
+    ) {
+        SideRail(
+            state = BottomNavBloc.Model(notificationCount = notificationCount),
+            onClick = {},
+            expanded = !collapsed,
+            onToggleCollapsed = {},
         )
     }
 }

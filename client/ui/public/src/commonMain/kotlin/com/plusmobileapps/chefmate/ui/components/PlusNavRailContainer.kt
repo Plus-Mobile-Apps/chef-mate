@@ -1,5 +1,6 @@
 package com.plusmobileapps.chefmate.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.NavigationRail
@@ -31,13 +33,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.text.TextData
-import com.plusmobileapps.chefmate.ui.components.glass.GlassDefaults
 import com.plusmobileapps.chefmate.ui.components.glass.GlassSurface
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
@@ -108,11 +111,14 @@ fun PlusNavRailHeaderContainer(
             content(paddingValues)
         }
 
+        // A stadium is right for the narrow icon rail but absurd on the 240dp expanded one, where
+        // the corner radius would resolve against the width. Animated, so a rail collapsing or
+        // expanding in place morphs its corners along with its size instead of snapping.
+        val stadiumFraction by
+            animateFloatAsState(targetValue = if (expandedItems) 0f else 1f, label = "railShape")
         GlassSurface(
             backdrop = null,
-            // A stadium is right for the narrow icon rail but absurd on the 240dp expanded one,
-            // where the corner radius would resolve against the width.
-            shape = if (expandedItems) RoundedCornerShape(28.dp) else GlassDefaults.shape,
+            shape = RoundedCornerShape(RailCornerSize(stadiumFraction)),
             modifier =
                 Modifier.align(Alignment.CenterStart)
                     // Measured before the margins so the reported block is what content has to
@@ -149,6 +155,21 @@ fun PlusNavRailHeaderContainer(
                 }
             }
         }
+    }
+}
+
+private val ExpandedRailCornerRadius = 28.dp
+
+/**
+ * A corner that is [ExpandedRailCornerRadius] at a [stadiumFraction] of 0 and a full stadium (half
+ * the shorter side) at 1. Resolved against the live size, so it stays correct while the rail's
+ * bounds animate.
+ */
+private data class RailCornerSize(private val stadiumFraction: Float) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val expanded = with(density) { ExpandedRailCornerRadius.toPx() }
+        val stadium = shapeSize.minDimension / 2
+        return expanded + (stadium - expanded) * stadiumFraction
     }
 }
 
