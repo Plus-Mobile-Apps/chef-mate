@@ -19,10 +19,36 @@ private fun landingBloc(model: BrowserLandingBloc.Model): BrowserLandingBloc =
         override fun onCoachMarkDismissed(id: String) = Unit
 
         override fun onSearchEngineSelected(engine: SearchEngine) = Unit
+
+        override fun onBookmarkClicked(bookmark: BrowserBookmark) = Unit
+
+        override fun onDeleteBookmarkClicked(bookmark: BrowserBookmark) = Unit
     }
 
 val previewBrowserLandingBloc: BrowserLandingBloc =
     landingBloc(BrowserLandingBloc.Model(selectedEngine = SearchEngine.GOOGLE))
+
+private val previewBookmarks =
+    listOf(
+        BrowserBookmark(
+            id = 1,
+            url = "https://www.seriouseats.com/classic-banana-bread-recipe",
+            title = "Classic Banana Bread Recipe",
+        ),
+        BrowserBookmark(
+            id = 2,
+            url = "https://cooking.nytimes.com/",
+            title = "NYT Cooking - Recipes and Cooking Guides",
+        ),
+        BrowserBookmark(id = 3, url = "https://www.budgetbytes.com/", title = "Budget Bytes"),
+        BrowserBookmark(id = 4, url = "https://smittenkitchen.com/", title = "smitten kitchen"),
+        BrowserBookmark(id = 5, url = "https://www.kingarthurbaking.com/", title = "King Arthur"),
+    )
+
+val previewBrowserLandingWithBookmarksBloc: BrowserLandingBloc =
+    landingBloc(
+        BrowserLandingBloc.Model(selectedEngine = SearchEngine.GOOGLE, bookmarks = previewBookmarks)
+    )
 
 val previewBrowserSelectEngineBloc: BrowserSelectEngineBloc =
     object : BrowserSelectEngineBloc {
@@ -40,11 +66,14 @@ fun PreviewBrowserAddressBar(modifier: Modifier = Modifier) {
         canGoBack = true,
         canGoForward = false,
         canOpenExternally = true,
+        isBookmarked = true,
         onUrlChanged = {},
         onNavigate = {},
         onGoBack = {},
         onGoForward = {},
         onAddressBarFocused = {},
+        onToggleBookmark = {},
+        onHomeClick = {},
         onOpenInDefaultBrowser = {},
         modifier = modifier,
     )
@@ -62,6 +91,16 @@ internal fun BrowserLandingScreenPreview() {
     ChefMateTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             BrowserLandingScreen(bloc = previewBrowserLandingBloc)
+        }
+    }
+}
+
+@Preview
+@Composable
+internal fun BrowserLandingWithBookmarksScreenPreview() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            BrowserLandingScreen(bloc = previewBrowserLandingWithBookmarksBloc)
         }
     }
 }

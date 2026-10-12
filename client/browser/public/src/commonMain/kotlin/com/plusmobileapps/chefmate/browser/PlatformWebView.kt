@@ -18,6 +18,7 @@ import com.arkivanov.essenty.instancekeeper.InstanceKeeper
  * @param onHtmlCaptured Callback invoked with the result of a capture, in whatever form the
  *   platform's JavaScript bridge returns it. Always invoked once per [captureHtmlTrigger] — with a
  *   blank or `null` value when the page couldn't be read — so a caller can stop waiting.
+ * @param onTitleChanged Callback invoked with the loaded page's `<title>` whenever it changes.
  * @param instanceKeeper Used on JVM to cache the WebView across recompositions so browser history
  *   survives tab switches.
  * @param modifier Modifier for layout.
@@ -32,6 +33,7 @@ expect fun PlatformWebView(
     goForwardTrigger: Int,
     captureHtmlTrigger: Int,
     onHtmlCaptured: (String?) -> Unit,
+    onTitleChanged: (String?) -> Unit,
     instanceKeeper: InstanceKeeper,
     modifier: Modifier = Modifier,
 )

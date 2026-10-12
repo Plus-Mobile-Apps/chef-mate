@@ -28,13 +28,20 @@ actual fun PlatformWebView(
     goForwardTrigger: Int,
     captureHtmlTrigger: Int,
     onHtmlCaptured: (String?) -> Unit,
+    onTitleChanged: (String?) -> Unit,
     instanceKeeper: InstanceKeeper,
     modifier: Modifier,
 ) {
     val holder = remember { instanceKeeper.getOrCreate { WebViewHolder() } }
 
     DisposableEffect(Unit) {
-        holder.ensureInitialized(onUrlLoaded, onLoadingChanged, onCanNavigateChanged, url)
+        holder.ensureInitialized(
+            onUrlLoaded,
+            onLoadingChanged,
+            onCanNavigateChanged,
+            onTitleChanged,
+            url,
+        )
         onDispose {}
     }
 
@@ -69,6 +76,8 @@ private class WebViewHolder : InstanceKeeper.Instance {
     @Volatile var lastCommandedUrl: String = ""
 
     @Volatile private var onCanNavigateChanged: ((Boolean, Boolean) -> Unit)? = null
+
+    @Volatile private var onTitleChanged: ((String?) -> Unit)? = null
 
     private var initialized = false
 
@@ -105,9 +114,11 @@ private class WebViewHolder : InstanceKeeper.Instance {
         onUrlLoaded: (String) -> Unit,
         onLoadingChanged: (Boolean) -> Unit,
         onCanNavigateChanged: (Boolean, Boolean) -> Unit,
+        onTitleChanged: (String?) -> Unit,
         initialUrl: String,
     ) {
         this.onCanNavigateChanged = onCanNavigateChanged
+        this.onTitleChanged = onTitleChanged
         if (initialized) return
         initialized = true
 
@@ -129,6 +140,7 @@ private class WebViewHolder : InstanceKeeper.Instance {
                             lastCommandedUrl = it
                             onUrlLoaded(it)
                         }
+                        this.onTitleChanged?.invoke(wv.engine.title)
                         val history = wv.engine.history
                         this.onCanNavigateChanged?.invoke(
                             history.currentIndex > 0,

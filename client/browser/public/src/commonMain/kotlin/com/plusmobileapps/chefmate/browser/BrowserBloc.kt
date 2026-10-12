@@ -42,6 +42,15 @@ interface BrowserBloc : ComposeScreen {
 
     fun onAddressBarFocused()
 
+    /** The WebView reported the loaded page's `<title>`, used to name a new bookmark. */
+    fun onPageTitleChanged(title: String?)
+
+    /** Stars the current page, or un-stars it when it's already bookmarked. */
+    fun onToggleBookmark()
+
+    /** Leaves the page for the browser landing screen. */
+    fun onHomeClicked()
+
     data class Model(
         val currentUrl: String = "",
         val navigateUrl: String = "",
@@ -60,12 +69,16 @@ interface BrowserBloc : ComposeScreen {
         val goBackTrigger: Int = 0,
         val goForwardTrigger: Int = 0,
         val captureHtmlTrigger: Int = 0,
+        /** Whether the page currently loaded is one of the user's bookmarks. */
+        val isBookmarked: Boolean = false,
     )
 
     sealed class Output {
         data class RecipeExtracted(val extracted: ExtractedRecipeData) : Output()
 
         data class NavigateToLanding(val initialText: String) : Output()
+
+        data object NavigateHome : Output()
     }
 
     interface Factory {

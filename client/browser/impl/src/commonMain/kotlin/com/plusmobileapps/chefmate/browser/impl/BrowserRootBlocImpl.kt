@@ -80,12 +80,8 @@ class BrowserRootBlocImpl(
             source = navigation,
             serializer = Configuration.serializer(),
             initialStack = {
-                when {
-                    initialUrl != null -> listOf(Configuration.Browser(initialUrl))
-                    browserPreferences.defaultSearchEngine.value == null ->
-                        listOf(Configuration.SelectEngine)
-                    else -> listOf(Configuration.Landing)
-                }
+                if (initialUrl != null) listOf(Configuration.Browser(initialUrl))
+                else listOf(homeConfiguration())
             },
             handleBackButton = true,
             key = "BrowserRootRouter",
@@ -230,6 +226,8 @@ class BrowserRootBlocImpl(
                                         navigation.replaceTopEditQueryWith(
                                             Configuration.EditQuery(blocOutput.initialText)
                                         )
+                                    BrowserBloc.Output.NavigateHome ->
+                                        navigation.replaceAll(homeConfiguration())
                                 }
                             },
                             showControls = showControls,
@@ -240,6 +238,11 @@ class BrowserRootBlocImpl(
                         }
                 )
         }
+
+    /** The landing screen, or the first-run engine picker until a default engine is chosen. */
+    private fun homeConfiguration(): Configuration =
+        if (browserPreferences.defaultSearchEngine.value == null) Configuration.SelectEngine
+        else Configuration.Landing
 
     /**
      * Drops any existing EditQuery from the stack before adding the new one. Decompose enforces
