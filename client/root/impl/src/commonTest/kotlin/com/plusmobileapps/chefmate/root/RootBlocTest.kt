@@ -671,6 +671,36 @@ class RootBlocTest {
     }
 
     @Test
+    fun Given_cook_mode_When_it_opens_recipe_detail_Then_cook_mode_is_replaced_by_detail() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenCookMode(7L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        // Cook Mode is gone — back returns to the bottom nav, not to it.
+        rootBloc.state.value.backStack.size shouldBe 1
+        rootBloc.state.value.backStack.first().instance should
+            instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_cook_mode_opened_from_a_recipe_When_it_opens_another_recipe_Then_detail_is_not_duplicated() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenCookMode(recipeId = 123L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        rootBloc.state.value.backStack.size shouldBe 1
+        rootBloc.state.value.backStack.first().instance should
+            instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
     fun Given_ai_chat_open_When_back_clicked_Then_it_pops_back_to_the_recipe() {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
         recipeOutput.onNext(RecipeRootBloc.Output.OpenAiChat(recipeId = 123L))
