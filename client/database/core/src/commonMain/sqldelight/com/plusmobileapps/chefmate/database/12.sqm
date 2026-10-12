@@ -1,0 +1,14 @@
+-- Browser bookmarks starred from the in-app browser (see BrowserBookmark.sq). Synced to the
+-- Supabase `browser_bookmarks` table.
+CREATE TABLE BrowserBookmark (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    remoteId TEXT UNIQUE,
+    clientId TEXT,
+    isDirty INTEGER NOT NULL DEFAULT 0,
+    ownerId TEXT
+);
+
+CREATE UNIQUE INDEX idx_browser_bookmark_url ON BrowserBookmark(url);

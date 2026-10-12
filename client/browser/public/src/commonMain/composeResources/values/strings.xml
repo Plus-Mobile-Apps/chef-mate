@@ -8,7 +8,6 @@
     <string name="browser_clear">Clear</string>
     <string name="browser_back">Back</string>
     <string name="browser_forward">Forward</string>
-    <string name="browser_navigate">Navigate</string>
     <string name="browser_open_in_default_browser">Open in browser</string>
     <string name="browser_download">Download</string>
     <string name="browser_landing_hint">Search {engine} or type a URL</string>
@@ -21,4 +20,13 @@
     <!-- First-run coach mark -->
     <string name="browser_search_onboarding">Search the web to import recipes from any site</string>
     <string name="browser_history_delete">Delete history entry</string>
+    <!-- Address bar overflow menu -->
+    <string name="browser_more_options">More options</string>
+    <string name="browser_add_bookmark">Add bookmark</string>
+    <string name="browser_remove_bookmark">Remove bookmark</string>
+    <string name="browser_home">Browser home</string>
+    <!-- Landing bookmarks grid -->
+    <string name="browser_bookmarks_title">Bookmarks</string>
+    <string name="browser_bookmark_options">Options for {title}</string>
+    <string name="browser_bookmark_delete">Delete bookmark</string>
 </resources>

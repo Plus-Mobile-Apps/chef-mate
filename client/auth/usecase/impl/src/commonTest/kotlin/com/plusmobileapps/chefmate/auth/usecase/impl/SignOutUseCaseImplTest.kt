@@ -4,6 +4,8 @@ package com.plusmobileapps.chefmate.auth.usecase.impl
 
 import com.plusmobileapps.chefmate.aichat.AiChatLocalDataCleaner
 import com.plusmobileapps.chefmate.auth.data.testing.FakeAuthenticationRepository
+import com.plusmobileapps.chefmate.browser.BrowserBookmark
+import com.plusmobileapps.chefmate.browser.testing.FakeBrowserBookmarkRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryCategoryOverrideRepository
@@ -40,6 +42,10 @@ class SignOutUseCaseImplTest {
     private val groceryCategoryOverrideRepository = FakeGroceryCategoryOverrideRepository()
     private var aiChatCleared = false
     private val aiChatLocalDataCleaner = AiChatLocalDataCleaner { aiChatCleared = true }
+    private val browserBookmarkRepository =
+        FakeBrowserBookmarkRepository(
+            listOf(BrowserBookmark(id = 1, url = "https://example.com", title = "Example"))
+        )
 
     private val useCase =
         SignOutUseCaseImpl(
@@ -51,6 +57,7 @@ class SignOutUseCaseImplTest {
             categoryRepository = categoryRepository,
             groceryAutocompleteRepository = groceryAutocompleteRepository,
             aiChatLocalDataCleaner = aiChatLocalDataCleaner,
+            browserBookmarkRepository = browserBookmarkRepository,
         )
 
     @Test
@@ -65,6 +72,13 @@ class SignOutUseCaseImplTest {
         useCase()
 
         aiChatCleared shouldBe true
+    }
+
+    @Test
+    fun When_signing_out_Then_local_browser_bookmarks_are_wiped() = runTest {
+        useCase()
+
+        browserBookmarkRepository.observeBookmarks().first() shouldBe emptyList()
     }
 
     @Test

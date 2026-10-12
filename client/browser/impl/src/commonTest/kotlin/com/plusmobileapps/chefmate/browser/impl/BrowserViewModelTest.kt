@@ -4,7 +4,9 @@
 package com.plusmobileapps.chefmate.browser.impl
 
 import com.plusmobileapps.chefmate.browser.BrowserBloc
+import com.plusmobileapps.chefmate.browser.BrowserBookmark
 import com.plusmobileapps.chefmate.browser.BrowserHistoryRepository
+import com.plusmobileapps.chefmate.browser.testing.FakeBrowserBookmarkRepository
 import com.plusmobileapps.chefmate.recipe.data.ExtractedRecipeData
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -25,6 +27,7 @@ class BrowserViewModelTest {
     private val extractorService: RecipeExtractorService = mock()
     private val historyRepository: BrowserHistoryRepository =
         mock(block = { everySuspend { recordVisit(any()) } returns Unit })
+    private val bookmarkRepository = FakeBrowserBookmarkRepository()
     private val outputs = mutableListOf<BrowserBloc.Output>()
     // Shared with `runTest(scheduler)` below so the view model's HTML-capture timeout runs on the
     // test's virtual clock rather than stalling for real seconds.
@@ -34,8 +37,54 @@ class BrowserViewModelTest {
                 mainContext = UnconfinedTestDispatcher(scheduler),
                 recipeExtractorService = extractorService,
                 historyRepository = historyRepository,
+                bookmarkRepository = bookmarkRepository,
             )
             .also { it.setOutput { output -> outputs.add(output) } }
+
+    // region Bookmarks
+
+    @Test
+    fun When_toggling_an_unbookmarked_page_Then_bookmarked_with_page_title() {
+        viewModel.onUrlLoadedInWebView("https://example.com/recipe#step-2")
+        viewModel.onPageTitleChanged("Banana Bread")
+
+        viewModel.toggleBookmark()
+
+        bookmarkRepository.bookmarks.value.single().let {
+            it.url shouldBe "https://example.com/recipe"
+            it.title shouldBe "Banana Bread"
+        }
+        viewModel.state.value.bookmarkedUrls shouldBe setOf("https://example.com/recipe")
+    }
+
+    @Test
+    fun When_toggling_a_bookmarked_page_Then_bookmark_removed() {
+        bookmarkRepository.bookmarks.value =
+            listOf(BrowserBookmark(id = 1, url = "https://example.com/recipe", title = "Recipe"))
+        viewModel.onUrlLoadedInWebView("https://example.com/recipe")
+
+        viewModel.toggleBookmark()
+
+        bookmarkRepository.bookmarks.value shouldBe emptyList()
+        viewModel.state.value.bookmarkedUrls shouldBe emptySet()
+    }
+
+    @Test
+    fun When_navigating_Then_stale_page_title_cleared() {
+        viewModel.onPageTitleChanged("Old page")
+        viewModel.onUrlChanged("example.com")
+        viewModel.onNavigate()
+
+        viewModel.state.value.pageTitle shouldBe null
+    }
+
+    @Test
+    fun When_home_clicked_Then_navigate_home_emitted() {
+        viewModel.onHomeClicked()
+        outputs.last() shouldBe BrowserBloc.Output.NavigateHome
+    }
+
+    // endregion
 
     // region URL handling
 

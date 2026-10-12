@@ -2,8 +2,10 @@
 
 package com.plusmobileapps.chefmate.browser.impl
 
+import com.plusmobileapps.chefmate.browser.BrowserBookmark
 import com.plusmobileapps.chefmate.browser.BrowserLandingBloc
 import com.plusmobileapps.chefmate.browser.SearchEngine
+import com.plusmobileapps.chefmate.browser.testing.FakeBrowserBookmarkRepository
 import com.plusmobileapps.chefmate.di.CoachMarkController
 import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.testing.TestBlocContext
@@ -18,12 +20,15 @@ class BrowserLandingBlocImplTest {
     private val output = TestConsumer<BrowserLandingBloc.Output>()
     private val coachMarkController = CoachMarkController(MapSettings())
     private val browserPreferences = BrowserPreferencesImpl(MapSettings())
+    private val bookmark = BrowserBookmark(id = 1, url = "https://example.com/", title = "Example")
+    private val bookmarkRepository = FakeBrowserBookmarkRepository(listOf(bookmark))
     private val bloc =
         BrowserLandingBlocImpl(
             context = context,
             output = output,
             coachMarkController = coachMarkController,
             browserPreferences = browserPreferences,
+            bookmarkRepository = bookmarkRepository,
         )
 
     @Test
@@ -68,6 +73,33 @@ class BrowserLandingBlocImplTest {
     @Test
     fun When_no_engine_set_Then_state_defaults_to_google() {
         bloc.state.value.selectedEngine shouldBe SearchEngine.GOOGLE
+    }
+
+    @Test
+    fun When_bookmarks_exist_Then_state_lists_them() {
+        bloc.state.value.bookmarks shouldBe listOf(bookmark)
+    }
+
+    @Test
+    fun When_bookmark_added_elsewhere_Then_state_updates() {
+        val added = BrowserBookmark(id = 2, url = "https://food.com/", title = "Food")
+        bookmarkRepository.bookmarks.value += added
+
+        bloc.state.value.bookmarks shouldBe listOf(bookmark, added)
+    }
+
+    @Test
+    fun When_bookmark_clicked_Then_open_url_emitted() {
+        bloc.onBookmarkClicked(bookmark)
+        output.lastValue shouldBe BrowserLandingBloc.Output.OpenUrl("https://example.com/")
+    }
+
+    @Test
+    fun When_delete_bookmark_clicked_Then_removed_from_repository_and_state() {
+        bloc.onDeleteBookmarkClicked(bookmark)
+
+        bookmarkRepository.bookmarks.value shouldBe emptyList()
+        bloc.state.value.bookmarks shouldBe emptyList()
     }
 
     @Test

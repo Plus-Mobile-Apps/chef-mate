@@ -32,6 +32,7 @@ actual fun PlatformWebView(
     goForwardTrigger: Int,
     captureHtmlTrigger: Int,
     onHtmlCaptured: (String?) -> Unit,
+    onTitleChanged: (String?) -> Unit,
     instanceKeeper: InstanceKeeper,
     modifier: Modifier,
 ) {
@@ -59,6 +60,8 @@ actual fun PlatformWebView(
             onUrlLoaded(it)
         }
     }
+
+    LaunchedEffect(webViewState.pageTitle) { onTitleChanged(webViewState.pageTitle) }
 
     LaunchedEffect(webViewState.isLoading) { onLoadingChanged(webViewState.isLoading) }
 

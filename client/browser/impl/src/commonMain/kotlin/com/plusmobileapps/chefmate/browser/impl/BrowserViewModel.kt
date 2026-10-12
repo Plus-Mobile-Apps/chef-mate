@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.browser.BrowserBloc
+import com.plusmobileapps.chefmate.browser.BrowserBookmarkRepository
 import com.plusmobileapps.chefmate.browser.BrowserHistoryRepository
 import com.plusmobileapps.chefmate.di.Main
 import dev.zacsweers.metro.Inject
@@ -21,6 +22,7 @@ class BrowserViewModel(
     @Main mainContext: CoroutineContext,
     private val recipeExtractorService: RecipeExtractorService,
     private val historyRepository: BrowserHistoryRepository,
+    private val bookmarkRepository: BrowserBookmarkRepository,
 ) : ViewModel(mainContext) {
 
     private val _state = MutableStateFlow(State())
@@ -29,6 +31,15 @@ class BrowserViewModel(
     private var output: Consumer<BrowserBloc.Output>? = null
 
     private var pendingHtmlCapture: CompletableDeferred<String?>? = null
+
+    init {
+        scope.launch {
+            bookmarkRepository.observeBookmarks().collect { bookmarks ->
+                _state.value =
+                    _state.value.copy(bookmarkedUrls = bookmarks.mapTo(HashSet()) { it.url })
+            }
+        }
+    }
 
     fun setOutput(output: Consumer<BrowserBloc.Output>) {
         this.output = output
@@ -43,7 +54,12 @@ class BrowserViewModel(
         // Reset webViewReportedUrl so the BLoC's navigateUrl formula falls through to currentUrl,
         // ensuring a new navigation is always triggered even if the formula value didn't change.
         _state.value =
-            _state.value.copy(currentUrl = url, addressBarText = url, webViewReportedUrl = "")
+            _state.value.copy(
+                currentUrl = url,
+                addressBarText = url,
+                webViewReportedUrl = "",
+                pageTitle = null,
+            )
     }
 
     fun onUrlLoadedInWebView(url: String) {
@@ -112,6 +128,27 @@ class BrowserViewModel(
         output?.onNext(BrowserBloc.Output.NavigateToLanding(currentText))
     }
 
+    fun onPageTitleChanged(title: String?) {
+        _state.value = _state.value.copy(pageTitle = title?.takeIf { it.isNotBlank() })
+    }
+
+    fun toggleBookmark() {
+        val state = _state.value
+        val url = BookmarkUrl.normalize(state.webViewReportedUrl.ifBlank { state.currentUrl })
+        if (url == null) return
+        scope.launch {
+            if (url in state.bookmarkedUrls) {
+                bookmarkRepository.removeBookmarkByUrl(url)
+            } else {
+                bookmarkRepository.addBookmark(url, state.pageTitle)
+            }
+        }
+    }
+
+    fun onHomeClicked() {
+        output?.onNext(BrowserBloc.Output.NavigateHome)
+    }
+
     private fun String.ensureHttps(): String =
         if (!startsWith("http://") && !startsWith("https://")) {
             "https://$this"
@@ -131,6 +168,10 @@ class BrowserViewModel(
         val goBackTrigger: Int = 0,
         val goForwardTrigger: Int = 0,
         val captureHtmlTrigger: Int = 0,
+        /** The loaded page's `<title>`, or null before the WebView reports one. */
+        val pageTitle: String? = null,
+        /** Normalized URLs of every bookmark, to light up the star for the loaded page. */
+        val bookmarkedUrls: Set<String> = emptySet(),
     )
 
     companion object {

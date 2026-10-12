@@ -6,9 +6,13 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.waitUntilDoesNotExist
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import com.plusmobileapps.chefmate.browser.BrowserTestTags
 import com.plusmobileapps.chefmate.browser.SearchEngine
@@ -46,6 +50,30 @@ class BrowserRobot(private val test: ComposeUiTest) {
     fun openLandingEngineDropdown(): BrowserRobot = apply {
         test.onNodeWithTag(BrowserTestTags.LANDING_ENGINE_DROPDOWN).performClick()
     }
+
+    /** Waits for a bookmark tile titled [title] in the landing screen's bookmarks grid. */
+    fun awaitBookmarkDisplayed(title: String): BrowserRobot = apply {
+        test.waitUntilExactlyOneExists(bookmarkTitle(title))
+        test.onNode(bookmarkTitle(title)).performScrollTo()
+    }
+
+    /** Deletes the bookmark titled [title] through its tile's options menu. */
+    fun deleteBookmark(title: String): BrowserRobot = apply {
+        test
+            .onNode(
+                hasContentDescription(title, substring = true) and
+                    hasAnyAncestor(hasTestTag(BrowserTestTags.LANDING_BOOKMARKS))
+            )
+            .performClick()
+        test.onNodeWithTag(BrowserTestTags.BOOKMARK_DELETE).performClick()
+    }
+
+    fun awaitBookmarkGone(title: String): BrowserRobot = apply {
+        test.waitUntilDoesNotExist(bookmarkTitle(title))
+    }
+
+    private fun bookmarkTitle(title: String) =
+        hasText(title) and hasAnyAncestor(hasTestTag(BrowserTestTags.LANDING_BOOKMARKS))
 }
 
 fun ComposeUiTest.browser(): BrowserRobot = BrowserRobot(this)

@@ -125,6 +125,37 @@ class BrowserRootBlocImplTest {
     }
 
     @Test
+    fun When_browser_emits_navigate_home_Then_stack_resets_to_landing() {
+        val bloc = createBloc()
+        landingOutput.onNext(BrowserLandingBloc.Output.OpenUrl("https://example.com"))
+        bloc.activeChild().shouldBeInstanceOf<BrowserRootBloc.Child.Browser>()
+
+        browserOutput.onNext(BrowserBloc.Output.NavigateHome)
+
+        bloc.activeChild().shouldBeInstanceOf<BrowserRootBloc.Child.Landing>()
+        bloc.stackSize() shouldBe 1
+    }
+
+    @Test
+    fun When_opened_on_a_url_and_browser_navigates_home_Then_landing_is_shown() {
+        val bloc = createBloc(initialUrl = "https://example.com/recipe")
+
+        browserOutput.onNext(BrowserBloc.Output.NavigateHome)
+
+        bloc.activeChild().shouldBeInstanceOf<BrowserRootBloc.Child.Landing>()
+        bloc.stackSize() shouldBe 1
+    }
+
+    @Test
+    fun When_no_engine_chosen_and_browser_navigates_home_Then_select_engine_is_shown() {
+        val bloc = createBloc(initialUrl = "https://example.com/recipe", selectedEngine = null)
+
+        browserOutput.onNext(BrowserBloc.Output.NavigateHome)
+
+        bloc.activeChild().shouldBeInstanceOf<BrowserRootBloc.Child.SelectEngine>()
+    }
+
+    @Test
     fun When_landing_emits_open_edit_query_Then_edit_query_pushed_on_top_of_landing() {
         val bloc = createBloc()
         landingOutput.onNext(BrowserLandingBloc.Output.OpenEditQuery)

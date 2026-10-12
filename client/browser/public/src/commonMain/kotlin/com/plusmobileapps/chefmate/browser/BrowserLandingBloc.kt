@@ -30,11 +30,19 @@ interface BrowserLandingBloc : ComposeScreen {
     /** Changes the default search engine from the landing dropdown. */
     fun onSearchEngineSelected(engine: SearchEngine)
 
+    /** Opens a bookmarked site in the browser. */
+    fun onBookmarkClicked(bookmark: BrowserBookmark)
+
+    /** Deletes a bookmark from the user's account. */
+    fun onDeleteBookmarkClicked(bookmark: BrowserBookmark)
+
     data class Model(
         /** Id of the first-run coach mark currently allowed to show, or null when none. */
         val activeCoachMark: String? = null,
         /** The current default search engine, reflected in the dropdown and search hint. */
         val selectedEngine: SearchEngine = SearchEngine.GOOGLE,
+        /** The user's bookmarks, shown as a grid beneath the search controls. */
+        val bookmarks: List<BrowserBookmark> = emptyList(),
     )
 
     sealed class Output {

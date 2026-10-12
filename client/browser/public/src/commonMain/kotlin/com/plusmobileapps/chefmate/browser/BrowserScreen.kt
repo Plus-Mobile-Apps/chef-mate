@@ -8,6 +8,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,14 +50,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import chefmate.client.browser.public.generated.resources.Res
+import chefmate.client.browser.public.generated.resources.browser_add_bookmark
 import chefmate.client.browser.public.generated.resources.browser_address_hint
 import chefmate.client.browser.public.generated.resources.browser_back
 import chefmate.client.browser.public.generated.resources.browser_clear
 import chefmate.client.browser.public.generated.resources.browser_download
 import chefmate.client.browser.public.generated.resources.browser_extraction_failed_body
 import chefmate.client.browser.public.generated.resources.browser_forward
-import chefmate.client.browser.public.generated.resources.browser_navigate
+import chefmate.client.browser.public.generated.resources.browser_home
+import chefmate.client.browser.public.generated.resources.browser_more_options
 import chefmate.client.browser.public.generated.resources.browser_open_in_default_browser
+import chefmate.client.browser.public.generated.resources.browser_remove_bookmark
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusButton
@@ -86,11 +96,14 @@ fun BrowserScreen(
                 canGoBack = viewState.canGoBack,
                 canGoForward = viewState.canGoForward,
                 canOpenExternally = viewState.currentUrl.isNotBlank(),
+                isBookmarked = viewState.isBookmarked,
                 onUrlChanged = bloc::onUrlChanged,
                 onNavigate = bloc::onNavigate,
                 onGoBack = bloc::onGoBack,
                 onGoForward = bloc::onGoForward,
                 onAddressBarFocused = bloc::onAddressBarFocused,
+                onToggleBookmark = bloc::onToggleBookmark,
+                onHomeClick = bloc::onHomeClicked,
                 // Hand the page that's actually loaded (not the possibly half-typed address text)
                 // to the OS, which routes it to the user's default browser. Guarded because a
                 // scheme with no handler installed makes the platform handler throw.
@@ -110,6 +123,7 @@ fun BrowserScreen(
             goForwardTrigger = viewState.goForwardTrigger,
             captureHtmlTrigger = viewState.captureHtmlTrigger,
             onHtmlCaptured = bloc::onHtmlCaptured,
+            onTitleChanged = bloc::onPageTitleChanged,
             instanceKeeper = bloc.instanceKeeper,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
@@ -123,18 +137,26 @@ fun BrowserScreen(
     }
 }
 
-/** Public so `client/ui/screenshot-test` can snapshot it without a live [PlatformWebView]. */
+/**
+ * Public so `client/ui/screenshot-test` can snapshot it without a live [PlatformWebView].
+ *
+ * Page actions live behind a single overflow button so the bar stays readable on a phone. "Browser
+ * home" is the only way back to the landing screen on iOS, which has no system back button.
+ */
 @Composable
 fun BrowserAddressBar(
     url: String,
     canGoBack: Boolean,
     canGoForward: Boolean,
     canOpenExternally: Boolean,
+    isBookmarked: Boolean,
     onUrlChanged: (String) -> Unit,
     onNavigate: () -> Unit,
     onGoBack: () -> Unit,
     onGoForward: () -> Unit,
     onAddressBarFocused: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onHomeClick: () -> Unit,
     onOpenInDefaultBrowser: () -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
@@ -226,25 +248,82 @@ fun BrowserAddressBar(
                 }
             },
         )
+        BrowserOverflowMenu(
+            hasPage = canOpenExternally,
+            isBookmarked = isBookmarked,
+            onToggleBookmark = onToggleBookmark,
+            onOpenInDefaultBrowser = onOpenInDefaultBrowser,
+            onHomeClick = onHomeClick,
+        )
+    }
+}
+
+@Composable
+private fun BrowserOverflowMenu(
+    hasPage: Boolean,
+    isBookmarked: Boolean,
+    onToggleBookmark: () -> Unit,
+    onOpenInDefaultBrowser: () -> Unit,
+    onHomeClick: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
         IconButton(
-            onClick = {
-                onNavigate()
-                keyboardController?.hide()
-            }
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(BrowserTestTags.OVERFLOW_MENU),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(Res.string.browser_navigate),
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.browser_more_options),
             )
         }
-        IconButton(
-            onClick = onOpenInDefaultBrowser,
-            enabled = canOpenExternally,
-            modifier = Modifier.testTag(BrowserTestTags.OPEN_IN_DEFAULT_BROWSER),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = stringResource(Res.string.browser_open_in_default_browser),
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (isBookmarked) Res.string.browser_remove_bookmark
+                            else Res.string.browser_add_bookmark
+                        )
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector =
+                            if (isBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = null,
+                    )
+                },
+                enabled = hasPage,
+                onClick = {
+                    expanded = false
+                    onToggleBookmark()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.TOGGLE_BOOKMARK),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.browser_open_in_default_browser)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = null,
+                    )
+                },
+                enabled = hasPage,
+                onClick = {
+                    expanded = false
+                    onOpenInDefaultBrowser()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.OPEN_IN_DEFAULT_BROWSER),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.browser_home)) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Home, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onHomeClick()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.HOME),
             )
         }
     }
