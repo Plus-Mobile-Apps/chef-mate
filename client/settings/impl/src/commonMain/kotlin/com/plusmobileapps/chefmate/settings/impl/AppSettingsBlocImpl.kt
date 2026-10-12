@@ -75,6 +75,10 @@ class AppSettingsBlocImpl(
         output.onNext(Output.OpenRecipeCategories)
     }
 
+    override fun onBookmarksClicked() {
+        output.onNext(Output.OpenBrowserBookmarks)
+    }
+
     override fun onGroceryAutocompleteClicked() {
         output.onNext(Output.OpenGroceryAutocomplete)
     }

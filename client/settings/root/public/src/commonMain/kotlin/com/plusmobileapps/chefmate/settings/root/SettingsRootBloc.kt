@@ -8,6 +8,7 @@ import com.arkivanov.essenty.backhandler.BackHandlerOwner
 import com.plusmobileapps.chefmate.BackClickBloc
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.browser.BrowserBookmarksBloc
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
 import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavOrderBloc
@@ -43,6 +44,8 @@ interface SettingsRootBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
         data class GroceryAutocomplete(override val bloc: GroceryAutocompleteBloc) : Child()
 
         data class GroceryCategoryRules(override val bloc: GroceryCategoryRulesBloc) : Child()
+
+        data class BrowserBookmarks(override val bloc: BrowserBookmarksBloc) : Child()
     }
 
     sealed class Output {

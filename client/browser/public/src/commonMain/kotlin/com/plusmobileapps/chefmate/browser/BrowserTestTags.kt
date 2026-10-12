@@ -22,8 +22,11 @@ object BrowserTestTags {
     /** Overflow menu item that stars or un-stars the current page. */
     const val TOGGLE_BOOKMARK = "BrowserToggleBookmark"
 
-    /** Overflow menu item that returns to the landing screen. */
+    /** Address-bar button that returns to the landing screen. */
     const val HOME = "BrowserHome"
+
+    /** Overflow menu item that goes forward in the page history. */
+    const val FORWARD = "BrowserForward"
 
     /** The bookmarks section on the landing screen. */
     const val LANDING_BOOKMARKS = "BrowserLandingBookmarks"
@@ -37,9 +40,23 @@ object BrowserTestTags {
     /** The delete item in a bookmark tile's options menu. */
     const val BOOKMARK_DELETE = "BrowserBookmarkDelete"
 
+    /** The settings screen that manages bookmarks. */
+    const val BOOKMARKS_SCREEN = "BrowserBookmarksScreen"
+
+    /** A row on the bookmarks settings screen; suffix with the bookmark's id. */
+    const val BOOKMARK_ROW_PREFIX = "BrowserBookmarkRow_"
+
+    /** Selection-mode header action that selects (or deselects) every bookmark. */
+    const val BOOKMARKS_SELECT_ALL = "BrowserBookmarksSelectAll"
+
+    /** Selection-mode header action that deletes the selected bookmarks. */
+    const val BOOKMARKS_DELETE_SELECTED = "BrowserBookmarksDeleteSelected"
+
     fun engineOption(engine: SearchEngine): String = "$ENGINE_OPTION_PREFIX${engine.id}"
 
     fun bookmarkTile(id: Long): String = "$BOOKMARK_TILE_PREFIX$id"
 
     fun bookmarkOptions(id: Long): String = "$BOOKMARK_OPTIONS_PREFIX$id"
+
+    fun bookmarkRow(id: Long): String = "$BOOKMARK_ROW_PREFIX$id"
 }

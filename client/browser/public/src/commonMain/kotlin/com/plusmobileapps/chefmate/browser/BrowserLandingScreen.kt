@@ -346,7 +346,7 @@ private fun BookmarkOptions(
 
 /** A letter avatar standing in for the site's favicon, which would mean a fetch per tile. */
 @Composable
-private fun BookmarkMonogram(host: String) {
+internal fun BookmarkMonogram(host: String) {
     Box(
         modifier =
             Modifier.size(BookmarkMonogramSize)
@@ -363,7 +363,7 @@ private fun BookmarkMonogram(host: String) {
 }
 
 /** `https://www.seriouseats.com/banana-bread` → `seriouseats.com`. */
-private fun String.displayHost(): String =
+internal fun String.displayHost(): String =
     substringAfter("://").substringBefore('/').substringBefore('?').removePrefix("www.").ifEmpty {
         this
     }

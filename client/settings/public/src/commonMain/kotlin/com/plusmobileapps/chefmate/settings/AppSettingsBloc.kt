@@ -30,6 +30,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
     fun onClearHistoryClicked()
 
+    fun onBookmarksClicked()
+
     fun onClearHistoryConfirmed()
 
     fun onClearHistoryDismissed()
@@ -58,6 +60,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
         data object Back : Output()
 
         data object OpenBottomNavOrder : Output()
+
+        data object OpenBrowserBookmarks : Output()
 
         data object OpenImportRecipes : Output()
 

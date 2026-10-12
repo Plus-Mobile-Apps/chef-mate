@@ -26,6 +26,7 @@
     <string name="app_settings_default_search_engine">Default search engine</string>
     <string name="app_settings_default_search_engine_dialog_title">Default search engine</string>
     <string name="app_settings_default_search_engine_none">Not set</string>
+    <string name="app_settings_browser_bookmarks">Bookmarks</string>
     <string name="app_settings_browser_history_enabled">Save browsing history</string>
     <string name="app_settings_clear_history">Clear browsing history</string>
     <string name="app_settings_clear_history_dialog_title">Clear browsing history?</string>
