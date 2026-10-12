@@ -58,12 +58,17 @@ data class NavRailItem(
  * full-bleed content makes every one of those breakpoints read a window ~250dp wider than the space
  * it actually has. So the rail floats over the app background, which is why it is drawn as a solid
  * surface rather than glass: there would be nothing behind it to see.
+ *
+ * [railContent], when given, replaces the standard [NavigationRail] inside the rail's surface — for
+ * a caller that draws its own items (the bottom nav's sliding selection lens). It sizes itself and
+ * is centered vertically; [navRail] is then unused.
  */
 @Composable
 fun PlusNavRailHeaderContainer(
     modifier: Modifier = Modifier,
     navRail: List<NavRailItem>,
     expandedItems: Boolean = false,
+    railContent: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -115,6 +120,10 @@ fun PlusNavRailHeaderContainer(
                     .onSizeChanged { railBlockWidth = with(density) { it.width.toDp() } }
                     .padding(start = startMargin, top = topMargin, bottom = verticalMargin),
         ) {
+            if (railContent != null) {
+                railContent()
+                return@GlassSurface
+            }
             NavigationRail(
                 containerColor = Color.Transparent,
                 contentColor = ChefMateTheme.colorScheme.onSurface,
