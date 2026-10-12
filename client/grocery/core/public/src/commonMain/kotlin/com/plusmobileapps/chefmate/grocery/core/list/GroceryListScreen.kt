@@ -47,9 +47,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -154,6 +152,7 @@ import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -163,7 +162,6 @@ import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
-import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
@@ -231,7 +229,6 @@ fun GroceryListScreen(
     PlusResponsiveContainer(
         modifier = modifier.testTag(GroceryListTestTags.SCREEN).fillMaxSize()
     ) { windowSizeClass ->
-        val useDropdownSelector = windowSizeClass == WindowSizeClass.EXPANDED
         PlusNavContainer(
             modifier = Modifier.fillMaxSize(),
             data = PlusHeaderData.None,
@@ -240,32 +237,22 @@ fun GroceryListScreen(
                 TopAppBar(
                     windowInsets = WindowInsets(0.dp),
                     title = {
-                        Box {
-                            Row(
-                                modifier =
-                                    Modifier.testTag(GroceryListTestTags.LIST_SELECTOR)
-                                        .clickable(onClick = bloc::onListSelectorClicked),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text =
-                                        state.selectedList?.name
-                                            ?: stringResource(Res.string.grocery_list)
-                                )
-                                ExposedDropdownMenuDefaults.TrailingIcon(
-                                    expanded = state.showListSelector
-                                )
-                            }
-                            if (useDropdownSelector) {
-                                GroceryListSelectorDropdown(
-                                    expanded = state.showListSelector,
-                                    state = state,
-                                    onDismiss = bloc::onListSelectorDismissed,
-                                    onListSelected = bloc::onListSelected,
-                                    onCreateListClicked = bloc::onCreateListClicked,
-                                    onEditListClicked = bloc::onEditListClicked,
-                                )
-                            }
+                        PlusDropdownSelector(
+                            text =
+                                state.selectedList?.name ?: stringResource(Res.string.grocery_list),
+                            expanded = state.showListSelector,
+                            windowSizeClass = windowSizeClass,
+                            onClick = bloc::onListSelectorClicked,
+                            onDismiss = bloc::onListSelectorDismissed,
+                            modifier = Modifier.testTag(GroceryListTestTags.LIST_SELECTOR),
+                        ) {
+                            GroceryListSelectorContent(
+                                state = state,
+                                onDismiss = bloc::onListSelectorDismissed,
+                                onListSelected = bloc::onListSelected,
+                                onCreateListClicked = bloc::onCreateListClicked,
+                                onEditListClicked = bloc::onEditListClicked,
+                            )
                         }
                     },
                     actions = {
@@ -458,16 +445,6 @@ fun GroceryListScreen(
                     showSortFilterSheet = false
                 },
                 onDismiss = { showSortFilterSheet = false },
-            )
-        }
-
-        if (!useDropdownSelector && state.showListSelector) {
-            GroceryListSelectorSheet(
-                state = state,
-                onDismiss = bloc::onListSelectorDismissed,
-                onListSelected = bloc::onListSelected,
-                onCreateListClicked = bloc::onCreateListClicked,
-                onEditListClicked = bloc::onEditListClicked,
             )
         }
 
@@ -733,51 +710,10 @@ private fun GrocerySortFilterBottomSheet(
     }
 }
 
-/** Phone/medium presentation of the list selector: a modal bottom sheet. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun GroceryListSelectorSheet(
-    state: GroceryListBloc.Model,
-    onDismiss: () -> Unit,
-    onListSelected: (GroceryListModel) -> Unit,
-    onCreateListClicked: () -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        GroceryListSelectorContent(
-            state = state,
-            onDismiss = onDismiss,
-            onListSelected = onListSelected,
-            onCreateListClicked = onCreateListClicked,
-            onEditListClicked = onEditListClicked,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-/** Tablet/desktop presentation: a dropdown anchored to the title in the top bar. */
-@Composable
-private fun GroceryListSelectorDropdown(
-    expanded: Boolean,
-    state: GroceryListBloc.Model,
-    onDismiss: () -> Unit,
-    onListSelected: (GroceryListModel) -> Unit,
-    onCreateListClicked: () -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        GroceryListSelectorContent(
-            state = state,
-            onDismiss = onDismiss,
-            onListSelected = onListSelected,
-            onCreateListClicked = onCreateListClicked,
-            onEditListClicked = onEditListClicked,
-        )
-    }
-}
-
-/** Shared rows for both selector presentations (My Lists / Shared with me + create). */
+/**
+ * Rows of the list picker (My Lists / Shared with me + create), shown by [PlusDropdownSelector] as
+ * a dropdown on tablet/desktop and a bottom sheet on phones.
+ */
 @Composable
 private fun ColumnScope.GroceryListSelectorContent(
     state: GroceryListBloc.Model,
