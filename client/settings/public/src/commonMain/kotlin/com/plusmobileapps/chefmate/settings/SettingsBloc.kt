@@ -58,6 +58,10 @@ interface SettingsBloc : ComposeScreen {
          */
         val isAnonymous: Boolean = false,
         val greeting: TextData? = null,
+        /** Display name backing the header avatar's lettered fallback. Null when not signed in. */
+        val profileName: String? = null,
+        /** The signed-in user's avatar, shown in the header. Null for guests and signed-out. */
+        val profileImageUrl: String? = null,
         val verificationMessage: TextData? = null,
         val showSignOutConfirmationDialog: Boolean = false,
         val isDebugBuild: Boolean = false,

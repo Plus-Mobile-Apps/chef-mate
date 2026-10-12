@@ -33,6 +33,8 @@ class SettingsBlocImpl(
                 isAuthenticated = it.isAuthenticated,
                 isAnonymous = it.isAnonymous,
                 greeting = it.userName?.let { name -> createGreeting(name) },
+                profileName = it.userName,
+                profileImageUrl = it.profileImageUrl,
                 verificationMessage =
                     it.emailAwaitingVerification?.let { email ->
                         createEmailVerificationMessage(email)

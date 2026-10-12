@@ -44,6 +44,38 @@ class SettingsBlocImplTest {
     }
 
     @Test
+    fun When_authenticated_Then_profile_image_and_name_are_exposed() = runTest {
+        authRepository.setAuthenticated(
+            FakeAuthenticationRepository.fakeUser()
+                .copy(userProfileImageUrl = "https://example.com/avatar.png")
+        )
+
+        bloc.state.value.profileImageUrl shouldBe "https://example.com/avatar.png"
+        bloc.state.value.profileName shouldBe "Test User"
+    }
+
+    @Test
+    fun When_anonymous_Then_profile_image_and_name_are_hidden() = runTest {
+        authRepository.setAnonymous()
+
+        bloc.state.value.profileImageUrl shouldBe null
+        bloc.state.value.profileName shouldBe null
+    }
+
+    @Test
+    fun When_signed_out_Then_profile_image_is_cleared() = runTest {
+        authRepository.setAuthenticated(
+            FakeAuthenticationRepository.fakeUser()
+                .copy(userProfileImageUrl = "https://example.com/avatar.png")
+        )
+        bloc.state.value.profileImageUrl shouldBe "https://example.com/avatar.png"
+
+        authRepository.signOut()
+
+        bloc.state.value.profileImageUrl shouldBe null
+    }
+
+    @Test
     fun When_sign_out_clicked_Then_confirmation_dialog_is_shown() = runTest {
         authRepository.setAuthenticated()
 
