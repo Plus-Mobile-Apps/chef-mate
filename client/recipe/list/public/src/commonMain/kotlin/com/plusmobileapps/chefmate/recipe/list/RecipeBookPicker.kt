@@ -4,23 +4,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,71 +29,14 @@ import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_m
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_shared_badge
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_shared_with_you
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
+import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Phone/compact presentation of the recipe-book picker: a modal bottom sheet. ModalBottomSheet
- * doesn't render reliably under the Compose screenshot test plugin, so snapshots target
- * [RecipeBookPickerContent] directly.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun RecipeBookPickerSheet(
-    books: List<RecipeBook>,
-    activeBookId: Long?,
-    isAllRecipesSelected: Boolean,
-    onDismiss: () -> Unit,
-    onBookSelected: (Long) -> Unit,
-    onAllRecipesSelected: () -> Unit,
-    onEditBook: (Long) -> Unit,
-    onCreateBook: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        RecipeBookPickerContent(
-            books = books,
-            activeBookId = activeBookId,
-            isAllRecipesSelected = isAllRecipesSelected,
-            onBookSelected = onBookSelected,
-            onAllRecipesSelected = onAllRecipesSelected,
-            onEditBook = onEditBook,
-            onCreateBook = onCreateBook,
-            modifier = Modifier.navigationBarsPadding(),
-        )
-    }
-}
-
-/** Tablet/desktop presentation: a dropdown anchored to the book selector in the header. */
-@Composable
-internal fun RecipeBookPickerDropdown(
-    expanded: Boolean,
-    books: List<RecipeBook>,
-    activeBookId: Long?,
-    isAllRecipesSelected: Boolean,
-    onDismiss: () -> Unit,
-    onBookSelected: (Long) -> Unit,
-    onAllRecipesSelected: () -> Unit,
-    onEditBook: (Long) -> Unit,
-    onCreateBook: () -> Unit,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        RecipeBookPickerContent(
-            books = books,
-            activeBookId = activeBookId,
-            isAllRecipesSelected = isAllRecipesSelected,
-            onBookSelected = onBookSelected,
-            onAllRecipesSelected = onAllRecipesSelected,
-            onEditBook = onEditBook,
-            onCreateBook = onCreateBook,
-        )
-    }
-}
-
-/**
- * Shared body for both picker presentations, mirroring the grocery list selector: the cross-book
- * "All recipes" entry, then the user's own books, then the books other people have shared with
- * them.
+ * Body of the recipe-book picker, shown by [PlusDropdownSelector] as a dropdown on tablet/desktop
+ * and a bottom sheet on phones. Mirrors the grocery list selector: the cross-book "All recipes"
+ * entry, then the user's own books, then the books other people have shared with them.
  */
 @Composable
 fun RecipeBookPickerContent(

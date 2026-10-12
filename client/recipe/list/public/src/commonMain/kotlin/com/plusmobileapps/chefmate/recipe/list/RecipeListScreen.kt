@@ -5,12 +5,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -32,15 +31,12 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -96,7 +92,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
@@ -209,6 +204,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusContextMenuArea
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuItem
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusDialogScaffold
+import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -337,23 +333,19 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                     activeBookName = bookSelectorLabel,
                                     recipeCount = state.recipes.size,
                                     isPickerOpen = state.isBookPickerOpen,
+                                    windowSizeClass = windowSizeClass,
                                     onClick = bloc::onBookSelectorClicked,
+                                    onDismiss = bloc::onBookPickerDismissed,
                                 ) {
-                                    // The dropdown is anchored to the selector on tablet/desktop
-                                    // widths.
-                                    if (windowSizeClass != WindowSizeClass.COMPACT) {
-                                        RecipeBookPickerDropdown(
-                                            expanded = state.isBookPickerOpen,
-                                            books = state.recipeBooks,
-                                            activeBookId = state.activeBook?.id,
-                                            isAllRecipesSelected = state.isAllRecipesSelected,
-                                            onDismiss = bloc::onBookPickerDismissed,
-                                            onBookSelected = bloc::onBookSelected,
-                                            onAllRecipesSelected = bloc::onAllRecipesSelected,
-                                            onEditBook = bloc::onEditBookClicked,
-                                            onCreateBook = bloc::onCreateBookClicked,
-                                        )
-                                    }
+                                    RecipeBookPickerContent(
+                                        books = state.recipeBooks,
+                                        activeBookId = state.activeBook?.id,
+                                        isAllRecipesSelected = state.isAllRecipesSelected,
+                                        onBookSelected = bloc::onBookSelected,
+                                        onAllRecipesSelected = bloc::onAllRecipesSelected,
+                                        onEditBook = bloc::onEditBookClicked,
+                                        onCreateBook = bloc::onCreateBookClicked,
+                                    )
                                 }
                             }
                         },
@@ -654,20 +646,6 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     message = error,
                     onConfirmClick = bloc::onScanErrorDismissed,
                     onDismissRequest = bloc::onScanErrorDismissed,
-                )
-            }
-
-            // On phone widths the book picker is a bottom sheet rather than an anchored dropdown.
-            if (state.isBookPickerOpen && windowSizeClass == WindowSizeClass.COMPACT) {
-                RecipeBookPickerSheet(
-                    books = state.recipeBooks,
-                    activeBookId = state.activeBook?.id,
-                    isAllRecipesSelected = state.isAllRecipesSelected,
-                    onDismiss = bloc::onBookPickerDismissed,
-                    onBookSelected = bloc::onBookSelected,
-                    onAllRecipesSelected = bloc::onAllRecipesSelected,
-                    onEditBook = bloc::onEditBookClicked,
-                    onCreateBook = bloc::onCreateBookClicked,
                 )
             }
 
@@ -1228,52 +1206,26 @@ private fun BookSelector(
     activeBookName: String?,
     recipeCount: Int,
     isPickerOpen: Boolean,
+    windowSizeClass: WindowSizeClass,
     onClick: () -> Unit,
-    dropdown: @Composable () -> Unit,
+    onDismiss: () -> Unit,
+    pickerContent: @Composable ColumnScope.() -> Unit,
 ) {
     val countDescription = recipeCountDescription(recipeCount)
-    Box {
-        Row(
-            modifier =
-                Modifier.clip(CircleShape)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable(onClick = onClick)
-                    .padding(
-                        start = ChefMateTheme.dimens.paddingNormal,
-                        end = ChefMateTheme.dimens.paddingSmall,
-                        top = ChefMateTheme.dimens.paddingExtraSmall,
-                        bottom = ChefMateTheme.dimens.paddingExtraSmall,
-                    )
-                    .testTag(RecipeListTestTags.BOOK_SELECTOR)
-                    .semantics {
-                        contentDescription = "${activeBookName.orEmpty()}, $countDescription"
-                    },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = activeBookName.orEmpty(),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 160.dp),
-            )
-            Text(
-                text = "($recipeCount)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                modifier =
-                    Modifier.padding(start = ChefMateTheme.dimens.paddingSmall)
-                        .testTag(RecipeListTestTags.RECIPE_COUNT),
-            )
-            Icon(
-                imageVector =
-                    if (isPickerOpen) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                contentDescription = stringResource(Res.string.recipe_list_book_selector),
-            )
-        }
-        dropdown()
-    }
+    PlusDropdownSelector(
+        text = activeBookName.orEmpty(),
+        supportingText = "($recipeCount)",
+        expanded = isPickerOpen,
+        windowSizeClass = windowSizeClass,
+        onClick = onClick,
+        onDismiss = onDismiss,
+        iconContentDescription = stringResource(Res.string.recipe_list_book_selector),
+        modifier =
+            Modifier.testTag(RecipeListTestTags.BOOK_SELECTOR).semantics {
+                contentDescription = "${activeBookName.orEmpty()}, $countDescription"
+            },
+        menuContent = pickerContent,
+    )
 }
 
 // region Sort & Filter Bottom Sheet
