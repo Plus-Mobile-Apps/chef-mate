@@ -114,6 +114,11 @@ private class WebViewHolder : InstanceKeeper.Instance {
         Platform.runLater {
             val wv = WebView()
             webView = wv
+            // JavaFX identifies itself with a `JavaFX/<n>` token where a browser puts its version,
+            // which Google answers with a stream of CAPTCHAs. Present as the Safari build the
+            // engine's WebKit corresponds to instead.
+            wv.engine.userAgent =
+                wv.engine.userAgent.replace(Regex("""JavaFX/\S+"""), "Version/18.0")
 
             wv.engine.loadWorker.stateProperty().addListener { _, _, newState ->
                 when (newState) {

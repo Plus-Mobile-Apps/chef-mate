@@ -2,14 +2,18 @@
 
 package com.plusmobileapps.chefmate.browser
 
+import android.content.Context
+import android.webkit.WebSettings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import com.arkivanov.essenty.instancekeeper.InstanceKeeper
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberSaveableWebViewState
@@ -34,6 +38,8 @@ actual fun PlatformWebView(
     // render on white; do the same so a site without dark styling stays legible. Sites that do
     // support dark mode paint over this. Must be set before the AndroidView factory runs.
     webViewState.webSettings.backgroundColor = Color.White
+    val context = LocalContext.current
+    webViewState.webSettings.customUserAgentString = remember { browserUserAgent(context) }
     val webViewNavigator = rememberWebViewNavigator()
     var lastCommandedUrl by rememberSaveable { mutableStateOf("") }
 
@@ -71,3 +77,17 @@ actual fun PlatformWebView(
 
     WebView(state = webViewState, modifier = modifier, navigator = webViewNavigator)
 }
+
+/**
+ * The system WebView's own user agent with the two tokens that mark it as an embedded WebView
+ * removed — `; wv` and the frozen `Version/4.0` — so it reads as the Chrome build it actually is.
+ * Google in particular answers the WebView form with a stream of CAPTCHAs. Deriving it from the
+ * device's default keeps the Android and Chrome versions honest instead of hard-coding ones that go
+ * stale. `null` (the WebView default) if the WebView provider can't be queried.
+ */
+private fun browserUserAgent(context: Context): String? = runCatching {
+    WebSettings.getDefaultUserAgent(context)
+}
+    .getOrNull()
+    ?.replace("; wv)", ")")
+    ?.replace(Regex("""Version/[\d.]+ """), "")

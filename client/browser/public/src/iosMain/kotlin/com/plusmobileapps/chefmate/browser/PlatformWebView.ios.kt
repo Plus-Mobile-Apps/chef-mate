@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -13,6 +14,8 @@ import com.arkivanov.essenty.instancekeeper.InstanceKeeper
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberSaveableWebViewState
 import com.multiplatform.webview.web.rememberWebViewNavigator
+import platform.UIKit.UIDevice
+import platform.UIKit.UIUserInterfaceIdiomPad
 
 @Composable
 actual fun PlatformWebView(
@@ -34,6 +37,7 @@ actual fun PlatformWebView(
     // colour from the page), matching what a real browser shows. Sites that do support dark mode
     // paint over it. Must be set before the UIKitView factory runs.
     webViewState.webSettings.iOSWebSettings.opaque = true
+    webViewState.webSettings.customUserAgentString = remember { browserUserAgent() }
     val webViewNavigator = rememberWebViewNavigator()
     var lastCommandedUrl by rememberSaveable { mutableStateOf("") }
 
@@ -70,4 +74,23 @@ actual fun PlatformWebView(
     }
 
     WebView(state = webViewState, modifier = modifier, navigator = webViewNavigator)
+}
+
+/**
+ * Mobile Safari's user agent for this device. WKWebView's default omits Safari's `Version/…` and
+ * `Safari/…` tokens, which is how sites tell an embedded web view from the browser — and Google
+ * answers that with a stream of CAPTCHAs. iPads get the desktop-class form, as iPad Safari sends.
+ */
+private fun browserUserAgent(): String {
+    val device = UIDevice.currentDevice
+    val osVersion = device.systemVersion
+    val safariVersion = osVersion.split('.').take(2).joinToString(".")
+    return if (device.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 " +
+            "(KHTML, like Gecko) Version/$safariVersion Safari/605.1.15"
+    } else {
+        "Mozilla/5.0 (iPhone; CPU iPhone OS ${osVersion.replace('.', '_')} like Mac OS X) " +
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/$safariVersion " +
+            "Mobile/15E148 Safari/604.1"
+    }
 }
