@@ -62,3 +62,13 @@ fun BottomNavExpandedRailWithBadgeDarkScreenshot() {
         Surface { BottomNavExpandedRailPreview(notificationCount = 3) }
     }
 }
+
+// The expanded rail folded down by its toggle: the compact column, with the toggle to reopen it.
+@PreviewTest
+@Preview(showBackground = true)
+@Composable
+fun BottomNavExpandedRailCollapsedScreenshot() {
+    ChefMateTheme {
+        Surface { BottomNavExpandedRailPreview(notificationCount = 3, collapsed = true) }
+    }
+}
