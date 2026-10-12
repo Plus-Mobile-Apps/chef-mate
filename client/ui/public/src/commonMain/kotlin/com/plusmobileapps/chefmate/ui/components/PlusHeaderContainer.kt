@@ -402,7 +402,9 @@ private fun ScrollingContent(
         }
     Column(modifier = scrollModifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.padding(scrollTopPadding))
-        val baseModifier = Modifier.fillMaxWidth().widthIn(max = maxContentWidth)
+        // Cap before filling: `fillMaxWidth()` first would pin the column to the full width and
+        // leave `widthIn(max)` nothing to shrink.
+        val baseModifier = Modifier.widthIn(max = maxContentWidth).fillMaxWidth()
         val insetModifier =
             if (applyHorizontalInsets) baseModifier.scaffoldContentInsetPadding() else baseModifier
         Column(
