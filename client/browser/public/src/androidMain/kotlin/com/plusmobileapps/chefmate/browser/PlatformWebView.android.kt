@@ -14,6 +14,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.webkit.UserAgentMetadata
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import com.arkivanov.essenty.instancekeeper.InstanceKeeper
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberSaveableWebViewState
@@ -46,7 +49,7 @@ actual fun PlatformWebView(
     LaunchedEffect(url) {
         if (url.isNotBlank() && url != lastCommandedUrl) {
             lastCommandedUrl = url
-            webViewNavigator.loadUrl(url)
+            webViewNavigator.loadUrl(url, BLANK_REQUESTED_WITH)
         }
     }
 
@@ -75,7 +78,14 @@ actual fun PlatformWebView(
         }
     }
 
-    WebView(state = webViewState, modifier = modifier, navigator = webViewNavigator)
+    WebView(
+        state = webViewState,
+        modifier = modifier,
+        navigator = webViewNavigator,
+        onCreated = { nativeWebView: android.webkit.WebView ->
+            nativeWebView.settings.presentAsChrome()
+        },
+    )
 }
 
 /**
@@ -91,3 +101,44 @@ private fun browserUserAgent(context: Context): String? = runCatching {
     .getOrNull()
     ?.replace("; wv)", ")")
     ?.replace(Regex("""Version/[\d.]+ """), "")
+
+/**
+ * The user agent string isn't the only thing that gives the WebView away. Chromium also sends
+ * User-Agent Client Hints (`Sec-CH-UA`, readable as `navigator.userAgentData`) whose brand list
+ * names "Android WebView", and an `X-Requested-With: <package>` header on every request. Google
+ * reads these, so a clean UA string alone still lands on its CAPTCHA page. Rename the brand to
+ * Chrome — keeping the WebView's own versions — and send the header nowhere. Each is skipped where
+ * the WebView doesn't support it; current WebView builds dropped the header allow-list, which is
+ * why [BLANK_REQUESTED_WITH] also exists.
+ */
+private fun WebSettings.presentAsChrome() {
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+        val metadata = WebSettingsCompat.getUserAgentMetadata(this)
+        val brands =
+            metadata.brandVersionList.map { brand ->
+                if (brand.brand == WEBVIEW_BRAND) {
+                    UserAgentMetadata.BrandVersion.Builder(brand).setBrand(CHROME_BRAND).build()
+                } else {
+                    brand
+                }
+            }
+        WebSettingsCompat.setUserAgentMetadata(
+            this,
+            UserAgentMetadata.Builder(metadata).setBrandVersionList(brands).build(),
+        )
+    }
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+        WebSettingsCompat.setRequestedWithHeaderOriginAllowList(this, emptySet())
+    }
+}
+
+/**
+ * Passed with each URL the app loads. Chromium only adds its own `X-Requested-With` when the
+ * request doesn't already carry one, so this blanks the package name on the navigations we start —
+ * notably the search-results page — on WebView builds where [WebSettingsCompat]'s allow-list is
+ * gone. Requests the page itself makes still carry it; the WebView exposes no hook to strip those.
+ */
+private val BLANK_REQUESTED_WITH = mapOf("X-Requested-With" to "")
+
+private const val WEBVIEW_BRAND = "Android WebView"
+private const val CHROME_BRAND = "Google Chrome"
