@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -44,13 +43,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.ProvidableCompositionLocal
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomCenter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -76,13 +75,6 @@ object PlusHeaderContainerDefaults {
      */
     val MaxContentWidth: Dp = 600.dp
 }
-
-/**
- * How far the [PlusHeaderContainer]'s header overlaps the top of its content — the header's current
- * height, which shrinks as a collapsing title collapses. Content drawn behind the header (see
- * `drawContentBehindHeader`) reserves this at its top. `0.dp` outside such a container.
- */
-val LocalPlusHeaderOverlap: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
 // The content still reads through the header's blur, but the title and actions stay legible over
 // whatever bright imagery scrolls underneath.
@@ -208,20 +200,28 @@ fun PlusHeaderContainer(
             // arrangement's spacing, which used to sit between the two) as the first thing inside
             // its scroll, so the content still starts below the header at rest; a
             // [drawContentBehindHeader] screen reserves it itself via [LocalPlusHeaderOverlap].
+            val headerHeight = remember { mutableStateOf(0.dp) }
+            val overlap = remember(headerHeight) { PlusHeaderOverlap(headerHeight) }
             Box(
                 modifier =
                     rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background)
             ) {
-                HeaderOverlayLayout(header = header) { headerHeight ->
-                    CompositionLocalProvider(LocalPlusHeaderOverlap provides headerHeight) {
+                HeaderOverlayLayout(
+                    header = header,
+                    onHeaderMeasured = { headerHeight.value = it },
+                ) {
+                    CompositionLocalProvider(LocalPlusHeaderOverlap provides overlap) {
                         ContainerBody(
                             backdrop = backdrop,
                             scrollEnabled = scrollEnabled,
                             scrollState = scrollState,
                             maxContentWidth = maxContentWidth,
                             scrollTopPadding =
-                                if (scrollEnabled) headerHeight + verticalArrangement.spacing
-                                else 0.dp,
+                                if (scrollEnabled) {
+                                    overlap.contentPadding(top = verticalArrangement.spacing)
+                                } else {
+                                    PaddingValues()
+                                },
                             horizontalAlignment = horizontalAlignment,
                             contentPadding = contentPadding,
                             floatingActionButton = floatingActionButton,
@@ -266,34 +266,33 @@ fun PlusHeaderContainer(
 }
 
 /**
- * Lays [header] over the top of [content], handing [content] the header's measured height so it can
- * reserve that space. The header is measured first, in the same pass, so the content never renders
- * a frame tucked under it — including while a collapsing title changes the header's height.
+ * Lays [header] over the top of [content], reporting the header's measured height through
+ * [onHeaderMeasured] before [content] is measured in the same pass. [content] reads that height at
+ * layout time (see [PlusHeaderOverlap]), so it never renders a frame tucked under the header —
+ * including while a collapsing title changes the header's height.
+ *
+ * Deliberately a plain multi-content [Layout] rather than a SubcomposeLayout: subcomposing the
+ * content puts it in a separate composition, and when an enclosing movable content (Decompose's
+ * stack, the bottom-nav shells) moved it in the same frame as a text field inside it changed, the
+ * text field's modifier was updated while detached and the screen crashed on teardown.
  */
 @Composable
 private fun HeaderOverlayLayout(
     header: @Composable () -> Unit,
-    content: @Composable (headerHeight: Dp) -> Unit,
+    onHeaderMeasured: (Dp) -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    SubcomposeLayout(modifier = Modifier.fillMaxSize()) { constraints ->
-        val headerPlaceables =
-            subcompose(HeaderOverlaySlot.Header, header).map {
-                it.measure(constraints.copy(minHeight = 0))
-            }
-        val headerHeight = headerPlaceables.maxOfOrNull { it.height } ?: 0
-        val contentPlaceables =
-            subcompose(HeaderOverlaySlot.Content) { content(headerHeight.toDp()) }
-                .map { it.measure(constraints) }
+    Layout(contents = listOf(header, content), modifier = Modifier.fillMaxSize()) {
+        (headerMeasurables, contentMeasurables),
+        constraints ->
+        val headerPlaceables = headerMeasurables.map { it.measure(constraints.copy(minHeight = 0)) }
+        onHeaderMeasured((headerPlaceables.maxOfOrNull { it.height } ?: 0).toDp())
+        val contentPlaceables = contentMeasurables.map { it.measure(constraints) }
         layout(constraints.maxWidth, constraints.maxHeight) {
             contentPlaceables.forEach { it.place(0, 0) }
             headerPlaceables.forEach { it.place(0, 0) }
         }
     }
-}
-
-private enum class HeaderOverlaySlot {
-    Header,
-    Content,
 }
 
 /**
@@ -314,7 +313,7 @@ private fun ContainerBody(
     content: @Composable ColumnScope.() -> Unit,
     modifier: Modifier = Modifier,
     topPadding: Dp = 0.dp,
-    scrollTopPadding: Dp = 0.dp,
+    scrollTopPadding: PaddingValues = PaddingValues(),
     applyHorizontalInsets: Boolean = true,
 ) {
     Surface(
@@ -388,7 +387,7 @@ private fun ScrollingContent(
     topPadding: Dp = 0.dp,
     // Space reserved as the first thing *inside* the scroll, so content scrolls up behind whatever
     // covers it (the frosted header) rather than being clipped below it like [topPadding].
-    scrollTopPadding: Dp = 0.dp,
+    scrollTopPadding: PaddingValues = PaddingValues(),
     applyHorizontalInsets: Boolean = true,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     contentPadding: PaddingValues = PaddingValues(),
@@ -402,9 +401,7 @@ private fun ScrollingContent(
             if (scrollEnabled) it.verticalScroll(scrollState) else it
         }
     Column(modifier = scrollModifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        if (scrollTopPadding > 0.dp) {
-            Spacer(modifier = Modifier.height(scrollTopPadding))
-        }
+        Spacer(modifier = Modifier.padding(scrollTopPadding))
         val baseModifier = Modifier.fillMaxWidth().widthIn(max = maxContentWidth)
         val insetModifier =
             if (applyHorizontalInsets) baseModifier.scaffoldContentInsetPadding() else baseModifier

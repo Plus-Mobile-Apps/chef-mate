@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -166,6 +165,7 @@ import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
+import com.plusmobileapps.chefmate.ui.components.PlusHeaderOverlap
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
@@ -476,7 +476,8 @@ private fun RecipeDetailBody(
                 if (state.isLoading) {
                     Box(
                         modifier =
-                            Modifier.weight(1f).padding(top = LocalPlusHeaderOverlap.current),
+                            Modifier.weight(1f)
+                                .padding(LocalPlusHeaderOverlap.current.contentPadding()),
                         contentAlignment = Alignment.Center,
                     ) {
                         PlusLoadingIndicator()
@@ -804,8 +805,8 @@ private fun RecipeDetailCompactContent(
         // call) — they scroll away with the rest of the content as the collapsing app bar shrinks,
         // instead of sitting still as a seam beneath it.
         contentPadding =
-            PaddingValues(
-                top = headerOverlap + dimens.paddingNormal,
+            headerOverlap.contentPadding(
+                top = dimens.paddingNormal,
                 bottom = dimens.fabClearance + navBarBottom,
             ),
     ) {
@@ -896,7 +897,7 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
     val toolbarClearance = dimens.fabClearance + navBarBottom
     // Both columns scroll up behind the frosted header; at rest they start a normal gap below it.
     val headerOverlap = LocalPlusHeaderOverlap.current
-    val listContentPadding = PaddingValues(top = headerOverlap + dimens.paddingNormal)
+    val listContentPadding = headerOverlap.contentPadding(top = dimens.paddingNormal)
 
     // Ratio for the ingredients column vs the directions column (0.0 = all directions).
     var ingredientsWeight by remember { mutableStateOf(0.5f) }
@@ -1015,7 +1016,7 @@ private fun LazyListScope.ingredientItems(
     onRecipeLinkClick: (String) -> Unit,
     itemPadding: Dp,
     listState: LazyListState,
-    headerOverlap: Dp,
+    headerOverlap: PlusHeaderOverlap,
 ) {
     stickyHeader(key = INGREDIENTS_HEADER_KEY) {
         IngredientsStickyHeader(
@@ -1086,7 +1087,7 @@ private fun LazyListScope.directionItems(
     onRecipeLinkClick: (String) -> Unit,
     itemPadding: Dp,
     listState: LazyListState,
-    headerOverlap: Dp,
+    headerOverlap: PlusHeaderOverlap,
 ) {
     stickyHeader(key = DIRECTIONS_HEADER_KEY) {
         StickyColumnHeader(

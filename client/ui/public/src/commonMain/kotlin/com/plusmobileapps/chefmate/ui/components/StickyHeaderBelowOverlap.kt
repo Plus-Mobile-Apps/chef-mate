@@ -3,11 +3,11 @@ package com.plusmobileapps.chefmate.ui.components
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 
 /**
- * Pins a `stickyHeader` [overlap] below the top of its list's viewport instead of at the very top.
+ * Pins a `stickyHeader` [overlap]'s height below the top of its list's viewport instead of at the
+ * very top.
  *
  * A LazyColumn sticks its headers to the viewport edge and ignores the top content padding, so in a
  * list drawn behind a [PlusHeaderContainer]'s frosted header (see `drawContentBehindHeader` and
@@ -24,13 +24,13 @@ fun Modifier.stickyHeaderBelowOverlap(
     listState: LazyListState,
     key: Any,
     stickyKeys: Set<Any>,
-    overlap: Dp,
+    overlap: PlusHeaderOverlap,
 ): Modifier =
     zIndex(1f).graphicsLayer {
         val layoutInfo = listState.layoutInfo
         val items = layoutInfo.visibleItemsInfo
         val item = items.firstOrNull { it.key == key } ?: return@graphicsLayer
-        val stickLine = layoutInfo.viewportStartOffset + overlap.toPx()
+        val stickLine = layoutInfo.viewportStartOffset + overlap.height.toPx()
         val offset = item.offset.toFloat()
         // At or above the viewport edge the list has stuck (or is pushing) this header; below it,
         // the
