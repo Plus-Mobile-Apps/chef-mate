@@ -89,6 +89,8 @@ class SettingsViewModel(
                                 isAuthenticated = true,
                                 isAnonymous = isAnonymous,
                                 userName = displayName,
+                                profileImageUrl =
+                                    authState.user.userProfileImageUrl.takeUnless { isAnonymous },
                                 emailAwaitingVerification = null,
                             )
                         }
@@ -99,6 +101,7 @@ class SettingsViewModel(
                                 isAuthenticated = false,
                                 isAnonymous = false,
                                 userName = null,
+                                profileImageUrl = null,
                                 emailAwaitingVerification = null,
                             )
                         }
@@ -109,6 +112,7 @@ class SettingsViewModel(
                                 isAuthenticated = false,
                                 isAnonymous = false,
                                 userName = null,
+                                profileImageUrl = null,
                                 emailAwaitingVerification = authState.email,
                             )
                         }
@@ -135,6 +139,7 @@ class SettingsViewModel(
         val isAuthenticated: Boolean = false,
         val isAnonymous: Boolean = false,
         val userName: String? = null,
+        val profileImageUrl: String? = null,
         val emailAwaitingVerification: String? = null,
         val showSignOutConfirmationDialog: Boolean = false,
         val isAiChatEnabled: Boolean = false,
@@ -151,12 +156,14 @@ class SettingsViewModel(
             isAuthenticated: Boolean,
             isAnonymous: Boolean,
             userName: String?,
+            profileImageUrl: String?,
             emailAwaitingVerification: String?,
         ): State =
             copy(
                 isAuthenticated = isAuthenticated,
                 isAnonymous = isAnonymous,
                 userName = userName,
+                profileImageUrl = profileImageUrl,
                 emailAwaitingVerification = emailAwaitingVerification,
                 // An auth change closes a pending sign-out confirmation, as it did before.
                 showSignOutConfirmationDialog = false,
