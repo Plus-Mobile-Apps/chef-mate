@@ -14,7 +14,6 @@ import com.plusmobileapps.chefmate.settings.createGreeting
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -22,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class SettingsBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<SettingsViewModel>,
+    viewModelFactory: () -> SettingsViewModel,
 ) : SettingsBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }

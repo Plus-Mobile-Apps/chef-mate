@@ -27,7 +27,6 @@ import com.plusmobileapps.chefmate.toast.ToastService
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
@@ -40,7 +39,7 @@ import kotlinx.serialization.Serializable
 class GroceryListBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<GroceryListBloc.Output>,
-    viewModelFactory: Provider<GroceryListViewModel>,
+    viewModelFactory: () -> GroceryListViewModel,
     private val groceryDetailFactory: GroceryDetailBloc.Factory,
     private val toastService: ToastService,
 ) : GroceryListBloc, BlocContext by context {

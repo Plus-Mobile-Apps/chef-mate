@@ -11,7 +11,6 @@ import com.plusmobileapps.chefmate.util.PickedImage
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -23,7 +22,7 @@ import kotlinx.coroutines.launch
 class ManageProfileBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<ManageProfileViewModel>,
+    viewModelFactory: () -> ManageProfileViewModel,
 ) : ManageProfileBloc, BlocContext by context {
 
     private val scope = createScope()

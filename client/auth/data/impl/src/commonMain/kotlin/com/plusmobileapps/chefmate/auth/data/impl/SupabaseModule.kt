@@ -4,6 +4,7 @@ import com.plusmobileapps.chefmate.Environment
 import com.plusmobileapps.chefmate.EnvironmentProvider
 import com.plusmobileapps.chefmate.buildconfig.BuildConfig
 import com.plusmobileapps.chefmate.di.AppScope
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
@@ -15,9 +16,9 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 
-@SingleIn(AppScope::class)
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface SupabaseModule {
+object SupabaseModule {
     @SingleIn(AppScope::class)
     @Provides
     fun provideSupabaseClient(environmentProvider: EnvironmentProvider): SupabaseClient {

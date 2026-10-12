@@ -10,7 +10,6 @@ import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc.Output
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.LocalDate
@@ -23,7 +22,7 @@ import kotlinx.datetime.LocalDate
 class ChooseDateBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    private val viewModelFactory: Provider<ChooseDateViewModel>,
+    private val viewModelFactory: () -> ChooseDateViewModel,
 ) : ChooseDateBloc, BlocContext by context {
 
     private val viewModel: ChooseDateViewModel = instanceKeeper.getViewModel { viewModelFactory() }

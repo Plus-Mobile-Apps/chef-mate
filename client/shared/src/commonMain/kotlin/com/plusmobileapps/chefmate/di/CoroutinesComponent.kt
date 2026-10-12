@@ -1,5 +1,6 @@
 package com.plusmobileapps.chefmate.di
 
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.Qualifier
@@ -44,9 +45,9 @@ annotation class CPU
 )
 annotation class Unconfined
 
+@BindingContainer
 @ContributesTo(AppScope::class)
-@SingleIn(AppScope::class)
-interface CoroutinesComponent {
+object CoroutinesComponent {
     @Provides @SingleIn(AppScope::class) @IO fun io(): CoroutineContext = Dispatchers.IO
 
     @Provides @SingleIn(AppScope::class) @Main fun main(): CoroutineContext = Dispatchers.Main

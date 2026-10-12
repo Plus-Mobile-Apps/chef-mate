@@ -11,7 +11,6 @@ import com.plusmobileapps.chefmate.getViewModel
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -22,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class DeveloperSettingsBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<DeveloperSettingsViewModel>,
+    viewModelFactory: () -> DeveloperSettingsViewModel,
 ) : DeveloperSettingsBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }

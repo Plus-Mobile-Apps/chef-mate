@@ -32,7 +32,6 @@ import com.plusmobileapps.chefmate.settings.SettingsBloc
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
@@ -43,7 +42,7 @@ class BottomNavBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<BottomNavBloc.Output>,
     @Assisted initialTab: BottomNavBloc.Tab?,
-    viewModelFactory: Provider<BottomNavViewModel>,
+    viewModelFactory: () -> BottomNavViewModel,
     private val browser: BrowserRootBloc.Factory,
     private val groceryList: GroceryListBloc.Factory,
     private val mealPlan: MealPlanBloc.Factory,

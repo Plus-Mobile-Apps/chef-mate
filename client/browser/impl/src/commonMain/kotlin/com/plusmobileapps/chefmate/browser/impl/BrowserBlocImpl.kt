@@ -10,7 +10,6 @@ import com.plusmobileapps.chefmate.mapState
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -19,7 +18,7 @@ class BrowserBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<BrowserBloc.Output>,
     @Assisted private val showControls: Boolean,
-    viewModelFactory: Provider<BrowserViewModel>,
+    viewModelFactory: () -> BrowserViewModel,
 ) : BrowserBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel {

@@ -10,7 +10,6 @@ import com.plusmobileapps.chefmate.recipe.core.addmeal.RecipePickerBloc.Output
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 
@@ -22,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class RecipePickerBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    private val viewModelFactory: Provider<RecipePickerViewModel>,
+    private val viewModelFactory: () -> RecipePickerViewModel,
 ) : RecipePickerBloc, BlocContext by context {
 
     private val viewModel: RecipePickerViewModel = instanceKeeper.getViewModel {
