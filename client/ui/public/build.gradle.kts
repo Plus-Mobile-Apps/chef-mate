@@ -22,6 +22,10 @@ kotlin {
             implementation(libs.haze.blur)
             implementation(libs.haze.glass)
         }
+        jvmTest.dependencies {
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+            implementation(compose.uiTest)
+        }
     }
 }
 
