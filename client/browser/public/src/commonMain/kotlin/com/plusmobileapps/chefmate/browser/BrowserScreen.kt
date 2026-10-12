@@ -140,8 +140,10 @@ fun BrowserScreen(
 /**
  * Public so `client/ui/screenshot-test` can snapshot it without a live [PlatformWebView].
  *
- * Page actions live behind a single overflow button so the bar stays readable on a phone. "Browser
- * home" is the only way back to the landing screen on iOS, which has no system back button.
+ * Mirrors Chrome's layout: back and home flank the address field, and the rarer page actions
+ * (forward, bookmark, open externally) live behind a single overflow button so the bar stays
+ * readable on a phone. Home is the only way back to the landing screen on iOS, which has no system
+ * back button.
  */
 @Composable
 fun BrowserAddressBar(
@@ -204,10 +206,10 @@ fun BrowserAddressBar(
                 contentDescription = stringResource(Res.string.browser_back),
             )
         }
-        IconButton(onClick = onGoForward, enabled = canGoForward) {
+        IconButton(onClick = onHomeClick, modifier = Modifier.testTag(BrowserTestTags.HOME)) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(Res.string.browser_forward),
+                imageVector = Icons.Default.Home,
+                contentDescription = stringResource(Res.string.browser_home),
             )
         }
         OutlinedTextField(
@@ -250,10 +252,11 @@ fun BrowserAddressBar(
         )
         BrowserOverflowMenu(
             hasPage = canOpenExternally,
+            canGoForward = canGoForward,
             isBookmarked = isBookmarked,
+            onGoForward = onGoForward,
             onToggleBookmark = onToggleBookmark,
             onOpenInDefaultBrowser = onOpenInDefaultBrowser,
-            onHomeClick = onHomeClick,
         )
     }
 }
@@ -261,10 +264,11 @@ fun BrowserAddressBar(
 @Composable
 private fun BrowserOverflowMenu(
     hasPage: Boolean,
+    canGoForward: Boolean,
     isBookmarked: Boolean,
+    onGoForward: () -> Unit,
     onToggleBookmark: () -> Unit,
     onOpenInDefaultBrowser: () -> Unit,
-    onHomeClick: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -278,6 +282,21 @@ private fun BrowserOverflowMenu(
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.browser_forward)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                    )
+                },
+                enabled = canGoForward,
+                onClick = {
+                    expanded = false
+                    onGoForward()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.FORWARD),
+            )
             DropdownMenuItem(
                 text = {
                     Text(
@@ -315,15 +334,6 @@ private fun BrowserOverflowMenu(
                     onOpenInDefaultBrowser()
                 },
                 modifier = Modifier.testTag(BrowserTestTags.OPEN_IN_DEFAULT_BROWSER),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.browser_home)) },
-                leadingIcon = { Icon(imageVector = Icons.Default.Home, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onHomeClick()
-                },
-                modifier = Modifier.testTag(BrowserTestTags.HOME),
             )
         }
     }

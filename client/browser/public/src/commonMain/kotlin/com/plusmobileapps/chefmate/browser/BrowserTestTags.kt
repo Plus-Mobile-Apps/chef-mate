@@ -22,8 +22,11 @@ object BrowserTestTags {
     /** Overflow menu item that stars or un-stars the current page. */
     const val TOGGLE_BOOKMARK = "BrowserToggleBookmark"
 
-    /** Overflow menu item that returns to the landing screen. */
+    /** Address-bar button that returns to the landing screen. */
     const val HOME = "BrowserHome"
+
+    /** Overflow menu item that goes forward in the page history. */
+    const val FORWARD = "BrowserForward"
 
     /** The bookmarks section on the landing screen. */
     const val LANDING_BOOKMARKS = "BrowserLandingBookmarks"
