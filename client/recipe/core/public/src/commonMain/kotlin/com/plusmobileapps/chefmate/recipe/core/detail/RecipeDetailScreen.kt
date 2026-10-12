@@ -162,6 +162,7 @@ import com.plusmobileapps.chefmate.ui.LocalAnimatedVisibilityScope
 import com.plusmobileapps.chefmate.ui.LocalSecondaryAnimatedVisibilityScope
 import com.plusmobileapps.chefmate.ui.LocalSharedTransitionScope
 import com.plusmobileapps.chefmate.ui.PlusShareIcon
+import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
@@ -171,6 +172,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusToolbar
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
+import com.plusmobileapps.chefmate.ui.components.stickyHeaderBelowOverlap
 import com.plusmobileapps.chefmate.ui.text.LineMarker
 import com.plusmobileapps.chefmate.ui.text.ListLine
 import com.plusmobileapps.chefmate.ui.text.parseListLine
@@ -350,17 +352,11 @@ private fun RecipeDetailBody(
                                 )
                             },
                     ),
-                // Compact's app bar collapses as the inner LazyColumn scrolls, so the header and
-                // content need to move as one continuous surface. A fixed arrangement gap here
-                // would sit outside the scroll and stay put while the header shrinks underneath
-                // it, leaving a seam that clips the first row of content — so compact carries its
-                // breathing room as the list's own top content padding instead (see
-                // RecipeDetailCompactContent) and this arrangement contributes none. The
-                // two-column layout keeps a fixed header, so its gap can stay a static spacing.
-                verticalArrangement =
-                    if (isCompact) Arrangement.Top
-                    else spacedBy(ChefMateTheme.dimens.paddingNormal),
+                // The lists scroll up behind the frosted header, so each one reserves the header's
+                // height (LocalPlusHeaderOverlap) plus its breathing room as its own top content
+                // padding rather than the container spacing it out below the header.
                 scrollEnabled = false,
+                drawContentBehindHeader = true,
                 // Compact is a single linear scroll, so the title can grow large and collapse as
                 // the
                 // content scrolls. The two-column layout has two independent scrolls with no single
@@ -478,7 +474,11 @@ private fun RecipeDetailBody(
                 },
             ) {
                 if (state.isLoading) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier =
+                            Modifier.weight(1f).padding(top = LocalPlusHeaderOverlap.current),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         PlusLoadingIndicator()
                     }
                 } else if (isCompact) {
@@ -793,16 +793,21 @@ private fun RecipeDetailCompactContent(
     var highlightedDirectionIndex by remember(recipe.directions) { mutableStateOf(-1) }
 
     val navBarBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val headerOverlap = LocalPlusHeaderOverlap.current
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         state = listState,
         verticalArrangement = spacedBy(dimens.paddingSmall),
-        // The top inset lives here instead of as a fixed gap above the LazyColumn (see
-        // RecipeDetailScreen's PlusHeaderContainer call) so it scrolls away with the rest of the
-        // content as the collapsing app bar shrinks, instead of sitting still as a seam beneath it.
+        // The list runs behind the frosted header, so the header's height plus the breathing room
+        // below it live here as content padding (see RecipeDetailScreen's PlusHeaderContainer
+        // call) — they scroll away with the rest of the content as the collapsing app bar shrinks,
+        // instead of sitting still as a seam beneath it.
         contentPadding =
-            PaddingValues(top = dimens.paddingNormal, bottom = dimens.fabClearance + navBarBottom),
+            PaddingValues(
+                top = headerOverlap + dimens.paddingNormal,
+                bottom = dimens.fabClearance + navBarBottom,
+            ),
     ) {
         // Hero section: image + key details side by side
         item(key = "hero") {
@@ -847,6 +852,8 @@ private fun RecipeDetailCompactContent(
             onScaleChange = onScaleChange,
             onRecipeLinkClick = onRecipeLinkClick,
             itemPadding = padding,
+            listState = listState,
+            headerOverlap = headerOverlap,
         )
 
         directionItems(
@@ -855,6 +862,8 @@ private fun RecipeDetailCompactContent(
             onHighlightedIndexChanged = { highlightedDirectionIndex = it },
             onRecipeLinkClick = onRecipeLinkClick,
             itemPadding = padding,
+            listState = listState,
+            headerOverlap = headerOverlap,
         )
     }
 }
@@ -885,6 +894,9 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
     val padding = dimens.paddingNormal
     val navBarBottom = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
     val toolbarClearance = dimens.fabClearance + navBarBottom
+    // Both columns scroll up behind the frosted header; at rest they start a normal gap below it.
+    val headerOverlap = LocalPlusHeaderOverlap.current
+    val listContentPadding = PaddingValues(top = headerOverlap + dimens.paddingNormal)
 
     // Ratio for the ingredients column vs the directions column (0.0 = all directions).
     var ingredientsWeight by remember { mutableStateOf(0.5f) }
@@ -903,6 +915,7 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
             modifier = Modifier.weight(ingredientsWeight),
             state = ingredientsListState,
             verticalArrangement = spacedBy(dimens.paddingSmall),
+            contentPadding = listContentPadding,
         ) {
             item(key = "hero") {
                 RecipeHeroSection(
@@ -945,6 +958,8 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
                 onScaleChange = onScaleChange,
                 onRecipeLinkClick = onRecipeLinkClick,
                 itemPadding = padding,
+                listState = ingredientsListState,
+                headerOverlap = headerOverlap,
             )
 
             item(key = "ingredients_spacer") {
@@ -964,6 +979,7 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
             modifier = Modifier.weight(1f - ingredientsWeight),
             state = directionsListState,
             verticalArrangement = spacedBy(dimens.paddingSmall),
+            contentPadding = listContentPadding,
         ) {
             directionItems(
                 steps = directionParagraphs,
@@ -971,6 +987,8 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
                 onHighlightedIndexChanged = { directionHighlightedIndex = it },
                 onRecipeLinkClick = onRecipeLinkClick,
                 itemPadding = padding,
+                listState = directionsListState,
+                headerOverlap = headerOverlap,
             )
 
             item(key = "directions_spacer") {
@@ -979,6 +997,10 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
         }
     }
 }
+
+private const val INGREDIENTS_HEADER_KEY = "ingredients_header"
+private const val DIRECTIONS_HEADER_KEY = "directions_header"
+private val StickyHeaderKeys: Set<Any> = setOf(INGREDIENTS_HEADER_KEY, DIRECTIONS_HEADER_KEY)
 
 /**
  * The ingredients section — sticky header plus one tappable (crossable) line per ingredient — as
@@ -992,12 +1014,21 @@ private fun LazyListScope.ingredientItems(
     onScaleChange: (Double) -> Unit,
     onRecipeLinkClick: (String) -> Unit,
     itemPadding: Dp,
+    listState: LazyListState,
+    headerOverlap: Dp,
 ) {
-    stickyHeader(key = "ingredients_header") {
+    stickyHeader(key = INGREDIENTS_HEADER_KEY) {
         IngredientsStickyHeader(
             title = stringResource(Res.string.recipe_detail_ingredients),
             scale = scale,
             onScaleChange = onScaleChange,
+            modifier =
+                Modifier.stickyHeaderBelowOverlap(
+                    listState = listState,
+                    key = INGREDIENTS_HEADER_KEY,
+                    stickyKeys = StickyHeaderKeys,
+                    overlap = headerOverlap,
+                ),
         )
     }
     itemsIndexed(lines, key = { index, _ -> "ingredient_$index" }) { index, line ->
@@ -1054,9 +1085,20 @@ private fun LazyListScope.directionItems(
     onHighlightedIndexChanged: (Int) -> Unit,
     onRecipeLinkClick: (String) -> Unit,
     itemPadding: Dp,
+    listState: LazyListState,
+    headerOverlap: Dp,
 ) {
-    stickyHeader(key = "directions_header") {
-        StickyColumnHeader(title = stringResource(Res.string.recipe_detail_directions))
+    stickyHeader(key = DIRECTIONS_HEADER_KEY) {
+        StickyColumnHeader(
+            title = stringResource(Res.string.recipe_detail_directions),
+            modifier =
+                Modifier.stickyHeaderBelowOverlap(
+                    listState = listState,
+                    key = DIRECTIONS_HEADER_KEY,
+                    stickyKeys = StickyHeaderKeys,
+                    overlap = headerOverlap,
+                ),
+        )
     }
     itemsIndexed(steps, key = { index, _ -> "direction_$index" }) { index, step ->
         DirectionLineItem(
