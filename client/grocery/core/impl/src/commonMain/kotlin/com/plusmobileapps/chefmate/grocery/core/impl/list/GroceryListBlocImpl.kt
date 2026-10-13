@@ -15,6 +15,7 @@ import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.getViewModel
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailBloc
+import com.plusmobileapps.chefmate.grocery.core.impl.list.GroceryListPresenter.Event
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc.GroceryFilter
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc.GrocerySort
@@ -91,11 +92,11 @@ class GroceryListBlocImpl(
     override val newGroceryItemName: StateFlow<String> = viewModel.newGroceryItemName
 
     override fun onGroceryItemCheckedChange(item: GroceryItem, isChecked: Boolean) {
-        viewModel.onGroceryItemCheckedChange(item, isChecked)
+        viewModel.take(Event.CheckedChange(item, isChecked))
     }
 
     override fun onGroceryItemDelete(item: GroceryItem) {
-        viewModel.onGroceryItemDelete(item)
+        viewModel.take(Event.DeleteItem(item))
     }
 
     override fun onNewGroceryItemNameChange(name: String) {
@@ -112,7 +113,7 @@ class GroceryListBlocImpl(
 
     override fun onSaveAutocompleteItem(name: String) {
         if (name.isBlank()) return
-        viewModel.saveAutocompleteItem(name)
+        viewModel.take(Event.SaveAutocompleteItem(name))
         // Confirm the save and offer a jump to the settings screen that lists every saved item. The
         // action routes through the app-scoped output rather than capturing this screen, since the
         // toast callback outlives the composition.
@@ -132,31 +133,31 @@ class GroceryListBlocImpl(
     }
 
     override fun onSyncClicked() {
-        viewModel.onSyncClicked()
+        viewModel.take(Event.Sync)
     }
 
     override fun onSyncTooltipDismissed() {
-        viewModel.dismissSyncTooltip()
+        viewModel.take(Event.DismissSyncTooltip)
     }
 
     override fun onListSelected(list: GroceryListModel) {
-        viewModel.onListSelected(list)
+        viewModel.take(Event.SelectList(list))
     }
 
     override fun onCreateListClicked() {
-        viewModel.onCreateListClicked()
+        viewModel.take(Event.ShowCreateList)
     }
 
     override fun onCreateListDismissed() {
-        viewModel.onCreateListDismissed()
+        viewModel.take(Event.DismissCreateList)
     }
 
     override fun onCreateListConfirmed(name: String) {
-        viewModel.onCreateListConfirmed(name)
+        viewModel.take(Event.CreateList(name))
     }
 
     override fun onDeleteListClicked(list: GroceryListModel) {
-        viewModel.onDeleteListClicked(list)
+        viewModel.take(Event.DeleteList(list))
     }
 
     override fun onApplySortAndFilter(
@@ -164,35 +165,35 @@ class GroceryListBlocImpl(
         filter: GroceryFilter,
         recipeFilter: String?,
     ) {
-        viewModel.onApplySortAndFilter(sort, filter, recipeFilter)
+        viewModel.take(Event.ApplySortAndFilter(sort, filter, recipeFilter))
     }
 
     override fun onClearFiltersClicked() {
-        viewModel.onClearFiltersClicked()
+        viewModel.take(Event.ClearFilters)
     }
 
     override fun onDeleteClicked() {
-        viewModel.onDeleteClicked()
+        viewModel.take(Event.ShowDeleteDialog)
     }
 
     override fun onDeleteDismissed() {
-        viewModel.onDeleteDismissed()
+        viewModel.take(Event.DismissDeleteDialog)
     }
 
     override fun onDeletePurchasedConfirmed() {
-        viewModel.onDeletePurchasedConfirmed()
+        viewModel.take(Event.DeletePurchased)
     }
 
     override fun onDeleteAllConfirmed() {
-        viewModel.onDeleteAllConfirmed()
+        viewModel.take(Event.DeleteAll)
     }
 
     override fun onListSelectorClicked() {
-        viewModel.onListSelectorClicked()
+        viewModel.take(Event.ShowListSelector)
     }
 
     override fun onListSelectorDismissed() {
-        viewModel.onListSelectorDismissed()
+        viewModel.take(Event.DismissListSelector)
     }
 
     override fun onBrowseRecipesClicked() {
@@ -204,11 +205,11 @@ class GroceryListBlocImpl(
     }
 
     override fun onAcceptInvitation(invite: GroceryListInvite) {
-        viewModel.onAcceptInvitation(invite)
+        viewModel.take(Event.AcceptInvitation(invite))
     }
 
     override fun onRejectInvitation(invite: GroceryListInvite) {
-        viewModel.onRejectInvitation(invite)
+        viewModel.take(Event.RejectInvitation(invite))
     }
 
     private fun createSheet(config: SheetConfig, context: BlocContext): GroceryListBloc.Sheet =
