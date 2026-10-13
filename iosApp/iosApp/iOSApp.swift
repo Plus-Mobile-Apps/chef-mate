@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import ComposeApp
 
@@ -42,6 +43,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Build the graph (which sets watchDataBridge), then start the watch data bridge.
         _ = root
         _ = watchDataSender
+        // Re-index the grocery names Siri listens for in "Add <item> to Chef Mate".
+        ChefMateAppShortcuts.updateAppShortcutParameters()
         return true
     }
 
