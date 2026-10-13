@@ -38,6 +38,7 @@ kotlinx-collections-immutable = "0.4.0"
 kotlinx-serialization = "1.9.0"
 metro = "1.4.5"
 metroExtensions = "0.2.0"
+molecule = "2.2.0"
 multiplatform-markdown-renderer = "0.41.0"
 multiplatform-settings = "1.3.0"
 play-review = "2.0.2"
@@ -111,6 +112,7 @@ metroExtensions-assistedFactory-compiler = { module = "com.plusmobileapps.metro-
 
 ktfmt-gradle-plugin = { module = "com.ncorti.ktfmt.gradle:plugin", version.ref = "ktfmt" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+molecule-runtime = { module = "app.cash.molecule:molecule-runtime", version.ref = "molecule" }
 multiplatform-markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "multiplatform-markdown-renderer" }
 multiplatform-webview = { module = "io.github.kevinnzou:compose-webview-multiplatform", version.ref = "multiplatform-webview" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }

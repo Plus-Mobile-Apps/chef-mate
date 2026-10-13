@@ -47,8 +47,12 @@ class TestBlocContext(
 
     companion object {
         fun create(
-            lifecycle: LifecycleRegistry = LifecycleRegistry().apply { resume() }
+            lifecycle: LifecycleRegistry = LifecycleRegistry().apply { resume() },
+            mainContext: CoroutineContext = UnconfinedTestDispatcher(),
         ): TestBlocContext =
-            TestBlocContext(componentContext = DefaultComponentContext(lifecycle = lifecycle))
+            TestBlocContext(
+                componentContext = DefaultComponentContext(lifecycle = lifecycle),
+                mainContext = mainContext,
+            )
     }
 }

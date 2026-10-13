@@ -18,6 +18,7 @@ kotlin {
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(projects.client.database.core)
             implementation(compose.components.resources)
+            implementation(libs.molecule.runtime)
         }
         commonTest.dependencies {
             implementation(projects.client.grocery.data.testing)

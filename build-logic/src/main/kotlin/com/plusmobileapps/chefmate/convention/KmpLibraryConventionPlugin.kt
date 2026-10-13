@@ -92,7 +92,11 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                     // `androidHostTest` (host-side JVM tests); instrumented tests live in
                     // `androidDeviceTest`. Opt into the host-test compilation so existing
                     // test source sets continue to compile.
-                    withHostTest {}
+                    //
+                    // isReturnDefaultValues: Molecule presenters run the Compose runtime in
+                    // host tests, which calls android.os.Trace / android.util.Log. Those are
+                    // throwing stubs in the host android.jar; return defaults instead.
+                    withHostTest { isReturnDefaultValues = true }
                 }
 
                 // Configure iOS targets with explicit source set assignment
