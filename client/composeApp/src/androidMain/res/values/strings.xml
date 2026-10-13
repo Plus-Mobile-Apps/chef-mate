@@ -9,4 +9,5 @@
     <string name="asset_statements" translatable="false">
         [{ \"include\": \"https://chefmate.plusmobileapps.com/.well-known/assetlinks.json\" }]
     </string>
+    <string name="app_function_display_description">Add items to your Chef Mate grocery list</string>
 </resources>
