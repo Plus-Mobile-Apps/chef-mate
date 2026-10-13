@@ -9,6 +9,7 @@
     <string name="sign_up">Sign Up</string>
     <string name="manage_profile">Manage Profile</string>
     <string name="settings_notifications">Notifications</string>
+    <string name="settings_manage_family">Manage Family</string>
     <string name="greeting_authenticated">Hello {name}!</string>
     <string name="email_verification_required">Please check your email ({email}) to verify your account before signing in.</string>
     <string name="settings_guest_banner">You’re using ChefMate as a guest. Sign up to back up your recipes across devices.</string>

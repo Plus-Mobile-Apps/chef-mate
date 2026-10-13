@@ -1,18 +1,21 @@
 // Supabase Edge Function: send-invite-email
 //
-// Emails a collaboration invitee when they're invited to a shared grocery list or recipe book.
-// Invites are plain INSERTs into `grocery_list_members` / `recipe_book_members` with
-// status='pending', done directly by every client (iOS/Android/Desktop/Web). A database trigger
-// (see supabase/migrations/20260707_invite_email_notification.sql) fires `pg_net` at this function
-// on each new pending invite, so the notification is client-agnostic and needs no app-side code.
+// Emails an invitee when they're invited to a shared grocery list, a recipe book, or a family.
+// Grocery-list and recipe-book invites are plain INSERTs into `grocery_list_members` /
+// `recipe_book_members` with status='pending', done directly by every client
+// (iOS/Android/Desktop/Web); family invites go through the `invite_family_member` RPC. A database
+// trigger (see supabase/migrations/20260707_invite_email_notification.sql and
+// 20260921_family_invite_email.sql) fires `pg_net` at this function on each new pending invite, so
+// the notification is client-agnostic and needs no app-side code.
 //
 // Auth: callers must present `Authorization: Bearer <INVITE_HOOK_SECRET>`. Only the DB trigger
 // should reach this — it must NOT be invokable with an ordinary user JWT. Set INVITE_HOOK_SECRET
 // to a long random value and store the same value in Vault for the trigger (see the migration).
 //
 // Body (sent by the trigger):
-//   { kind: "grocery" | "recipe_book", memberId, parentId, invitedEmail, invitedBy, role }
-// `invitedBy` is only present for grocery invites; recipe-book invites fall back to the book owner.
+//   { kind: "grocery" | "recipe_book" | "family", memberId, parentId, invitedEmail, invitedBy, role }
+// `invitedBy` is present for grocery and family invites; recipe-book invites fall back to the book
+// owner.
 //
 // Deploy:  supabase functions deploy send-invite-email
 // Secrets: supabase secrets set RESEND_API_KEY=<key> INVITE_HOOK_SECRET=<random>
@@ -31,8 +34,17 @@ const corsHeaders = {
 const DEFAULT_FROM = "Chef Mate <noreply@plusmobileapps.com>";
 const DEFAULT_APP_URL = "https://chefmate.plusmobileapps.com";
 
+type InviteKind = "grocery" | "recipe_book" | "family";
+
+/** Per-kind lookup: the parent table holding the display name, and how the invite reads in prose. */
+const KINDS: Record<InviteKind, { table: string; label: string; fallbackName: string }> = {
+  grocery: { table: "grocery_lists", label: "grocery list", fallbackName: "a grocery list" },
+  recipe_book: { table: "recipe_books", label: "recipe book", fallbackName: "a recipe book" },
+  family: { table: "families", label: "family", fallbackName: "a family" },
+};
+
 interface InvitePayload {
-  kind: "grocery" | "recipe_book";
+  kind: InviteKind;
   memberId: string;
   parentId: string;
   invitedEmail: string;
@@ -64,27 +76,33 @@ Deno.serve(async (req) => {
     if (!payload?.kind || !payload?.parentId || !payload?.invitedEmail) {
       return json({ error: "Missing kind, parentId, or invitedEmail" }, 400);
     }
+    const kind = KINDS[payload.kind];
+    if (!kind) {
+      return json({ error: `Unknown kind: ${payload.kind}` }, 400);
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve the parent list/book: its display name and owner (the inviter fallback).
-    const table = payload.kind === "grocery" ? "grocery_lists" : "recipe_books";
+    // Resolve the parent list/book/family: its display name and owner (the inviter fallback).
     const { data: parent, error: parentError } = await admin
-      .from(table)
+      .from(kind.table)
       .select("name, owner_id")
       .eq("id", payload.parentId)
       .single();
 
     if (parentError || !parent) {
-      return json({ error: `Could not load ${table}: ${parentError?.message ?? "not found"}` }, 404);
+      return json(
+        { error: `Could not load ${kind.table}: ${parentError?.message ?? "not found"}` },
+        404,
+      );
     }
 
-    const listName = (parent.name as string) || (payload.kind === "grocery" ? "a grocery list" : "a recipe book");
-    const kindLabel = payload.kind === "grocery" ? "grocery list" : "recipe book";
+    const listName = (parent.name as string) || kind.fallbackName;
+    const kindLabel = kind.label;
 
-    // Inviter: `invited_by` when present (grocery), else the parent owner (recipe books).
+    // Inviter: `invited_by` when present (grocery, family), else the parent owner (recipe books).
     const inviterId = payload.invitedBy ?? (parent.owner_id as string | null);
     const inviterName = await resolveInviterName(admin, inviterId);
 
@@ -106,8 +124,8 @@ Deno.serve(async (req) => {
         from,
         to: payload.invitedEmail,
         subject,
-        html: htmlBody(inviterName, listName, kindLabel, appUrl),
-        text: textBody(inviterName, listName, kindLabel, appUrl),
+        html: htmlBody(inviterName, listName, kindLabel, appUrl, payload.kind),
+        text: textBody(inviterName, listName, kindLabel, appUrl, payload.kind),
         // Inline the app icon as a CID attachment. Email clients (Gmail included)
         // block `data:` image URIs but render `cid:` inline attachments, so the icon
         // ships with the message rather than being hotlinked from a web host.
@@ -150,13 +168,22 @@ async function resolveInviterName(
   }
 }
 
-function htmlBody(inviter: string, listName: string, kindLabel: string, appUrl: string): string {
+function htmlBody(
+  inviter: string,
+  listName: string,
+  kindLabel: string,
+  appUrl: string,
+  kind: InviteKind,
+): string {
+  const heading =
+    kind === "family" ? "You’ve been invited to a family" : "You’ve been invited to collaborate";
+  const verb = kind === "family" ? "invited you to join the" : "invited you to the";
   return `
     <div style="font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
       <img src="cid:${APP_ICON_CONTENT_ID}" alt="Chef Mate" width="64" height="64"
         style="width: 64px; height: 64px; border-radius: 14px; display: block; margin-bottom: 16px;" />
-      <h2 style="margin-bottom: 8px;">You’ve been invited to collaborate</h2>
-      <p><strong>${escapeHtml(inviter)}</strong> invited you to the ${kindLabel}
+      <h2 style="margin-bottom: 8px;">${heading}</h2>
+      <p><strong>${escapeHtml(inviter)}</strong> ${verb} ${kindLabel}
         <strong>“${escapeHtml(listName)}”</strong> on Chef Mate.</p>
       <p>Open Chef Mate with this email address to accept the invite.</p>
       <p style="margin: 24px 0;">
@@ -166,9 +193,16 @@ function htmlBody(inviter: string, listName: string, kindLabel: string, appUrl: 
     </div>`;
 }
 
-function textBody(inviter: string, listName: string, kindLabel: string, appUrl: string): string {
+function textBody(
+  inviter: string,
+  listName: string,
+  kindLabel: string,
+  appUrl: string,
+  kind: InviteKind,
+): string {
+  const verb = kind === "family" ? "invited you to join the" : "invited you to the";
   return [
-    `${inviter} invited you to the ${kindLabel} “${listName}” on Chef Mate.`,
+    `${inviter} ${verb} ${kindLabel} “${listName}” on Chef Mate.`,
     ``,
     `Open Chef Mate with this email address to accept the invite: ${appUrl}`,
     ``,

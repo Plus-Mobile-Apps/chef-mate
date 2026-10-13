@@ -82,6 +82,10 @@ include(":client:family:data:public")
 
 include(":client:family:data:testing")
 
+include(":client:family:manage:impl")
+
+include(":client:family:manage:impl-robots")
+
 include(":client:family:manage:public")
 
 include(":client:featureflag:impl")

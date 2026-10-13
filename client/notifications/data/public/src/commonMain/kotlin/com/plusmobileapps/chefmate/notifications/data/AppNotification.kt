@@ -1,11 +1,12 @@
 package com.plusmobileapps.chefmate.notifications.data
 
+import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.grocery.data.ListRole
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBookRole
 
 /**
- * An item shown in the in-app Notifications section. Today the only kind is a pending collaboration
- * invite (to a grocery list or a recipe book) awaiting the current user's Accept/Decline. New kinds
+ * An item shown in the in-app Notifications section. Every kind today is a pending invite (to a
+ * grocery list, a recipe book or a family) awaiting the current user's Accept/Decline. New kinds
  * can be added here as the feature grows.
  *
  * [key] is a stable, type-qualified identifier safe to use as a list key and to track in-flight
@@ -30,5 +31,12 @@ sealed interface AppNotification {
     ) : AppNotification {
         override val key: String
             get() = "recipe_book:$memberId"
+    }
+
+    /** A pending invite to join the family named [familyName]. */
+    data class FamilyInvite(val memberId: String, val familyName: String, val role: FamilyRole) :
+        AppNotification {
+        override val key: String
+            get() = "family:$memberId"
     }
 }

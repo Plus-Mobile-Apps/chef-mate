@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Notifications
@@ -67,6 +68,7 @@ import chefmate.client.settings.public.generated.resources.privacy_policy
 import chefmate.client.settings.public.generated.resources.settings
 import chefmate.client.settings.public.generated.resources.settings_ai_chat
 import chefmate.client.settings.public.generated.resources.settings_guest_banner
+import chefmate.client.settings.public.generated.resources.settings_manage_family
 import chefmate.client.settings.public.generated.resources.settings_notifications
 import chefmate.client.settings.public.generated.resources.settings_replay_onboarding
 import chefmate.client.settings.public.generated.resources.sign_in
@@ -191,6 +193,17 @@ fun SettingsScreen(bloc: SettingsBloc, modifier: Modifier = Modifier) {
                     name = Res.string.settings_notifications.asTextData(),
                     icon = Icons.Outlined.Notifications,
                     onClick = bloc::onNotificationsClicked,
+                )
+            }
+            // Unlike Notifications, this row shows in every auth state: a signed-out or anonymous
+            // user can tap it and is taken through sign-in on the way, landing on Manage Family.
+            if (viewState.isManageFamilyEnabled) {
+                HorizontalDivider()
+                SettingsRow(
+                    name = Res.string.settings_manage_family.asTextData(),
+                    icon = Icons.Outlined.Group,
+                    onClick = bloc::onManageFamilyClicked,
+                    modifier = Modifier.testTag(SettingsTestTags.MANAGE_FAMILY_ROW),
                 )
             }
             HorizontalDivider()
@@ -525,6 +538,8 @@ val previewSettingsBlocSignedOut: SettingsBloc =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -568,6 +583,8 @@ private val previewBlocAuthenticated =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -607,6 +624,8 @@ val previewSettingsBlocGuest: SettingsBloc =
 
         override fun onNotificationsClicked() = Unit
 
+        override fun onManageFamilyClicked() = Unit
+
         override fun onUrlClicked(url: String) = Unit
 
         override fun onAppSettingsClicked() = Unit
@@ -618,6 +637,15 @@ val previewSettingsBlocGuest: SettingsBloc =
         override fun onDeveloperSettingsClicked() = Unit
 
         override fun onReplayOnboardingClicked() = Unit
+    }
+
+/** The More tab with the flagged Manage Family row visible. */
+val previewSettingsBlocManageFamily: SettingsBloc =
+    object : SettingsBloc by previewBlocAuthenticated {
+        override val state =
+            MutableStateFlow(
+                previewBlocAuthenticated.state.value.copy(isManageFamilyEnabled = true)
+            )
     }
 
 /**
@@ -646,6 +674,12 @@ val previewSettingsBlocAiChatLocked: SettingsBloc =
                 )
             )
     }
+
+@Preview(showBackground = true)
+@Composable
+internal fun SettingsScreenManageFamilyPreview() {
+    ChefMateTheme { SettingsScreen(bloc = previewSettingsBlocManageFamily) }
+}
 
 @Preview(showBackground = true)
 @Composable

@@ -99,6 +99,9 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
 
         data object OpenNotifications : Output()
 
+        /** Open the Manage Family flow (flagged); signed-out users go via sign-in first. */
+        data object OpenManageFamily : Output()
+
         data object OpenAppSettings : Output()
 
         data object OpenAiChat : Output()
