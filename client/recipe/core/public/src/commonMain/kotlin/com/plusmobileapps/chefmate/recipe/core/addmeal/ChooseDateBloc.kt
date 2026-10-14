@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import com.plusmobileapps.chefmate.BackClickBloc
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.ui.ComposeScreen
@@ -40,6 +41,13 @@ interface ChooseDateBloc : BackClickBloc, ComposeScreen {
     /** Saves the meal straight from the wide combined layout, emitting [Output.Finished]. */
     fun onSaveClicked()
 
+    fun onPlanSelectorClicked()
+
+    fun onPlanPickerDismissed()
+
+    /** Adds the meal to the family plan with [familyId], or to the personal plan when null. */
+    fun onPlanSelected(familyId: String?)
+
     data class Model(
         val firstDayOfMonth: LocalDate = LocalDate(2000, 1, 1),
         val daysWithMeals: Set<String> = emptySet(),
@@ -50,6 +58,11 @@ interface ChooseDateBloc : BackClickBloc, ComposeScreen {
         val selectedMealType: MealType = MealType.DINNER,
         val isSaving: Boolean = false,
         val recipeTitle: String = "",
+        /** Family plans the meal can go to instead; the plan selector is hidden when empty. */
+        val familyPlans: ImmutableList<FamilyPlan> = persistentListOf(),
+        /** The family plan the meal will be added to, or null for the personal plan. */
+        val selectedFamilyId: String? = null,
+        val isPlanPickerOpen: Boolean = false,
     )
 
     sealed class Output {

@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.recipe.core.impl.addmeal.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc
@@ -29,6 +30,12 @@ private fun chooseDateBloc(model: ChooseDateBloc.Model): ChooseDateBloc =
 
         override fun onSaveClicked() = Unit
 
+        override fun onPlanSelectorClicked() = Unit
+
+        override fun onPlanPickerDismissed() = Unit
+
+        override fun onPlanSelected(familyId: String?) = Unit
+
         override fun onBackClicked() = Unit
     }
 
@@ -54,6 +61,19 @@ val previewChooseDateBloc: ChooseDateBloc =
                 ),
             selectedMealType = MealType.DINNER,
             recipeTitle = "Pasta Carbonara",
+        )
+    )
+
+/** Same day, for a user with family plans — "Add to" shows which plan the meal goes to. */
+val previewChooseDateBlocFamilyPlan: ChooseDateBloc =
+    chooseDateBloc(
+        (previewChooseDateBloc.state.value).copy(
+            familyPlans =
+                persistentListOf(
+                    FamilyPlan(familyId = "family-1", name = "The Smiths"),
+                    FamilyPlan(familyId = "family-2", name = "Lake House"),
+                ),
+            selectedFamilyId = "family-1",
         )
     )
 

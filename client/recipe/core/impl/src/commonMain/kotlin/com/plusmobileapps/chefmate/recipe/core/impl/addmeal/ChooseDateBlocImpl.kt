@@ -46,6 +46,9 @@ class ChooseDateBlocImpl(
                 selectedMealType = it.selectedMealType,
                 isSaving = it.isSaving,
                 recipeTitle = it.recipeTitle,
+                familyPlans = it.familyPlans.toImmutableList(),
+                selectedFamilyId = it.planScope.familyId,
+                isPlanPickerOpen = it.isPlanPickerOpen,
             )
         }
 
@@ -86,6 +89,18 @@ class ChooseDateBlocImpl(
 
     override fun onSaveClicked() {
         viewModel.save()
+    }
+
+    override fun onPlanSelectorClicked() {
+        viewModel.openPlanPicker()
+    }
+
+    override fun onPlanPickerDismissed() {
+        viewModel.dismissPlanPicker()
+    }
+
+    override fun onPlanSelected(familyId: String?) {
+        viewModel.selectPlan(familyId)
     }
 
     override fun onBackClicked() {

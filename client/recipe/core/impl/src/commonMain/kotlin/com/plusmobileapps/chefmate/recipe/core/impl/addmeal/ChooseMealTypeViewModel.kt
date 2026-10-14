@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.recipe.core.impl.addmeal
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScopeRepository
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import dev.zacsweers.metro.Assisted
@@ -26,6 +27,7 @@ class ChooseMealTypeViewModel(
     @Main mainContext: CoroutineContext,
     private val recipeRepository: RecipeRepository,
     private val mealPlanRepository: MealPlanRepository,
+    private val scopeRepository: MealPlanScopeRepository,
 ) : ViewModel(mainContext) {
 
     @AssistedFactory
@@ -61,6 +63,8 @@ class ChooseMealTypeViewModel(
                 recipeId = recipeId,
                 date = currentState.selectedDate,
                 mealType = currentState.selectedMealType,
+                // The plan picked on the previous (date) step, or the one the planner is showing.
+                scope = scopeRepository.selectedScope.value,
             )
             _output.send(Output.Finished)
         }

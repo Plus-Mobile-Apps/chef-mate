@@ -30,6 +30,7 @@ kotlin {
         commonTest.dependencies {
             implementation(projects.client.util.testing)
             implementation(projects.client.recipe.data.testing)
+            implementation(projects.client.meal.data.testing)
             implementation(projects.client.recipebook.data.testing)
             implementation(projects.client.grocery.data.testing)
             implementation(projects.client.toast.testing)

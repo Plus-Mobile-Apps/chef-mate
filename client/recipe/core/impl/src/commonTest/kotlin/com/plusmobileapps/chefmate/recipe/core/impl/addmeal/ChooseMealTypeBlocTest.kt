@@ -5,7 +5,9 @@ package com.plusmobileapps.chefmate.recipe.core.impl.addmeal
 
 import app.cash.turbine.test
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
+import com.plusmobileapps.chefmate.meal.data.testing.FakeMealPlanScopeRepository
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseMealTypeBloc
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
@@ -54,7 +56,12 @@ class ChooseMealTypeBlocTest {
     private val mealPlanRepository: MealPlanRepository = mock {
         everySuspend { addMeal(recipeId, date, MealType.DINNER) } returns Unit
         everySuspend { addMeal(recipeId, date, MealType.BREAKFAST) } returns Unit
+        everySuspend {
+            addMeal(recipeId, date, MealType.DINNER, MealPlanScope.Family("fam-1"))
+        } returns Unit
     }
+
+    private val scopeRepository = FakeMealPlanScopeRepository()
 
     private fun createBloc(): ChooseMealTypeBlocImpl =
         ChooseMealTypeBlocImpl(
@@ -70,6 +77,7 @@ class ChooseMealTypeBlocTest {
                         mainContext = context.mainContext,
                         recipeRepository = recipeRepository,
                         mealPlanRepository = mealPlanRepository,
+                        scopeRepository = scopeRepository,
                     )
                 },
         )
@@ -99,6 +107,22 @@ class ChooseMealTypeBlocTest {
 
         verifySuspend { mealPlanRepository.addMeal(recipeId, date, MealType.DINNER) }
         output.lastValue shouldBe ChooseMealTypeBloc.Output.Finished
+    }
+
+    @Test
+    fun WHEN_a_family_plan_is_selected_THEN_meal_is_added_to_it() = runTest {
+        scopeRepository.selectedScope.value = MealPlanScope.Family("fam-1")
+        val bloc = createBloc()
+        bloc.onSaveClicked()
+
+        verifySuspend {
+            mealPlanRepository.addMeal(
+                recipeId,
+                date,
+                MealType.DINNER,
+                MealPlanScope.Family("fam-1"),
+            )
+        }
     }
 
     @Test
