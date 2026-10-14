@@ -206,40 +206,43 @@ jobs:
           files: artifacts/*
           generate_release_notes: true
 
-  # Submits the MSIX to the Microsoft Store. Runs only on tag pushes, and each step
-  # no-ops unless STORE_PRODUCT_ID is configured. The very first submission for a new
-  # app must still be made manually in Partner Center to create the listing.
-  publish-store:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: windows-latest
-    env:
-      STORE_PRODUCT_ID: ${{ secrets.STORE_PRODUCT_ID }}
-    steps:
-      - uses: actions/download-artifact@v4
-        if: env.STORE_PRODUCT_ID != ''
-        with:
-          name: desktop-windows-msix
-          path: msix
-
-      # NOTE: verify the action ref against the current MSStore CLI docs before relying on it.
-      - name: Setup MSStore CLI
-        if: env.STORE_PRODUCT_ID != ''
-        uses: microsoft/setup-msstore-cli@v1
-
-      - name: Configure MSStore CLI
-        if: env.STORE_PRODUCT_ID != ''
-        run: >
-          msstore reconfigure
-          --tenantId ${{ secrets.PARTNER_CENTER_TENANT_ID }}
-          --sellerId ${{ secrets.PARTNER_CENTER_SELLER_ID }}
-          --clientId ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
-          --clientSecret ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
-
-      - name: Publish to Microsoft Store
-        if: env.STORE_PRODUCT_ID != ''
-        shell: pwsh
-        run: |
-          $msix = (Get-ChildItem msix/*.msix | Select-Object -First 1).FullName
-          # -id is the Partner Center app/product id; adjust if your account uses a separate Store ID.
-          msstore publish -i $msix -id $env:STORE_PRODUCT_ID
+  # Microsoft Store publishing is disabled until the Store automation is set up:
+  # https://github.com/Plus-Mobile-Apps/chef-mate/issues/583
+  #
+  # # Submits the MSIX to the Microsoft Store. Runs only on tag pushes, and each step
+  # # no-ops unless STORE_PRODUCT_ID is configured. The very first submission for a new
+  # # app must still be made manually in Partner Center to create the listing.
+  # publish-store:
+  #   needs: build
+  #   if: startsWith(github.ref, 'refs/tags/')
+  #   runs-on: windows-latest
+  #   env:
+  #     STORE_PRODUCT_ID: ${{ secrets.STORE_PRODUCT_ID }}
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       if: env.STORE_PRODUCT_ID != ''
+  #       with:
+  #         name: desktop-windows-msix
+  #         path: msix
+  #
+  #     # NOTE: verify the action ref against the current MSStore CLI docs before relying on it.
+  #     - name: Setup MSStore CLI
+  #       if: env.STORE_PRODUCT_ID != ''
+  #       uses: microsoft/setup-msstore-cli@v1
+  #
+  #     - name: Configure MSStore CLI
+  #       if: env.STORE_PRODUCT_ID != ''
+  #       run: >
+  #         msstore reconfigure
+  #         --tenantId ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+  #         --sellerId ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+  #         --clientId ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+  #         --clientSecret ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+  #
+  #     - name: Publish to Microsoft Store
+  #       if: env.STORE_PRODUCT_ID != ''
+  #       shell: pwsh
+  #       run: |
+  #         $msix = (Get-ChildItem msix/*.msix | Select-Object -First 1).FullName
+  #         # -id is the Partner Center app/product id; adjust if your account uses a separate Store ID.
+  #         msstore publish -i $msix -id $env:STORE_PRODUCT_ID
