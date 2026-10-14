@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App-level guidance for on-device agents (Gemini) choosing among Chef Mate's AppFunctions. -->
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:description="Chef Mate is a recipe and grocery app with its own grocery lists, separate from Google Keep, Google Tasks, and reminders.
+Operational Patterns:
+  - When the user asks to add something to Chef Mate, their Chef Mate list, or their Chef Mate grocery or shopping list, call 'addGroceryItems'.
+  - Split a request for several items into separate entries, keeping multi-word foods such as 'mac and cheese' together.
+  - Only call 'getGroceryListNames' when the user names a specific list.
+Constraints:
+  - 'addGroceryItems' needs at least one non-blank item."
+    appfn:displayDescription="@string/app_function_display_description" />

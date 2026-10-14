@@ -28,6 +28,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.metro)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.compose)
     alias(libs.plugins.plusKtfmt)
 }
@@ -36,6 +37,9 @@ kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
+            // The appfunctions KSP processor derives a generated class name from the module name;
+            // the default KMP one (`chefmate.client:composeApp`) contains a `:` it can't escape.
+            moduleName.set("chefmate_composeApp")
 
             // commonTest is shared with the Android instrumented test variant
             // (connectedDebugAndroidTest), not the unit test variant (testDebugUnitTest).
@@ -148,6 +152,9 @@ kotlin {
             // 1.7.0 pulls concurrent-futures-ktx 1.2.0, which needs 1.2.0 — leaving
             // :connectedDebugAndroidTest unresolvable. Raise the app side so both agree.
             implementation(libs.androidx.concurrent.futures)
+            // Exposes "add to grocery list" to on-device agents (Gemini) — see
+            // BaseChefMateAppFunctionService.
+            implementation(libs.androidx.appfunctions)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
@@ -265,9 +272,13 @@ android {
 }
 
 dependencies {
+    add("kspAndroid", libs.androidx.appfunctions.compiler)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// The app module aggregates every @AppFunction into the XML schema the platform indexes.
+ksp { arg("appfunctions:aggregateAppFunctions", "true") }
 
 compose.desktop {
     application {
