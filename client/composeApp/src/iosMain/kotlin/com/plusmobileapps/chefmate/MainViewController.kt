@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.uikit.OnFocusBehavior
 import androidx.compose.ui.window.ComposeUIViewController
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.PredictiveBackGestureIcon
@@ -16,7 +17,16 @@ import com.plusmobileapps.chefmate.root.RootBloc
 
 object MainViewController {
     fun create(rootBloc: RootBloc, backDispatcher: BackDispatcher) =
-        ComposeUIViewController(configure = { parallelRendering = true }) {
+        ComposeUIViewController(
+            configure = {
+                parallelRendering = true
+                // Screens handle the keyboard themselves via IME insets (as on Android). The
+                // default, FocusableAboveKeyboard, also pans the whole root view up when a focused
+                // field sits under the keyboard, which briefly shoves the app bar off screen
+                // before the insets catch up — e.g. focusing the grocery list's add row.
+                onFocusBehavior = OnFocusBehavior.DoNothing
+            }
+        ) {
             PredictiveBackGestureOverlay(
                 backDispatcher = backDispatcher,
                 backIcon = { progress, _ ->
