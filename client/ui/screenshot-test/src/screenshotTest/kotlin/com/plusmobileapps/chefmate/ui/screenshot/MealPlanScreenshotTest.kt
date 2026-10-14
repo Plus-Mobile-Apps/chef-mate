@@ -12,9 +12,13 @@ import com.plusmobileapps.chefmate.meal.core.MealPlanBloc
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBloc
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocCooking
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocEmpty
+import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocFamilyPlan
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocMonth
+import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocPersonalPlanWithFamilies
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocSyncing
 import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocWeek
+import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanPlanSelector
+import com.plusmobileapps.chefmate.recipe.core.addmeal.MealPlanPickerContent
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
@@ -87,4 +91,57 @@ fun MealPlanMonthViewScreenshot() {
 @Composable
 fun MealPlanMonthViewExpandedScreenshot() {
     MealPlanScreenshot(bloc = previewMealPlanBlocMonth)
+}
+
+// Family plan — the plan selector pill replaces the "Meals" title.
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+fun MealPlanFamilyPlanScreenshot() {
+    MealPlanScreenshot(bloc = previewMealPlanBlocFamilyPlan)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun MealPlanFamilyPlanDarkScreenshot() {
+    MealPlanScreenshot(bloc = previewMealPlanBlocFamilyPlan, darkTheme = true)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+fun MealPlanPersonalPlanWithFamiliesScreenshot() {
+    MealPlanScreenshot(bloc = previewMealPlanBlocPersonalPlanWithFamilies)
+}
+
+// Picker body, rendered directly: ModalBottomSheet doesn't snapshot under the screenshot plugin.
+@PreviewTest
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+fun MealPlanPlanPickerScreenshot() {
+    ChefMateTheme {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            MealPlanPickerContent(
+                families = previewMealPlanPlanSelector.families,
+                selectedFamilyId = previewMealPlanPlanSelector.selectedFamilyId,
+                onPlanSelected = {},
+            )
+        }
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun MealPlanPlanPickerDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            MealPlanPickerContent(
+                families = previewMealPlanPlanSelector.families,
+                selectedFamilyId = previewMealPlanPlanSelector.selectedFamilyId,
+                onPlanSelected = {},
+            )
+        }
+    }
 }
