@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +21,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.ui.components.glass.appBackdropSource
 import com.plusmobileapps.chefmate.ui.components.glass.backdropBlur
@@ -41,7 +44,9 @@ private const val HeaderBlurTintAlpha = 0.72f
  * frosted panel, so whatever scrolls up behind them shows through the blur. [content] is then laid
  * out full-height and must reserve [LocalPlusHeaderOverlap] at its top itself — typically as an
  * inner lazy list's top content padding, so the list scrolls up behind the header. With
- * [scrollEnabled] the container reserves it for you.
+ * [scrollEnabled] the container reserves it for you. In this mode the container also grows up under
+ * the status bar the shell reserved ([LocalNavShellTopInset]), so the frosted panel reaches the top
+ * of the screen.
  */
 @Composable
 fun PlusNavContainer(
@@ -81,7 +86,11 @@ fun PlusNavContainer(
     val background = ChefMateTheme.colorScheme.background
     val headerHeight = remember { mutableStateOf(0.dp) }
     val overlap = remember(headerHeight) { PlusHeaderOverlap(headerHeight) }
-    Box(modifier = modifier.fillMaxSize()) {
+    // A navigation shell lays this out below the status bar. Grow up into that strip so content
+    // scrolls under the status bar too and the frosted panel runs to the screen edge, reserving the
+    // strip at the top of the panel instead.
+    val shellTopInset = LocalNavShellTopInset.current
+    Box(modifier = modifier.fillMaxSize().extendUpward(shellTopInset)) {
         HeaderOverlayLayout(
             header = {
                 Column(
@@ -98,6 +107,7 @@ fun PlusNavContainer(
                             }
                         }
                 ) {
+                    Spacer(modifier = Modifier.height(shellTopInset))
                     if (data !is PlusHeaderData.None) {
                         PlusHeader(
                             data = data,
@@ -124,3 +134,28 @@ fun PlusNavContainer(
         }
     }
 }
+
+/**
+ * Lays this element out [amount] taller and shifted up by [amount], so it draws over the space its
+ * parent reserved above it while still reporting its original size to the parent.
+ */
+private fun Modifier.extendUpward(amount: Dp): Modifier =
+    if (amount <= 0.dp) {
+        this
+    } else {
+        layout { measurable, constraints ->
+            val extra = amount.roundToPx()
+            if (!constraints.hasBoundedHeight) {
+                val placeable = measurable.measure(constraints)
+                return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+            val placeable =
+                measurable.measure(
+                    constraints.copy(
+                        minHeight = constraints.minHeight + extra,
+                        maxHeight = constraints.maxHeight + extra,
+                    )
+                )
+            layout(placeable.width, placeable.height - extra) { placeable.place(0, -extra) }
+        }
+    }

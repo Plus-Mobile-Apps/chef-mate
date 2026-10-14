@@ -27,6 +27,14 @@ import androidx.compose.ui.unit.dp
 val LocalBottomNavBarInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
 /**
+ * The status-bar inset a navigation shell has already reserved above the tab content, or `0.dp`
+ * outside a shell. Tab content starts below it, so a frosted header that should run up under the
+ * status bar (see `PlusNavContainer`'s `drawContentBehindHeader`) extends itself upward by this
+ * much — reserving it inside its own panel — rather than stopping short of the screen edge.
+ */
+val LocalNavShellTopInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
+
+/**
  * Pads this composable clear of the floating bottom navigation bar. For bottom-anchored UI that
  * must never sit under the bar — FABs, input rows, pinned toolbars.
  */
