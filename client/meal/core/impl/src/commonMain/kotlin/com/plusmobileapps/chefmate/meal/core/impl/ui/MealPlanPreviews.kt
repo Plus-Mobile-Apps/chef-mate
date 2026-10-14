@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.plusmobileapps.chefmate.meal.core.MealPlanBloc
 import com.plusmobileapps.chefmate.meal.core.MealPlanScreen
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.text.FixedString
@@ -91,6 +92,12 @@ private fun mealPlanBloc(model: MealPlanBloc.Model): MealPlanBloc =
         override fun onDoneCookingConfirmed() = Unit
 
         override fun onDoneCookingDismissed() = Unit
+
+        override fun onPlanSelectorClicked() = Unit
+
+        override fun onPlanPickerDismissed() = Unit
+
+        override fun onPlanSelected(familyId: String?) = Unit
     }
 
 val previewMealPlanBloc: MealPlanBloc =
@@ -194,3 +201,40 @@ internal fun MealPlanCookingPreview() {
 internal fun MealPlanEmptyPreview() {
     ChefMateTheme { MealPlanScreen(bloc = previewMealPlanBlocEmpty) }
 }
+
+private val samplePlanSelector =
+    MealPlanBloc.PlanSelector(
+        families =
+            persistentListOf(
+                FamilyPlan(familyId = "family-1", name = "The Smiths"),
+                FamilyPlan(familyId = "family-2", name = "Lake House"),
+            ),
+        selectedFamilyId = "family-1",
+    )
+
+/** Day view of a family's shared plan — the plan selector replaces the "Meals" title. */
+val previewMealPlanBlocFamilyPlan: MealPlanBloc =
+    mealPlanBloc(
+        MealPlanBloc.Model(
+            isLoading = false,
+            viewMode = MealPlanBloc.ViewMode.DAY,
+            dateLabel = FixedString("Apr 17, 2026"),
+            dayMeals = sampleDayMeals,
+            planSelector = samplePlanSelector,
+        )
+    )
+
+/** The personal plan for a user who also has family plans. */
+val previewMealPlanBlocPersonalPlanWithFamilies: MealPlanBloc =
+    mealPlanBloc(
+        MealPlanBloc.Model(
+            isLoading = false,
+            viewMode = MealPlanBloc.ViewMode.DAY,
+            dateLabel = FixedString("Apr 17, 2026"),
+            dayMeals = sampleDayMeals,
+            planSelector = samplePlanSelector.copy(selectedFamilyId = null),
+        )
+    )
+
+/** Picker contents, rendered directly since ModalBottomSheet doesn't snapshot reliably. */
+val previewMealPlanPlanSelector: MealPlanBloc.PlanSelector = samplePlanSelector

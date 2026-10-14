@@ -12,8 +12,11 @@ import com.plusmobileapps.chefmate.di.CoachMarkController
 import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.meal.core.MealPlanBloc
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
+import com.plusmobileapps.chefmate.meal.data.MealPlanScopeRepository
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
@@ -40,6 +43,7 @@ import org.jetbrains.compose.resources.StringResource
 class MealPlanViewModel(
     @Main mainContext: CoroutineContext,
     private val repository: MealPlanRepository,
+    private val scopeRepository: MealPlanScopeRepository,
     private val cookingSessionRepository: CookingSessionRepository,
     private val dateTimeUtil: DateTimeUtil,
     private val coachMarkController: CoachMarkController,
@@ -68,8 +72,26 @@ class MealPlanViewModel(
         // Queue every meal-plan coach mark in order; the controller shows them one at a time.
         CoachMarkId.mealPlanSequence.forEach(coachMarkController::request)
         val today = dateTimeUtil.today()
-        _state.update { it.copy(currentDate = today, selectedMonthDay = today) }
+        _state.update {
+            it.copy(
+                currentDate = today,
+                selectedMonthDay = today,
+                planScope = scopeRepository.selectedScope.value,
+            )
+        }
         observeMeals()
+        scope.launch {
+            scopeRepository.selectedScope.collect { planScope ->
+                if (planScope == _state.value.planScope) return@collect
+                _state.update { it.copy(planScope = planScope, isLoading = true) }
+                observeMeals()
+            }
+        }
+        scope.launch {
+            scopeRepository.familyPlans.collect { plans ->
+                _state.update { it.copy(familyPlans = plans) }
+            }
+        }
         scope.launch {
             cookingSessionRepository.observeRecipeIds().collect { ids ->
                 _state.update { it.copy(cookingRecipeIds = ids) }
@@ -139,6 +161,34 @@ class MealPlanViewModel(
         super.onCleared()
         // Leaving the screen without dismissing frees the queue so other coach marks can show.
         CoachMarkId.mealPlanSequence.forEach(coachMarkController::release)
+    }
+
+    /**
+     * Reloads the user's families, and pulls a family plan's latest meals — other members add to
+     * it, and nothing else syncs between sign-ins.
+     */
+    fun onResume() {
+        scope.launch {
+            scopeRepository.refresh()
+            if (_state.value.planScope is MealPlanScope.Family) {
+                repository.syncAllUnsynced()
+            }
+        }
+    }
+
+    fun openPlanPicker() {
+        _state.update { it.copy(isPlanPickerOpen = true) }
+    }
+
+    fun dismissPlanPicker() {
+        _state.update { it.copy(isPlanPickerOpen = false) }
+    }
+
+    fun selectPlan(familyId: String?) {
+        _state.update { it.copy(isPlanPickerOpen = false) }
+        scopeRepository.select(
+            if (familyId == null) MealPlanScope.Personal else MealPlanScope.Family(familyId)
+        )
     }
 
     fun requestRemoveMeal(item: MealPlanItem) {
@@ -292,17 +342,18 @@ class MealPlanViewModel(
         observeJob?.cancel()
         observeJob = scope.launch {
             val current = _state.value
+            val planScope = current.planScope
             val flow =
                 when (current.viewMode) {
                     MealPlanBloc.ViewMode.DAY ->
-                        repository.getMealsByDate(current.currentDate.toString())
+                        repository.getMealsByDate(current.currentDate.toString(), planScope)
                     MealPlanBloc.ViewMode.WEEK -> {
                         val (start, end) = getWeekRange(current.currentDate)
-                        repository.getMealsByDateRange(start.toString(), end.toString())
+                        repository.getMealsByDateRange(start.toString(), end.toString(), planScope)
                     }
                     MealPlanBloc.ViewMode.MONTH -> {
                         val (start, end) = getMonthRange(current.currentDate)
-                        repository.getMealsByDateRange(start.toString(), end.toString())
+                        repository.getMealsByDateRange(start.toString(), end.toString(), planScope)
                     }
                 }
             flow.collect { meals -> _state.update { it.copy(isLoading = false, meals = meals) } }
@@ -334,6 +385,9 @@ class MealPlanViewModel(
         val showDoneCookingDialog: Boolean = false,
         val pendingReplaceCookMode: List<MealPlanItem>? = null,
         val activeCoachMark: String? = null,
+        val planScope: MealPlanScope = MealPlanScope.Personal,
+        val familyPlans: List<FamilyPlan> = emptyList(),
+        val isPlanPickerOpen: Boolean = false,
     )
 
     companion object {

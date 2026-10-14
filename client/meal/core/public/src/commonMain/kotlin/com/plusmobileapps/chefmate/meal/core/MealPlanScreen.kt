@@ -98,6 +98,8 @@ import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.meal.data.SyncStatus
+import com.plusmobileapps.chefmate.recipe.core.addmeal.MealPlanSelector
+import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
@@ -108,6 +110,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
+import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
@@ -144,124 +147,147 @@ fun MealPlanScreen(bloc: MealPlanBloc, modifier: Modifier = Modifier) {
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        PlusNavContainer(
-            data =
-                PlusHeaderData.Parent(
-                    title = Res.string.meal_plan_title.asTextData(),
-                    trailingAccessory =
-                        PlusHeaderData.TrailingAccessory.Custom {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SyncActionButton(
-                                    isSyncing = state.isSyncing,
-                                    onClick = bloc::onSyncClicked,
-                                )
-                                MealPlanCoachMark(
-                                    id = CoachMarkId.MEAL_PLAN_ADD_MEAL,
-                                    text = Res.string.meal_plan_add_meal_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
-                                    onDismiss = bloc::onCoachMarkDismissed,
-                                ) {
-                                    IconButton(onClick = bloc::onAddMealClicked) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription =
-                                                stringResource(Res.string.meal_plan_add_meal),
-                                        )
+    PlusResponsiveContainer(modifier = modifier.fillMaxSize()) { windowSizeClass ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            val planSelector = state.planSelector
+            PlusNavContainer(
+                data =
+                    PlusHeaderData.Parent(
+                        // The plan selector stands in for the title when the user has family plans.
+                        title =
+                            if (planSelector != null) FixedString("")
+                            else Res.string.meal_plan_title.asTextData(),
+                        leading =
+                            planSelector?.let { selector ->
+                                {
+                                    MealPlanSelector(
+                                        families = selector.families,
+                                        selectedFamilyId = selector.selectedFamilyId,
+                                        expanded = selector.isPickerOpen,
+                                        windowSizeClass = windowSizeClass,
+                                        onClick = bloc::onPlanSelectorClicked,
+                                        onDismiss = bloc::onPlanPickerDismissed,
+                                        onPlanSelected = bloc::onPlanSelected,
+                                    )
+                                }
+                            },
+                        trailingAccessory =
+                            PlusHeaderData.TrailingAccessory.Custom {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    SyncActionButton(
+                                        isSyncing = state.isSyncing,
+                                        onClick = bloc::onSyncClicked,
+                                    )
+                                    MealPlanCoachMark(
+                                        id = CoachMarkId.MEAL_PLAN_ADD_MEAL,
+                                        text =
+                                            Res.string.meal_plan_add_meal_onboarding.asTextData(),
+                                        activeCoachMark = state.activeCoachMark,
+                                        onDismiss = bloc::onCoachMarkDismissed,
+                                    ) {
+                                        IconButton(onClick = bloc::onAddMealClicked) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription =
+                                                    stringResource(Res.string.meal_plan_add_meal),
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        },
-                ),
-            scrollEnabled = false,
-            content = {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    MealPlanCoachMark(
-                        id = CoachMarkId.MEAL_PLAN_VIEW_MODE,
-                        text = Res.string.meal_plan_view_mode_onboarding.asTextData(),
-                        activeCoachMark = state.activeCoachMark,
-                        onDismiss = bloc::onCoachMarkDismissed,
-                    ) {
-                        ViewModeSegmentedControl(
-                            selectedMode = state.viewMode,
-                            onModeSelected = bloc::onViewModeSelected,
-                            modifier =
-                                Modifier.padding(horizontal = ChefMateTheme.dimens.paddingNormal),
+                            },
+                    ),
+                scrollEnabled = false,
+                content = {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        MealPlanCoachMark(
+                            id = CoachMarkId.MEAL_PLAN_VIEW_MODE,
+                            text = Res.string.meal_plan_view_mode_onboarding.asTextData(),
+                            activeCoachMark = state.activeCoachMark,
+                            onDismiss = bloc::onCoachMarkDismissed,
+                        ) {
+                            ViewModeSegmentedControl(
+                                selectedMode = state.viewMode,
+                                onModeSelected = bloc::onViewModeSelected,
+                                modifier =
+                                    Modifier.padding(
+                                        horizontal = ChefMateTheme.dimens.paddingNormal
+                                    ),
+                            )
+                        }
+
+                        DateNavigationRow(
+                            dateLabel = state.dateLabel.localized(),
+                            onPrevious = bloc::onPreviousClicked,
+                            onNext = bloc::onNextClicked,
                         )
-                    }
 
-                    DateNavigationRow(
-                        dateLabel = state.dateLabel.localized(),
-                        onPrevious = bloc::onPreviousClicked,
-                        onNext = bloc::onNextClicked,
-                    )
-
-                    PullToRefreshBox(
-                        isRefreshing = state.isSyncing,
-                        onRefresh = bloc::onSyncClicked,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        if (state.isLoading) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                PlusLoadingIndicator()
-                            }
-                        } else {
-                            when (state.viewMode) {
-                                MealPlanBloc.ViewMode.DAY ->
-                                    DayView(
-                                        dayMeals = state.dayMeals,
-                                        onMealClicked = bloc::onMealClicked,
-                                        onDeleteClicked = bloc::onDeleteMealClicked,
-                                        onReplaceCookMode = bloc::onReplaceCookModeClicked,
-                                        onAddToCookMode = bloc::onAddToCookModeClicked,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                MealPlanBloc.ViewMode.WEEK ->
-                                    WeekView(
-                                        weekMeals = state.weekMeals.orEmpty(),
-                                        onMealClicked = bloc::onMealClicked,
-                                        onDeleteClicked = bloc::onDeleteMealClicked,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                MealPlanBloc.ViewMode.MONTH ->
-                                    MonthView(
-                                        monthModel = state.monthModel,
-                                        onDaySelected = bloc::onMonthDaySelected,
-                                        onMealClicked = bloc::onMealClicked,
-                                        onDeleteClicked = bloc::onDeleteMealClicked,
-                                        onReplaceCookMode = bloc::onReplaceCookModeClicked,
-                                        onAddToCookMode = bloc::onAddToCookModeClicked,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                        PullToRefreshBox(
+                            isRefreshing = state.isSyncing,
+                            onRefresh = bloc::onSyncClicked,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            if (state.isLoading) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    PlusLoadingIndicator()
+                                }
+                            } else {
+                                when (state.viewMode) {
+                                    MealPlanBloc.ViewMode.DAY ->
+                                        DayView(
+                                            dayMeals = state.dayMeals,
+                                            onMealClicked = bloc::onMealClicked,
+                                            onDeleteClicked = bloc::onDeleteMealClicked,
+                                            onReplaceCookMode = bloc::onReplaceCookModeClicked,
+                                            onAddToCookMode = bloc::onAddToCookModeClicked,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    MealPlanBloc.ViewMode.WEEK ->
+                                        WeekView(
+                                            weekMeals = state.weekMeals.orEmpty(),
+                                            onMealClicked = bloc::onMealClicked,
+                                            onDeleteClicked = bloc::onDeleteMealClicked,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    MealPlanBloc.ViewMode.MONTH ->
+                                        MonthView(
+                                            monthModel = state.monthModel,
+                                            onDaySelected = bloc::onMonthDaySelected,
+                                            onMealClicked = bloc::onMealClicked,
+                                            onDeleteClicked = bloc::onDeleteMealClicked,
+                                            onReplaceCookMode = bloc::onReplaceCookModeClicked,
+                                            onAddToCookMode = bloc::onAddToCookModeClicked,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                }
                             }
                         }
                     }
-                }
-            },
-        )
-
-        if (state.cookingRecipeCount > 0) {
-            CookingSessionFabStack(
-                onContinueClicked = bloc::onContinueCookingClicked,
-                onDoneCookingClicked = bloc::onDoneCookingClicked,
-                // Clear the floating nav pill, and ride up further so the app-wide cook-mode
-                // toast never covers the FAB stack.
-                modifier =
-                    Modifier.align(Alignment.BottomEnd)
-                        .padding(
-                            bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
-                        ),
+                },
             )
-        }
 
-        if (state.showDoneCookingDialog) {
-            DoneCookingDialog(
-                onConfirm = bloc::onDoneCookingConfirmed,
-                onDismiss = bloc::onDoneCookingDismissed,
-            )
+            if (state.cookingRecipeCount > 0) {
+                CookingSessionFabStack(
+                    onContinueClicked = bloc::onContinueCookingClicked,
+                    onDoneCookingClicked = bloc::onDoneCookingClicked,
+                    // Clear the floating nav pill, and ride up further so the app-wide cook-mode
+                    // toast never covers the FAB stack.
+                    modifier =
+                        Modifier.align(Alignment.BottomEnd)
+                            .padding(
+                                bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                            ),
+                )
+            }
+
+            if (state.showDoneCookingDialog) {
+                DoneCookingDialog(
+                    onConfirm = bloc::onDoneCookingConfirmed,
+                    onDismiss = bloc::onDoneCookingDismissed,
+                )
+            }
         }
     }
 }
