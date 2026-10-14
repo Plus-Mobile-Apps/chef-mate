@@ -1,6 +1,8 @@
 package com.plusmobileapps.chefmate.notifications.data.impl
 
 import app.cash.turbine.test
+import com.plusmobileapps.chefmate.auth.data.AuthState
+import com.plusmobileapps.chefmate.auth.data.testing.FakeAuthenticationRepository
 import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.family.data.testing.FakeFamilyRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryListInvite
@@ -21,12 +23,14 @@ class NotificationsRepositoryImplTest {
     private val grocery = FakeGroceryRepository()
     private val recipeBook = FakeRecipeBookCollaborationRepository()
     private val family = FakeFamilyRepository()
+    private val auth = FakeAuthenticationRepository().apply { setAuthenticated() }
 
     private val repository =
         NotificationsRepositoryImpl(
             groceryRepository = grocery,
             recipeBookCollaborationRepository = recipeBook,
             familyRepository = family,
+            authenticationRepository = auth,
         )
 
     @Test
@@ -126,5 +130,35 @@ class NotificationsRepositoryImplTest {
             awaitItem() shouldContainExactlyInAnyOrder
                 listOf(AppNotification.RecipeBookInvite("b1", "Desserts", RecipeBookRole.EDITOR))
         }
+    }
+
+    @Test
+    fun family_invite_appears_once_the_session_is_restored() = runTest {
+        // Cold start from an invite email: Notifications is on screen before the stored session
+        // is restored, so the first fetch would be refused. The invite must still show once the
+        // user is signed in, without the screen being re-entered.
+        auth.setState(AuthState.Unauthenticated)
+        family.failure = IllegalStateException("not signed in")
+        val memberId = family.seedInvite("Smiths")
+
+        repository.notifications.test {
+            awaitItem() shouldBe emptyList()
+
+            family.failure = null
+            auth.setAuthenticated()
+
+            awaitItem() shouldBe
+                listOf(AppNotification.FamilyInvite(memberId, "Smiths", FamilyRole.MEMBER))
+        }
+    }
+
+    @Test
+    fun does_not_fetch_one_shot_invites_without_a_signed_in_account() = runTest {
+        auth.setAnonymous()
+        family.seedInvite("Smiths")
+        recipeBook.invites =
+            mutableListOf(RecipeBookInvite("b1", "Desserts", RecipeBookRole.EDITOR))
+
+        repository.notifications.first() shouldBe emptyList()
     }
 }
