@@ -35,7 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.zIndex
 import chefmate.client.grocery.core.public.generated.resources.Res
 import chefmate.client.grocery.core.public.generated.resources.grocery_checked
 import chefmate.client.grocery.core.public.generated.resources.grocery_delete_item
@@ -87,12 +90,27 @@ fun GroceryGroupedList(
     swipeToDeleteEnabled: Boolean = supportsSwipeToDelete,
     footer: (LazyListScope.() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(),
+    // When true a pinned category header sticks at the top content padding rather than the top of
+    // the viewport — for a list whose top padding reserves a frosted header it scrolls behind,
+    // which would otherwise cover the pinned header.
+    pinHeadersBelowTopPadding: Boolean = false,
 ) {
     LazyColumn(state = state, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
         groups.forEach { group ->
             if (showHeaders) {
-                stickyHeader(key = "header_${group.category.name}") {
-                    CategoryHeader(category = group.category)
+                stickyHeader(
+                    key = "header_${group.category.name}",
+                    contentType = CategoryHeaderContentType,
+                ) { index ->
+                    CategoryHeader(
+                        category = group.category,
+                        modifier =
+                            if (pinHeadersBelowTopPadding) {
+                                Modifier.pinBelowTopPadding(state, index)
+                            } else {
+                                Modifier
+                            },
+                    )
                 }
             }
             items(group.items.size, key = { group.items[it].key }) { index ->
@@ -115,6 +133,40 @@ fun GroceryGroupedList(
         footer?.invoke(this)
     }
 }
+
+private const val CategoryHeaderContentType = "category_header"
+
+/**
+ * Shifts the sticky header at [index] down so it pins at the list's top content padding instead of
+ * the top of the viewport, where LazyColumn pins sticky headers regardless of padding. The next
+ * header still pushes it out as it arrives. Item offsets are measured from the end of the top
+ * padding, so the pinned position is offset 0.
+ *
+ * Runs at placement time against the layout info of the same pass, so it never lags a frame behind
+ * the scroll. The z-index keeps the header over the rows it now overlaps, as a pinned header is.
+ */
+private fun Modifier.pinBelowTopPadding(state: LazyListState, index: Int): Modifier =
+    zIndex(1f).layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) {
+            val items = state.layoutInfo.visibleItemsInfo
+            val self = items.fastFirstOrNull { it.index == index }
+            val offset =
+                if (self == null) {
+                    0
+                } else {
+                    val nextHeaderTop =
+                        items
+                            .fastFirstOrNull {
+                                it.index > index && it.contentType == CategoryHeaderContentType
+                            }
+                            ?.offset ?: Int.MAX_VALUE
+                    val pinnedTop = minOf(0, nextHeaderTop - self.size)
+                    maxOf(self.offset, pinnedTop) - self.offset
+                }
+            placeable.place(0, offset)
+        }
+    }
 
 @Composable
 internal fun CategoryHeader(category: GroceryCategory, modifier: Modifier = Modifier) {

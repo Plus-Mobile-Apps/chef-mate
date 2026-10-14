@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -62,7 +61,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -152,6 +155,7 @@ import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
 import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
@@ -233,9 +237,14 @@ fun GroceryListScreen(
             modifier = Modifier.fillMaxSize(),
             data = PlusHeaderData.None,
             scrollEnabled = false,
-            content = {
+            // The list scrolls up behind the app bar and invite banners, which frost over it as one
+            // panel.
+            drawContentBehindHeader = true,
+            headerContent = {
                 TopAppBar(
                     windowInsets = WindowInsets(0.dp),
+                    // Transparent so the container's frosted panel shows through.
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     title = {
                         PlusDropdownSelector(
                             text =
@@ -310,6 +319,9 @@ fun GroceryListScreen(
                         onReject = { bloc.onRejectInvitation(invite) },
                     )
                 }
+            },
+            content = {
+                val headerOverlap = LocalPlusHeaderOverlap.current
                 val itemLookup =
                     remember(state.groupedItems) {
                         state.groupedItems.flatMap { it.items }.associateBy { it.id }
@@ -321,10 +333,22 @@ fun GroceryListScreen(
                 val navBarInset = LocalBottomNavBarInset.current
                 val listBottomPadding = (if (showInput) inputRowHeight else 0.dp) + navBarInset
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val pullToRefreshState = rememberPullToRefreshState()
                     PullToRefreshBox(
                         isRefreshing = state.isSyncing,
                         onRefresh = bloc::onSyncClicked,
                         modifier = Modifier.fillMaxSize(),
+                        state = pullToRefreshState,
+                        // Drops below the frosted header rather than spinning behind it.
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = state.isSyncing,
+                                modifier =
+                                    Modifier.align(Alignment.TopCenter)
+                                        .padding(headerOverlap.contentPadding()),
+                            )
+                        },
                     ) {
                         val hasNoItems = state.groupedItems.isEmpty()
                         val filtersApplied =
@@ -337,14 +361,20 @@ fun GroceryListScreen(
                             EmptyGroceryListState(
                                 onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
                                 modifier =
-                                    Modifier.fillMaxSize().padding(bottom = listBottomPadding),
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            headerOverlap.contentPadding(bottom = listBottomPadding)
+                                        ),
                             )
                         } else if (showFilteredEmptyState) {
                             FilteredEmptyGroceryListState(
                                 onClearFiltersClicked = bloc::onClearFiltersClicked,
                                 onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
                                 modifier =
-                                    Modifier.fillMaxSize().padding(bottom = listBottomPadding),
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            headerOverlap.contentPadding(bottom = listBottomPadding)
+                                        ),
                             )
                         } else {
                             GroceryGroupedList(
@@ -402,7 +432,10 @@ fun GroceryListScreen(
                                         bloc::onGroceryItemDelete
                                     )
                                 },
-                                contentPadding = PaddingValues(bottom = listBottomPadding),
+                                contentPadding =
+                                    headerOverlap.contentPadding(bottom = listBottomPadding),
+                                // Aisle headers pin below the frosted header, not behind it.
+                                pinHeadersBelowTopPadding = true,
                             )
                         }
                     }
