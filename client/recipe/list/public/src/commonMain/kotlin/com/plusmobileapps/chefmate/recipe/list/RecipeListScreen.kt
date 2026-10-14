@@ -82,6 +82,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -199,6 +201,7 @@ import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.LocalRecipeWindowOpener
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
 import com.plusmobileapps.chefmate.ui.components.LocalSnackbarInset
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuArea
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuItem
@@ -215,7 +218,6 @@ import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
-import com.plusmobileapps.chefmate.ui.components.bottomNavContentPadding
 import com.plusmobileapps.chefmate.ui.text.toInlineMarkdownAnnotatedString
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import com.plusmobileapps.chefmate.util.rememberImagePickerLauncher
@@ -487,7 +489,10 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 modifier = modifier.fillMaxSize(),
                 data = headerData,
                 scrollEnabled = false,
-                content = {
+                // The list scrolls up behind the header, search bar and invite banners, which frost
+                // over it as one panel.
+                drawContentBehindHeader = true,
+                headerContent = {
                     AnimatedVisibility(
                         visible = showSearchBar,
                         enter = expandVertically(),
@@ -509,9 +514,13 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                             onDecline = { bloc.onDeclineInvite(invite.memberId) },
                         )
                     }
+                },
+                content = {
+                    val headerOverlap = LocalPlusHeaderOverlap.current
                     Row(modifier = Modifier.weight(1f)) {
                         if (showFilterSidebar) {
                             RecipeFilterSidebar(
+                                modifier = Modifier.padding(headerOverlap.contentPadding()),
                                 activeFilters = state.activeFilters,
                                 activeCategories = state.activeCategories,
                                 activeUserCategoryIds = state.activeUserCategoryIds,
@@ -537,24 +546,40 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 onClearFilters = bloc::onClearFilters,
                             )
                         }
+                        val pullToRefreshState = rememberPullToRefreshState()
                         PullToRefreshBox(
                             isRefreshing = state.isSyncing,
                             onRefresh = bloc::onSyncClicked,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
+                            state = pullToRefreshState,
+                            // Drops below the frosted header rather than spinning behind it.
+                            indicator = {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = state.isSyncing,
+                                    modifier =
+                                        Modifier.align(Alignment.TopCenter)
+                                            .padding(headerOverlap.contentPadding()),
+                                )
+                            },
                         ) {
                             when {
                                 !state.isLoading && state.totalRecipeCount == 0 -> {
                                     NoRecipesEmptyState(
                                         onBrowseClicked = bloc::onBrowseRecipesClicked,
                                         onCreateClicked = bloc::onAddRecipeClicked,
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
                                     )
                                 }
                                 state.recipes.isEmpty() && state.isSearchActive -> {
                                     SearchEmptyState(
                                         canSearchAllRecipes = !state.isAllRecipesSelected,
                                         onSearchAllRecipes = bloc::onAllRecipesSelected,
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
                                     )
                                 }
                                 state.recipes.isEmpty() && state.totalActiveFilterCount > 0 -> {
@@ -562,7 +587,9 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                         activeFilters = state.activeFilters,
                                         activeCategories = state.activeCategories,
                                         onClearFilters = bloc::onClearFilters,
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
                                     )
                                 }
                                 state.isGridView -> {
@@ -1683,12 +1710,13 @@ private fun RecipeGrid(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
         contentPadding =
-            bottomNavContentPadding(
+            LocalPlusHeaderOverlap.current.contentPadding(
                 start = 8.dp,
                 end = 8.dp,
                 top = 8.dp,
-                bottom = 8.dp + bottomContentPadding,
+                bottom = 8.dp + bottomContentPadding + LocalBottomNavBarInset.current,
             ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
@@ -1812,7 +1840,11 @@ private fun RecipeList(
     LazyColumn(
         state = state,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = bottomNavContentPadding(bottom = bottomContentPadding),
+        // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
+        contentPadding =
+            LocalPlusHeaderOverlap.current.contentPadding(
+                bottom = bottomContentPadding + LocalBottomNavBarInset.current
+            ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
             val recipe = recipes[index]
