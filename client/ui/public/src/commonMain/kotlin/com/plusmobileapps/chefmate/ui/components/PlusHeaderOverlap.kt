@@ -11,9 +11,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /**
- * How far a [PlusHeaderContainer]'s frosted header overlaps the top of its content — the header's
- * current height, which shrinks as a collapsing title collapses. Content drawn behind the header
- * (see `drawContentBehindHeader`) reserves this at its top, typically with [contentPadding].
+ * How far a [PlusHeaderContainer]'s (or [PlusNavContainer]'s) frosted header overlaps the top of
+ * its content — the header's current height, which shrinks as a collapsing title collapses. Content
+ * drawn behind the header (see `drawContentBehindHeader`) reserves this at its top, typically with
+ * [contentPadding].
  *
  * The height is measured in the container's layout pass, so read [height] only from a layout or
  * draw phase (a `graphicsLayer` block, a measure policy, a [PaddingValues] a layout reads). Reading
@@ -42,7 +43,10 @@ class PlusHeaderOverlap internal constructor(private val heightState: State<Dp>)
     }
 }
 
-/** The enclosing [PlusHeaderContainer]'s [PlusHeaderOverlap]; zero outside such a container. */
+/**
+ * The enclosing [PlusHeaderContainer]'s or [PlusNavContainer]'s [PlusHeaderOverlap]; zero outside
+ * such a container.
+ */
 val LocalPlusHeaderOverlap: ProvidableCompositionLocal<PlusHeaderOverlap> = compositionLocalOf {
     PlusHeaderOverlap.None
 }

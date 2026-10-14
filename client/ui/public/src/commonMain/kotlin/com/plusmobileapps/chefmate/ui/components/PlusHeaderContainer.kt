@@ -277,7 +277,7 @@ fun PlusHeaderContainer(
  * text field's modifier was updated while detached and the screen crashed on teardown.
  */
 @Composable
-private fun HeaderOverlayLayout(
+internal fun HeaderOverlayLayout(
     header: @Composable () -> Unit,
     onHeaderMeasured: (Dp) -> Unit,
     content: @Composable () -> Unit,

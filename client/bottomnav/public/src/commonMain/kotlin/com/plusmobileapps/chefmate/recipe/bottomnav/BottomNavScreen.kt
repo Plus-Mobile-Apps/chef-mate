@@ -116,6 +116,7 @@ import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.RECIPES
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.SETTINGS
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalNavShellTopInset
 import com.plusmobileapps.chefmate.ui.components.PlusNavRailHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.glass.AppBackdrop
 import com.plusmobileapps.chefmate.ui.components.glass.GlassDefaults
@@ -217,7 +218,11 @@ private fun SideNavContent(
                     },
             )
         },
-        content = { content(Modifier.padding(it)) },
+        content = {
+            CompositionLocalProvider(LocalNavShellTopInset provides it.calculateTopPadding()) {
+                content(Modifier.padding(it))
+            }
+        },
     )
 }
 
@@ -300,6 +305,7 @@ private fun MobileBottomNavContent(
     // overtakes it, then rides the keyboard — and on close it settles back onto the bar instead of
     // dropping to the screen edge and bouncing up once the keyboard is gone.
     val barInset = (barBlockHeight - imeBottom).coerceAtLeast(0.dp)
+    val topInset = with(density) { WindowInsets.systemBars.getTop(density).toDp() }
 
     Box(modifier = modifier.fillMaxSize()) {
         // No Scaffold here: the tab content fills the screen so it can be seen through the glass,
@@ -311,6 +317,7 @@ private fun MobileBottomNavContent(
         CompositionLocalProvider(
             LocalAppBackdrop provides backdrop,
             LocalBottomNavBarInset provides barInset,
+            LocalNavShellTopInset provides topInset,
         ) {
             content(
                 Modifier.fillMaxSize()
