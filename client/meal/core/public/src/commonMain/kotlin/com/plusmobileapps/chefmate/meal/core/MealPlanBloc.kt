@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.recipe.core.addmeal.MealPlannerRootBloc
 import com.plusmobileapps.chefmate.text.FixedString
@@ -61,6 +62,13 @@ interface MealPlanBloc : ComposeScreen {
     /** Marks the first-run coach mark with [id] as seen so it never shows again. */
     fun onCoachMarkDismissed(id: String)
 
+    fun onPlanSelectorClicked()
+
+    fun onPlanPickerDismissed()
+
+    /** Switches to the family plan with [familyId], or to the personal plan when null. */
+    fun onPlanSelected(familyId: String?)
+
     data class Model(
         val isLoading: Boolean = true,
         val isSyncing: Boolean = false,
@@ -75,6 +83,15 @@ interface MealPlanBloc : ComposeScreen {
         val pendingReplaceCookMode: ImmutableList<MealPlanItem>? = null,
         /** Id of the first-run coach mark currently allowed to show, or null when none. */
         val activeCoachMark: String? = null,
+        /** Personal/family plan switcher; null when the user has no family plans to switch to. */
+        val planSelector: PlanSelector? = null,
+    )
+
+    data class PlanSelector(
+        val families: ImmutableList<FamilyPlan>,
+        /** The selected family plan's id, or null when the personal plan is selected. */
+        val selectedFamilyId: String? = null,
+        val isPickerOpen: Boolean = false,
     )
 
     data class DayMeals(

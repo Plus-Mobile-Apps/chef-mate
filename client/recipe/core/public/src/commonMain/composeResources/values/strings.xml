@@ -77,6 +77,10 @@
     <!-- Add to Meal Plan -->
     <string name="recipe_detail_add_to_meal_plan">Add to meal plan</string>
     <string name="add_meal_plan_choose_date">Choose Date</string>
+    <string name="meal_plan_picker_personal_plan">My meals</string>
+    <string name="meal_plan_picker_family_plans">Family plans</string>
+    <string name="meal_plan_picker_selector">Choose meal plan</string>
+    <string name="meal_plan_picker_add_to">Add to</string>
     <string name="add_meal_plan_choose_meal_type">Choose Meal Type</string>
     <string name="add_meal_plan_choose_date_and_meal_type">Choose Date &amp; Meal Type</string>
     <string name="add_meal_plan_meal_type">Meal type</string>

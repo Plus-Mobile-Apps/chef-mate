@@ -2,8 +2,11 @@ package com.plusmobileapps.chefmate.recipe.core.impl.addmeal
 
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.di.Main
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
+import com.plusmobileapps.chefmate.meal.data.MealPlanScopeRepository
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import com.plusmobileapps.chefmate.util.DateTimeUtil
@@ -33,6 +36,7 @@ class ChooseDateViewModel(
     @Assisted private val recipeId: Long,
     @Main mainContext: CoroutineContext,
     private val mealPlanRepository: MealPlanRepository,
+    private val scopeRepository: MealPlanScopeRepository,
     private val recipeRepository: RecipeRepository,
     private val dateTimeUtil: DateTimeUtil,
     settings: Settings,
@@ -65,10 +69,24 @@ class ChooseDateViewModel(
                 selectedDate = initialDate,
                 formattedSelectedDate = dateTimeUtil.formatMediumDate(initialDate),
                 selectedDayMeals = mealsForDay,
+                planScope = scopeRepository.selectedScope.value,
             )
         }
         observeMeals()
         loadRecipe()
+        // The meal goes to the plan the planner is showing; switching here switches it there too.
+        scope.launch {
+            scopeRepository.selectedScope.collect { planScope ->
+                if (planScope == _state.value.planScope) return@collect
+                _state.update { it.copy(planScope = planScope) }
+                observeMeals()
+            }
+        }
+        scope.launch {
+            scopeRepository.familyPlans.collect { plans ->
+                _state.update { it.copy(familyPlans = plans) }
+            }
+        }
     }
 
     override fun onCleared() {
@@ -145,6 +163,21 @@ class ChooseDateViewModel(
         observeMeals()
     }
 
+    fun openPlanPicker() {
+        _state.update { it.copy(isPlanPickerOpen = true) }
+    }
+
+    fun dismissPlanPicker() {
+        _state.update { it.copy(isPlanPickerOpen = false) }
+    }
+
+    fun selectPlan(familyId: String?) {
+        _state.update { it.copy(isPlanPickerOpen = false) }
+        scopeRepository.select(
+            if (familyId == null) MealPlanScope.Personal else MealPlanScope.Family(familyId)
+        )
+    }
+
     fun onMealTypeSelected(mealType: MealType) {
         _state.update { it.copy(selectedMealType = mealType) }
     }
@@ -159,6 +192,7 @@ class ChooseDateViewModel(
                 recipeId = recipeId,
                 date = date.toString(),
                 mealType = currentState.selectedMealType,
+                scope = currentState.planScope,
             )
             _output.send(Output.Finished)
         }
@@ -176,21 +210,22 @@ class ChooseDateViewModel(
         observeJob = scope.launch {
             val first = _state.value.firstDayOfMonth
             val last = first.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
-            mealPlanRepository.getMealsByDateRange(first.toString(), last.toString()).collect {
-                meals ->
-                val daysWithMeals = meals.map { it.date }.toSet()
-                _state.update { current ->
-                    val selectedDayMeals =
-                        current.selectedDate?.let { date ->
-                            meals.filter { it.date == date.toString() }
-                        } ?: emptyList()
-                    current.copy(
-                        allMeals = meals,
-                        daysWithMeals = daysWithMeals,
-                        selectedDayMeals = selectedDayMeals,
-                    )
+            mealPlanRepository
+                .getMealsByDateRange(first.toString(), last.toString(), _state.value.planScope)
+                .collect { meals ->
+                    val daysWithMeals = meals.map { it.date }.toSet()
+                    _state.update { current ->
+                        val selectedDayMeals =
+                            current.selectedDate?.let { date ->
+                                meals.filter { it.date == date.toString() }
+                            } ?: emptyList()
+                        current.copy(
+                            allMeals = meals,
+                            daysWithMeals = daysWithMeals,
+                            selectedDayMeals = selectedDayMeals,
+                        )
+                    }
                 }
-            }
         }
     }
 
@@ -210,6 +245,9 @@ class ChooseDateViewModel(
         val selectedMealType: MealType = MealType.DINNER,
         val isSaving: Boolean = false,
         val recipeTitle: String = "",
+        val planScope: MealPlanScope = MealPlanScope.Personal,
+        val familyPlans: List<FamilyPlan> = emptyList(),
+        val isPlanPickerOpen: Boolean = false,
     )
 
     sealed class Output {

@@ -53,6 +53,7 @@ import chefmate.client.recipe.core.public.generated.resources.add_meal_plan_no_m
 import chefmate.client.recipe.core.public.generated.resources.add_meal_plan_save
 import chefmate.client.recipe.core.public.generated.resources.add_meal_plan_snacks
 import chefmate.client.recipe.core.public.generated.resources.add_meal_plan_today
+import chefmate.client.recipe.core.public.generated.resources.meal_plan_picker_add_to
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.text.asTextData
@@ -120,6 +121,32 @@ fun ChooseDateScreen(
                 }
             },
         ) {
+            if (state.familyPlans.isNotEmpty()) {
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .padding(
+                                horizontal = ChefMateTheme.dimens.paddingNormal,
+                                vertical = ChefMateTheme.dimens.paddingSmall,
+                            ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.meal_plan_picker_add_to),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    MealPlanSelector(
+                        families = state.familyPlans,
+                        selectedFamilyId = state.selectedFamilyId,
+                        expanded = state.isPlanPickerOpen,
+                        windowSizeClass = windowSizeClass,
+                        onClick = bloc::onPlanSelectorClicked,
+                        onDismiss = bloc::onPlanPickerDismissed,
+                        onPlanSelected = bloc::onPlanSelected,
+                    )
+                }
+            }
             if (combined) {
                 Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     ChooseDateContent(

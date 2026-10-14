@@ -10,6 +10,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc
 import com.plusmobileapps.chefmate.recipe.core.impl.addmeal.ui.previewChooseDateBloc
+import com.plusmobileapps.chefmate.recipe.core.impl.addmeal.ui.previewChooseDateBlocFamilyPlan
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
@@ -51,4 +52,26 @@ fun ChooseDateMediumScreenshot() {
 @Composable
 fun ChooseDateExpandedScreenshot() {
     ChooseDateScreenshot(bloc = previewChooseDateBloc)
+}
+
+// With family plans: "Add to" + plan selector above the calendar.
+@PreviewTest
+@Preview(showBackground = true)
+@Composable
+fun ChooseDateFamilyPlanScreenshot() {
+    ChooseDateScreenshot(bloc = previewChooseDateBlocFamilyPlan)
+}
+
+@PreviewTest
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun ChooseDateFamilyPlanDarkScreenshot() {
+    ChooseDateScreenshot(bloc = previewChooseDateBlocFamilyPlan, darkTheme = true)
+}
+
+@PreviewTest
+@Preview(showBackground = true, widthDp = 1280, heightDp = 800)
+@Composable
+fun ChooseDateFamilyPlanExpandedScreenshot() {
+    ChooseDateScreenshot(bloc = previewChooseDateBlocFamilyPlan)
 }

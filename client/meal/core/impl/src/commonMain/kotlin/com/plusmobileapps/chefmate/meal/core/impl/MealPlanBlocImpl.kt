@@ -1,5 +1,6 @@
 package com.plusmobileapps.chefmate.meal.core.impl
 
+import com.arkivanov.essenty.lifecycle.doOnResume
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.AppScope
@@ -27,6 +28,12 @@ class MealPlanBlocImpl(
 ) : MealPlanBloc, BlocContext by context {
 
     private val viewModel: MealPlanViewModel = instanceKeeper.getViewModel { viewModelFactory() }
+
+    init {
+        // On resume rather than in init so coming back to the tab picks up family changes and
+        // other members' meals.
+        lifecycle.doOnResume { viewModel.onResume() }
+    }
 
     override val state: StateFlow<MealPlanBloc.Model> =
         viewModel.state.mapState {
@@ -58,6 +65,16 @@ class MealPlanBlocImpl(
                 showDoneCookingDialog = it.showDoneCookingDialog,
                 pendingReplaceCookMode = it.pendingReplaceCookMode?.toImmutableList(),
                 activeCoachMark = it.activeCoachMark,
+                planSelector =
+                    it.familyPlans
+                        .takeIf { plans -> plans.isNotEmpty() }
+                        ?.let { plans ->
+                            MealPlanBloc.PlanSelector(
+                                families = plans.toImmutableList(),
+                                selectedFamilyId = it.planScope.familyId,
+                                isPickerOpen = it.isPlanPickerOpen,
+                            )
+                        },
             )
         }
 
@@ -139,5 +156,17 @@ class MealPlanBlocImpl(
 
     override fun onCoachMarkDismissed(id: String) {
         viewModel.dismissCoachMark(id)
+    }
+
+    override fun onPlanSelectorClicked() {
+        viewModel.openPlanPicker()
+    }
+
+    override fun onPlanPickerDismissed() {
+        viewModel.dismissPlanPicker()
+    }
+
+    override fun onPlanSelected(familyId: String?) {
+        viewModel.selectPlan(familyId)
     }
 }

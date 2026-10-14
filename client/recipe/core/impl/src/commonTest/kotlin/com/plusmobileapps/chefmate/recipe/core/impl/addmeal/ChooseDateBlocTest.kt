@@ -4,9 +4,12 @@
 package com.plusmobileapps.chefmate.recipe.core.impl.addmeal
 
 import app.cash.turbine.test
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
+import com.plusmobileapps.chefmate.meal.data.testing.FakeMealPlanScopeRepository
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
@@ -45,8 +48,10 @@ class ChooseDateBlocTest {
 
     private val repository: MealPlanRepository = mock {
         every { getMealsByDateRange("2026-04-01", "2026-04-30") } returns mealsFlow
-        everySuspend { addMeal(any(), any(), any()) } returns Unit
+        everySuspend { addMeal(any(), any(), any(), any()) } returns Unit
     }
+
+    private val scopeRepository = FakeMealPlanScopeRepository()
 
     private fun createBloc(): ChooseDateBlocImpl =
         ChooseDateBlocImpl(
@@ -58,6 +63,7 @@ class ChooseDateBlocTest {
                     recipeId = rid,
                     mainContext = context.mainContext,
                     mealPlanRepository = repository,
+                    scopeRepository = scopeRepository,
                     recipeRepository = recipeRepository,
                     dateTimeUtil = dateTimeUtil,
                     settings = settings,
@@ -212,12 +218,65 @@ class ChooseDateBlocTest {
     }
 
     @Test
+    fun WHEN_no_family_plans_THEN_plan_selector_hidden() = runTest {
+        createBloc().state.value.familyPlans shouldBe emptyList()
+    }
+
+    @Test
+    fun WHEN_planner_is_on_a_family_plan_THEN_meal_is_added_to_it() = runTest {
+        every {
+            repository.getMealsByDateRange(
+                "2026-04-01",
+                "2026-04-30",
+                MealPlanScope.Family("fam-1"),
+            )
+        } returns mealsFlow
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        scopeRepository.selectedScope.value = MealPlanScope.Family("fam-1")
+        val bloc = createBloc()
+        bloc.state.value.selectedFamilyId shouldBe "fam-1"
+
+        bloc.onDaySelected(LocalDate(2026, 4, 25))
+        bloc.onSaveClicked()
+
+        verifySuspend {
+            repository.addMeal(
+                recipeId,
+                "2026-04-25",
+                MealType.DINNER,
+                MealPlanScope.Family("fam-1"),
+            )
+        }
+    }
+
+    @Test
+    fun WHEN_plan_picked_THEN_scope_switches_and_picker_closes() = runTest {
+        every {
+            repository.getMealsByDateRange(
+                "2026-04-01",
+                "2026-04-30",
+                MealPlanScope.Family("fam-1"),
+            )
+        } returns mealsFlow
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        val bloc = createBloc()
+        bloc.onPlanSelectorClicked()
+        bloc.state.value.isPlanPickerOpen shouldBe true
+
+        bloc.onPlanSelected("fam-1")
+
+        scopeRepository.selectedScope.value shouldBe MealPlanScope.Family("fam-1")
+        bloc.state.value.selectedFamilyId shouldBe "fam-1"
+        bloc.state.value.isPlanPickerOpen shouldBe false
+    }
+
+    @Test
     fun WHEN_save_clicked_without_selected_date_THEN_does_nothing() = runTest {
         every { repository.getMealsByDateRange("2026-05-01", "2026-05-31") } returns mealsFlow
         val bloc = createBloc()
         bloc.onNextMonth()
         bloc.onSaveClicked()
-        verifySuspend(VerifyMode.not) { repository.addMeal(any(), any(), any()) }
+        verifySuspend(VerifyMode.not) { repository.addMeal(any(), any(), any(), any()) }
         output.values shouldBe emptyList()
     }
 }

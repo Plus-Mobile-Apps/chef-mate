@@ -57,6 +57,20 @@ object FeatureFlagRegistry {
             description = "Show the Manage Family entry in the More tab.",
         )
 
+    object FamilyMealPlans :
+        BooleanFlag(
+            key = "family_meal_plans",
+            defaultValue = false,
+            description = "Let the meal planner switch between the personal plan and family plans.",
+        )
+
     val all: List<FeatureFlag<*>> =
-        listOf(CookModeV2, HomeBannerText, AiChat, ScanRecipeFromPhoto, ManageFamily)
+        listOf(
+            CookModeV2,
+            HomeBannerText,
+            AiChat,
+            ScanRecipeFromPhoto,
+            ManageFamily,
+            FamilyMealPlans,
+        )
 }
