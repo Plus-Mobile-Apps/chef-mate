@@ -11,6 +11,8 @@ kotlin {
             implementation(projects.client.recipe.data.public)
             implementation(projects.client.shared)
             implementation(projects.client.auth.data.public)
+            implementation(projects.client.family.data.public)
+            implementation(projects.client.featureflag.public)
             api(projects.client.util.public)
             implementation(libs.supabase.client)
             implementation(libs.supabase.postgrest)
@@ -18,6 +20,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(projects.client.auth.data.testing)
+            implementation(projects.client.family.data.testing)
+            implementation(projects.client.featureflag.testing)
+            implementation(libs.multiplatform.settings.test)
             implementation(projects.client.recipe.data.testing)
             implementation(projects.client.util.testing)
         }

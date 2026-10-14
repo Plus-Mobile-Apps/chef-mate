@@ -14,4 +14,6 @@ data class RemoteMealPlan(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("client_id") val clientId: String? = null,
+    /** The family's id when the meal is on a family's shared plan; null for a personal meal. */
+    @SerialName("family_id") val familyId: String? = null,
 )

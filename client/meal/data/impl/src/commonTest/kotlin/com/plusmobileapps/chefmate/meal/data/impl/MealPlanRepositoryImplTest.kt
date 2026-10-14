@@ -6,6 +6,7 @@ package com.plusmobileapps.chefmate.meal.data.impl
 import com.plusmobileapps.chefmate.auth.data.testing.FakeAuthenticationRepository
 import com.plusmobileapps.chefmate.database.Database
 import com.plusmobileapps.chefmate.database.testing.createTestDatabase
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.meal.data.impl.remote.MealPlanRemoteDataSource
 import com.plusmobileapps.chefmate.meal.data.impl.remote.RemoteMealPlan
@@ -15,6 +16,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
@@ -82,6 +84,110 @@ class MealPlanRepositoryImplTest {
             db.mealPlanQueries.getById(localId).executeAsOneOrNull() shouldNotBe null
         }
 
+    @Test
+    fun addMeal_to_a_family_plan_pushes_the_family_id_and_scopes_reads() =
+        runTest(testDispatcher) {
+            fakeAuth.setAuthenticated()
+            val recipeId = insertRecipe(remoteId = "remote-recipe")
+            val repo = repository()
+
+            repo.addMeal(recipeId, "2026-10-14", MealType.DINNER, MealPlanScope.Family("fam-1"))
+            repo.addMeal(recipeId, "2026-10-14", MealType.LUNCH)
+
+            remote.upserted.map { it.familyId } shouldBe listOf("fam-1", null)
+            repo.getMealsByDate("2026-10-14", MealPlanScope.Family("fam-1")).first().map {
+                it.mealType
+            } shouldBe listOf(MealType.DINNER)
+            repo.getMealsByDate("2026-10-14").first().map { it.mealType } shouldBe
+                listOf(MealType.LUNCH)
+            repo
+                .getMealsByDateRange("2026-10-01", "2026-10-31", MealPlanScope.Family("fam-2"))
+                .first() shouldBe emptyList()
+        }
+
+    @Test
+    fun syncWithRemote_pulls_another_members_family_meal_with_its_real_owner() =
+        runTest(testDispatcher) {
+            insertRecipe(remoteId = "remote-recipe")
+            remote.fetchResult =
+                listOf(
+                    RemoteMealPlan(
+                        id = "remote-meal-other",
+                        ownerId = "other-member",
+                        recipeId = "remote-recipe",
+                        date = "2026-10-14",
+                        mealType = MealType.DINNER.name,
+                        familyId = "fam-1",
+                    )
+                )
+            val repo = repository()
+            fakeAuth.setAuthenticated()
+
+            val row = db.mealPlanQueries.getByRemoteId("remote-meal-other").executeAsOne()
+            row.ownerId shouldBe "other-member"
+            row.familyId shouldBe "fam-1"
+            repo
+                .getMealsByDate("2026-10-14", MealPlanScope.Family("fam-1"))
+                .first()
+                .single()
+                .familyId shouldBe "fam-1"
+            repo.getMealsByDate("2026-10-14").first() shouldBe emptyList()
+        }
+
+    @Test
+    fun syncWithRemote_moves_a_meal_to_personal_when_its_family_is_deleted() =
+        runTest(testDispatcher) {
+            fakeAuth.setAuthenticated()
+            val recipeId = insertRecipe(remoteId = "remote-recipe")
+            val repo = repository()
+            repo.addMeal(recipeId, "2026-10-14", MealType.DINNER, MealPlanScope.Family("fam-1"))
+            val meal = db.mealPlanQueries.getSyncedRemoteIds().executeAsOne()
+
+            // The family was deleted: the server set family_id to NULL on the creator's meal.
+            remote.fetchResult =
+                listOf(
+                    RemoteMealPlan(
+                        id = meal.remoteId,
+                        ownerId = "test-id",
+                        recipeId = "remote-recipe",
+                        date = "2026-10-14",
+                        mealType = MealType.DINNER.name,
+                        familyId = null,
+                    )
+                )
+            repo.syncAllUnsynced()
+
+            db.mealPlanQueries.getById(meal.id).executeAsOne().familyId shouldBe null
+            repo.getMealsByDate("2026-10-14").first().size shouldBe 1
+        }
+
+    @Test
+    fun syncWithRemote_prunes_family_meals_after_leaving_the_family() =
+        runTest(testDispatcher) {
+            insertRecipe(remoteId = "remote-recipe")
+            remote.fetchResult =
+                listOf(
+                    RemoteMealPlan(
+                        id = "remote-meal-other",
+                        ownerId = "other-member",
+                        recipeId = "remote-recipe",
+                        date = "2026-10-14",
+                        mealType = MealType.DINNER.name,
+                        familyId = "fam-1",
+                    )
+                )
+            val repo = repository()
+            fakeAuth.setAuthenticated()
+            db.mealPlanQueries.getByRemoteId("remote-meal-other").executeAsOneOrNull() shouldNotBe
+                null
+
+            // Left the family: RLS no longer returns its meals.
+            remote.fetchResult = emptyList()
+            repo.syncAllUnsynced()
+
+            db.mealPlanQueries.getByRemoteId("remote-meal-other").executeAsOneOrNull() shouldBe null
+        }
+
     private fun insertRecipe(remoteId: String): Long {
         db.recipeQueries.create(
             title = "Chili",
@@ -111,15 +217,17 @@ class MealPlanRepositoryImplTest {
     private class StubMealPlanRemote : MealPlanRemoteDataSource {
         var fetchResult: List<RemoteMealPlan> = emptyList()
         var upsertFailure: (() -> Throwable)? = null
+        val upserted = mutableListOf<RemoteMealPlan>()
         private var counter = 0
 
         override suspend fun upsertMealPlan(mealPlan: RemoteMealPlan): RemoteMealPlan {
             upsertFailure?.invoke()?.let { throw it }
+            upserted += mealPlan
             return mealPlan.copy(id = mealPlan.id ?: "remote-meal-${++counter}")
         }
 
         override suspend fun deleteMealPlan(remoteId: String) = Unit
 
-        override suspend fun fetchAllMealPlans(ownerId: String): List<RemoteMealPlan> = fetchResult
+        override suspend fun fetchAccessibleMealPlans(): List<RemoteMealPlan> = fetchResult
     }
 }

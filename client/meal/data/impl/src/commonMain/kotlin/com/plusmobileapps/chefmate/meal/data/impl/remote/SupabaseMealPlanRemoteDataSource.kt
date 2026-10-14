@@ -28,9 +28,8 @@ class SupabaseMealPlanRemoteDataSource(private val supabaseClient: SupabaseClien
         supabaseClient.from("meal_plans").delete { filter { eq("id", remoteId) } }
     }
 
-    override suspend fun fetchAllMealPlans(ownerId: String): List<RemoteMealPlan> =
-        supabaseClient
-            .from("meal_plans")
-            .select { filter { eq("owner_id", ownerId) } }
-            .decodeList<RemoteMealPlan>()
+    override suspend fun fetchAccessibleMealPlans(): List<RemoteMealPlan> =
+        // RLS scopes the rows to owned meals plus meals on the caller's families' plans. Unlike
+        // recipes there's no public-read policy on meal_plans, so a blanket select is exact.
+        supabaseClient.from("meal_plans").select().decodeList<RemoteMealPlan>()
 }
