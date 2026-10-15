@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Source of truth for whether the user has an active ChefMate Premium subscription.
  *
- * Deliberately read-only: entitlement is granted by the store (App Store / Play), never by the app.
- * The only writer today is Developer Settings, which flips the underlying override — see
- * `StubSubscriptionRepository`. When a real billing SDK lands it replaces that implementation and
- * every caller here stays unchanged.
+ * Deliberately read-only: entitlement is granted by the store (App Store / Play via RevenueCat),
+ * never by the app — purchases happen in `PremiumRequiredDialog`'s paywall and surface here through
+ * the SDK's customer-info updates. See `RevenueCatSubscriptionRepository`, which also honors the
+ * Developer Settings override in debug builds.
  */
 interface SubscriptionRepository {
     /**
