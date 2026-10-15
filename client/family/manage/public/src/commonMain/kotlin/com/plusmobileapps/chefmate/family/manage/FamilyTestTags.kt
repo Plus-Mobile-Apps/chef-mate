@@ -20,4 +20,7 @@ object FamilyDetailTestTags {
     const val GROCERY_LIST_ROW = "family_detail_grocery_list_row"
     const val NEW_GROCERY_LIST_BUTTON = "family_detail_new_grocery_list_button"
     const val GROCERY_LIST_NAME_FIELD = "family_detail_grocery_list_name_field"
+    const val RECIPE_BOOK_ROW = "family_detail_recipe_book_row"
+    const val NEW_RECIPE_BOOK_BUTTON = "family_detail_new_recipe_book_button"
+    const val RECIPE_BOOK_NAME_FIELD = "family_detail_recipe_book_name_field"
 }

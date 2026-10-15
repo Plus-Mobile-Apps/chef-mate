@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import chefmate.client.family.manage.public.generated.resources.Res
 import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_load_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_error
+import chefmate.client.family.manage.public.generated.resources.family_detail_recipe_books_load_error
 import chefmate.client.family.manage.public.generated.resources.family_list_load_error
 import com.plusmobileapps.chefmate.family.data.Family
 import com.plusmobileapps.chefmate.family.data.FamilyMember
@@ -14,6 +15,7 @@ import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.MemberItem
 import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
+import com.plusmobileapps.chefmate.recipebook.data.FamilyRecipeBook
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,6 +78,14 @@ private fun familyDetailBloc(model: FamilyDetailBloc.Model): FamilyDetailBloc =
         override fun onDeleteGroceryListClicked(listId: String) = Unit
 
         override fun onGroceryListNameChanged(name: String) = Unit
+
+        override fun onCreateRecipeBookClicked() = Unit
+
+        override fun onRenameRecipeBookClicked(bookId: String) = Unit
+
+        override fun onDeleteRecipeBookClicked(bookId: String) = Unit
+
+        override fun onRecipeBookNameChanged(name: String) = Unit
 
         override fun onDialogConfirmed() = Unit
 
@@ -175,6 +185,24 @@ private fun detailModelWithGroceryLists(
             showGroceryLists = true,
             groceryLists = lists,
             canManageGroceryLists = FamilyPermissions.canManageGroceryLists(role),
+        )
+
+private val sampleRecipeBooks =
+    listOf(
+        FamilyRecipeBook(id = "b1", name = "Sunday dinners", recipeCount = 8),
+        FamilyRecipeBook(id = "b2", name = "Grandma’s baking", recipeCount = 1),
+    )
+
+/** [detailModel] with the family recipe books section showing [books]. */
+private fun detailModelWithRecipeBooks(
+    role: FamilyRole,
+    books: List<FamilyRecipeBook> = sampleRecipeBooks,
+): FamilyDetailBloc.Model =
+    detailModel(role)
+        .copy(
+            showRecipeBooks = true,
+            recipeBooks = books,
+            canManageRecipeBooks = FamilyPermissions.canManageRecipeBooks(role),
         )
 
 val previewFamilyListBloc: FamilyListBloc =
@@ -303,4 +331,56 @@ internal fun FamilyDetailGroceryListsOwnerPreview() {
 @Composable
 internal fun FamilyDetailGroceryListsMemberPreview() {
     ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsMemberBloc) }
+}
+
+/** An owner managing the family's recipe books: rename/delete menus and "New recipe book". */
+val previewFamilyDetailRecipeBooksOwnerBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithRecipeBooks(FamilyRole.OWNER))
+
+/** A member sees the family's books but can't manage them. */
+val previewFamilyDetailRecipeBooksMemberBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithRecipeBooks(FamilyRole.MEMBER))
+
+val previewFamilyDetailRecipeBooksEmptyBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithRecipeBooks(FamilyRole.ADMIN, books = emptyList()))
+
+val previewFamilyDetailRecipeBooksErrorBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithRecipeBooks(FamilyRole.OWNER, books = emptyList())
+            .copy(recipeBooksError = Res.string.family_detail_recipe_books_load_error.asTextData())
+    )
+
+/** Both shared sections at once, as an owner sees them with every family flag on. */
+val previewFamilyDetailSharedSectionsBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithRecipeBooks(FamilyRole.OWNER)
+            .copy(
+                showGroceryLists = true,
+                groceryLists = sampleGroceryLists,
+                canManageGroceryLists = true,
+            )
+    )
+
+val previewFamilyDetailCreateRecipeBookDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithRecipeBooks(FamilyRole.OWNER)
+            .copy(dialog = Dialog.CreateRecipeBook(name = "Holiday baking"))
+    )
+
+val previewFamilyDetailDeleteRecipeBookDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithRecipeBooks(FamilyRole.OWNER)
+            .copy(dialog = Dialog.DeleteRecipeBook(sampleRecipeBooks.first()))
+    )
+
+@Preview
+@Composable
+internal fun FamilyDetailRecipeBooksOwnerPreview() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksOwnerBloc) }
+}
+
+@Preview
+@Composable
+internal fun FamilyDetailRecipeBooksMemberPreview() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksMemberBloc) }
 }

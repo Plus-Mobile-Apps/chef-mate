@@ -7,6 +7,7 @@ import chefmate.client.family.manage.public.generated.resources.family_detail_in
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_sent
 import chefmate.client.family.manage.public.generated.resources.family_detail_load_error
+import chefmate.client.family.manage.public.generated.resources.family_detail_recipe_books_load_error
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.family.data.FamilyMember
@@ -21,6 +22,8 @@ import com.plusmobileapps.chefmate.featureflag.FeatureFlags
 import com.plusmobileapps.chefmate.featureflag.isEnabled
 import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryListRepository
+import com.plusmobileapps.chefmate.recipebook.data.FamilyRecipeBook
+import com.plusmobileapps.chefmate.recipebook.data.FamilyRecipeBookRepository
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.ResourceString
@@ -44,11 +47,13 @@ class FamilyDetailViewModel(
     @Main mainContext: CoroutineContext,
     private val repository: FamilyRepository,
     private val groceryListRepository: FamilyGroceryListRepository,
+    private val recipeBookRepository: FamilyRecipeBookRepository,
     private val toastService: ToastService,
     featureFlags: FeatureFlags,
 ) : ViewModel(mainContext) {
 
     private val groceryListsEnabled = featureFlags.isEnabled(FeatureFlagRegistry.FamilyGroceryLists)
+    private val recipeBooksEnabled = featureFlags.isEnabled(FeatureFlagRegistry.FamilyRecipeBooks)
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
@@ -76,10 +81,12 @@ class FamilyDetailViewModel(
                 }
                 val rows = repository.getMembers(familyId)
                 val groceryLists = loadGroceryLists()
+                val recipeBooks = loadRecipeBooks()
                 _state.update { state ->
                     state
                         .loaded(name = family.name, role = family.myRole, rows = rows)
                         .withGroceryLists(groceryLists)
+                        .withRecipeBooks(recipeBooks)
                 }
             } catch (_: Throwable) {
                 _state.update {
@@ -210,6 +217,35 @@ class FamilyDetailViewModel(
         }
     }
 
+    fun onCreateRecipeBookClicked() {
+        if (!_state.value.canManageRecipeBooks) return
+        _state.update { it.copy(dialog = Dialog.CreateRecipeBook()) }
+    }
+
+    fun onRenameRecipeBookClicked(bookId: String) {
+        val current = _state.value
+        if (!current.canManageRecipeBooks) return
+        val book = current.recipeBooks.firstOrNull { it.id == bookId } ?: return
+        _state.update { it.copy(dialog = Dialog.RenameRecipeBook(book, book.name)) }
+    }
+
+    fun onDeleteRecipeBookClicked(bookId: String) {
+        val current = _state.value
+        if (!current.canManageRecipeBooks) return
+        val book = current.recipeBooks.firstOrNull { it.id == bookId } ?: return
+        _state.update { it.copy(dialog = Dialog.DeleteRecipeBook(book)) }
+    }
+
+    fun onRecipeBookNameChanged(name: String) {
+        _state.update { state ->
+            when (val dialog = state.dialog) {
+                is Dialog.CreateRecipeBook -> state.copy(dialog = dialog.copy(name = name))
+                is Dialog.RenameRecipeBook -> state.copy(dialog = dialog.copy(name = name))
+                else -> state
+            }
+        }
+    }
+
     fun onDialogDismissed() {
         _state.update { it.copy(dialog = null, inviteError = null) }
     }
@@ -225,6 +261,8 @@ class FamilyDetailViewModel(
                 is Dialog.Rename -> dialog.canConfirm
                 is Dialog.CreateGroceryList -> dialog.canConfirm
                 is Dialog.RenameGroceryList -> dialog.canConfirm
+                is Dialog.CreateRecipeBook -> dialog.canConfirm
+                is Dialog.RenameRecipeBook -> dialog.canConfirm
                 else -> true
             }
         if (!canConfirm) return
@@ -244,14 +282,19 @@ class FamilyDetailViewModel(
                     is Dialog.RenameGroceryList ->
                         groceryListRepository.renameList(dialog.list.id, dialog.name.trim())
                     is Dialog.DeleteGroceryList -> groceryListRepository.deleteList(dialog.list.id)
+                    is Dialog.CreateRecipeBook ->
+                        recipeBookRepository.createBook(familyId, dialog.name.trim())
+                    is Dialog.RenameRecipeBook ->
+                        recipeBookRepository.renameBook(dialog.book.id, dialog.name.trim())
+                    is Dialog.DeleteRecipeBook -> recipeBookRepository.deleteBook(dialog.book.id)
                     // Handled by onInviteClicked above.
                     Dialog.Invite -> Unit
                 }
                 _state.update { it.copy(isWorking = false) }
                 if (closesScreen) {
-                    // Drop the family's lists from the grocery list now rather than on the next
-                    // sync.
+                    // Drop the family's lists and books now rather than on the next sync.
                     groceryListRepository.refreshLocalLists()
+                    recipeBookRepository.refreshLocalBooks()
                     onClosed()
                 } else {
                     load()
@@ -271,6 +314,20 @@ class FamilyDetailViewModel(
         if (!groceryListsEnabled.value) return null
         return try {
             Result.success(groceryListRepository.getLists(familyId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * The family's recipe books, or null when the section is off. Fails like [loadGroceryLists].
+     */
+    private suspend fun loadRecipeBooks(): Result<List<FamilyRecipeBook>>? {
+        if (!recipeBooksEnabled.value) return null
+        return try {
+            Result.success(recipeBookRepository.getBooks(familyId))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -318,6 +375,10 @@ class FamilyDetailViewModel(
         val groceryLists: List<FamilyGroceryList> = emptyList(),
         val groceryListsError: TextData? = null,
         val canManageGroceryLists: Boolean = false,
+        val showRecipeBooks: Boolean = false,
+        val recipeBooks: List<FamilyRecipeBook> = emptyList(),
+        val recipeBooksError: TextData? = null,
+        val canManageRecipeBooks: Boolean = false,
     ) {
         val canInvite: Boolean
             get() = invitableRoles.isNotEmpty()
@@ -351,6 +412,7 @@ class FamilyDetailViewModel(
                 canLeave = FamilyPermissions.canLeave(role),
                 canDelete = FamilyPermissions.canDelete(role),
                 canManageGroceryLists = FamilyPermissions.canManageGroceryLists(role),
+                canManageRecipeBooks = FamilyPermissions.canManageRecipeBooks(role),
                 // Keep whatever the user has already picked if it's still offered; otherwise fall
                 // back to the first role they may invite as.
                 inviteRole =
@@ -378,6 +440,26 @@ class FamilyDetailViewModel(
                     showGroceryLists = true,
                     groceryListsError =
                         ResourceString(Res.string.family_detail_grocery_lists_load_error),
+                )
+        }
+
+    /** Folds the recipe books load into the state; null means the section is off. */
+    private fun State.withRecipeBooks(result: Result<List<FamilyRecipeBook>>?): State =
+        when {
+            result == null ->
+                copy(showRecipeBooks = false, recipeBooks = emptyList(), recipeBooksError = null)
+            result.isSuccess ->
+                copy(
+                    showRecipeBooks = true,
+                    recipeBooks = result.getOrThrow(),
+                    recipeBooksError = null,
+                )
+            // Keep the last books we had so a flaky reload doesn't blank the section.
+            else ->
+                copy(
+                    showRecipeBooks = true,
+                    recipeBooksError =
+                        ResourceString(Res.string.family_detail_recipe_books_load_error),
                 )
         }
 

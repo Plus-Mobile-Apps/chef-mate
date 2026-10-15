@@ -72,4 +72,18 @@
     <string name="family_detail_grocery_list_rename_title">Rename grocery list</string>
     <string name="family_detail_grocery_list_delete_title">Delete grocery list?</string>
     <string name="family_detail_grocery_list_delete_message">“{name}” and its items will be deleted for everyone in the family.</string>
+    <string name="family_detail_recipe_books">Recipe books</string>
+    <string name="family_detail_recipe_books_hint">Everyone in the family can read these books and add their own recipes.</string>
+    <string name="family_detail_recipe_books_empty">No shared recipe books yet.</string>
+    <string name="family_detail_recipe_books_load_error">Couldn’t load the family’s recipe books.</string>
+    <plurals name="family_detail_recipe_book_recipes">
+        <item quantity="one">{quantity} recipe</item>
+        <item quantity="other">{quantity} recipes</item>
+    </plurals>
+    <string name="family_detail_recipe_book_new">New recipe book</string>
+    <string name="family_detail_recipe_book_name_label">Book name</string>
+    <string name="family_detail_recipe_book_create_title">New recipe book</string>
+    <string name="family_detail_recipe_book_rename_title">Rename recipe book</string>
+    <string name="family_detail_recipe_book_delete_title">Delete recipe book?</string>
+    <string name="family_detail_recipe_book_delete_message">“{name}” will be deleted for everyone in the family. The recipes in it stay with the people who added them.</string>
 </resources>

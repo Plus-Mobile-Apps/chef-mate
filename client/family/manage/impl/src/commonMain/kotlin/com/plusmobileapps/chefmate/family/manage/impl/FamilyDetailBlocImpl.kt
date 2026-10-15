@@ -53,6 +53,10 @@ class FamilyDetailBlocImpl(
                 groceryLists = it.groceryLists,
                 groceryListsError = it.groceryListsError,
                 canManageGroceryLists = it.canManageGroceryLists,
+                showRecipeBooks = it.showRecipeBooks,
+                recipeBooks = it.recipeBooks,
+                recipeBooksError = it.recipeBooksError,
+                canManageRecipeBooks = it.canManageRecipeBooks,
             )
         }
 
@@ -93,6 +97,16 @@ class FamilyDetailBlocImpl(
         viewModel.onDeleteGroceryListClicked(listId)
 
     override fun onGroceryListNameChanged(name: String) = viewModel.onGroceryListNameChanged(name)
+
+    override fun onCreateRecipeBookClicked() = viewModel.onCreateRecipeBookClicked()
+
+    override fun onRenameRecipeBookClicked(bookId: String) =
+        viewModel.onRenameRecipeBookClicked(bookId)
+
+    override fun onDeleteRecipeBookClicked(bookId: String) =
+        viewModel.onDeleteRecipeBookClicked(bookId)
+
+    override fun onRecipeBookNameChanged(name: String) = viewModel.onRecipeBookNameChanged(name)
 
     override fun onDialogConfirmed() = viewModel.onDialogConfirmed()
 

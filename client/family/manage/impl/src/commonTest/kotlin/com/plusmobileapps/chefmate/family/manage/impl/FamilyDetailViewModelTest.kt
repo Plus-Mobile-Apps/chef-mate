@@ -11,6 +11,8 @@ import com.plusmobileapps.chefmate.featureflag.FeatureFlagRegistry
 import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeFamilyGroceryListRepository
+import com.plusmobileapps.chefmate.recipebook.data.FamilyRecipeBook
+import com.plusmobileapps.chefmate.recipebook.data.testing.FakeFamilyRecipeBookRepository
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -24,8 +26,14 @@ class FamilyDetailViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val toastService = FakeToastService()
     private val groceryLists = FakeFamilyGroceryListRepository()
+    private val recipeBooks = FakeFamilyRecipeBookRepository()
     private val featureFlags =
-        FakeFeatureFlags(mapOf(FeatureFlagRegistry.FamilyGroceryLists to true))
+        FakeFeatureFlags(
+            mapOf(
+                FeatureFlagRegistry.FamilyGroceryLists to true,
+                FeatureFlagRegistry.FamilyRecipeBooks to true,
+            )
+        )
 
     private fun viewModel(
         repository: FakeFamilyRepository,
@@ -38,6 +46,7 @@ class FamilyDetailViewModelTest {
             mainContext = testDispatcher,
             repository = repository,
             groceryListRepository = groceryLists,
+            recipeBookRepository = recipeBooks,
             toastService = toastService,
             featureFlags = featureFlags,
         )
@@ -337,6 +346,7 @@ class FamilyDetailViewModelTest {
             closed shouldBe true
             repository.getFamilies() shouldBe emptyList()
             groceryLists.refreshCount shouldBe 1
+            recipeBooks.refreshCount shouldBe 1
         }
 
     @Test
@@ -583,5 +593,144 @@ class FamilyDetailViewModelTest {
             vm.onInviteSomeoneClicked()
 
             vm.state.value.dialog shouldBe null
+        }
+
+    @Test
+    fun the_family_recipe_books_load_with_the_family() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            recipeBooks.books[familyId] = mutableListOf(FamilyRecipeBook("b1", "Dinners", 3))
+
+            val vm = viewModel(repository, familyId)
+
+            val state = vm.state.value
+            state.showRecipeBooks shouldBe true
+            state.recipeBooks.map { it.name } shouldBe listOf("Dinners")
+            state.canManageRecipeBooks shouldBe true
+        }
+
+    @Test
+    fun the_recipe_books_section_is_hidden_when_the_flag_is_off() =
+        runTest(testDispatcher) {
+            featureFlags.set(FeatureFlagRegistry.FamilyRecipeBooks, false)
+            val (repository, familyId) = ownedFamily()
+            recipeBooks.books[familyId] = mutableListOf(FamilyRecipeBook("b1", "Dinners"))
+
+            val vm = viewModel(repository, familyId)
+
+            vm.state.value.showRecipeBooks shouldBe false
+            vm.state.value.recipeBooks shouldBe emptyList()
+            // The grocery section is flagged separately.
+            vm.state.value.showGroceryLists shouldBe true
+        }
+
+    @Test
+    fun a_recipe_book_failure_only_errors_the_section() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            recipeBooks.error = IllegalStateException("offline")
+
+            val vm = viewModel(repository, familyId)
+
+            val state = vm.state.value
+            state.loadError shouldBe null
+            state.members.size shouldBe 3
+            state.showRecipeBooks shouldBe true
+            state.recipeBooksError shouldNotBe null
+            state.groceryListsError shouldBe null
+        }
+
+    @Test
+    fun a_member_sees_the_books_but_cannot_manage_them() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = memberFamily()
+            recipeBooks.books[familyId] = mutableListOf(FamilyRecipeBook("b1", "Dinners"))
+            val vm = viewModel(repository, familyId)
+
+            vm.state.value.recipeBooks.size shouldBe 1
+            vm.state.value.canManageRecipeBooks shouldBe false
+
+            vm.onCreateRecipeBookClicked()
+            vm.onRenameRecipeBookClicked("b1")
+            vm.onDeleteRecipeBookClicked("b1")
+
+            vm.state.value.dialog shouldBe null
+        }
+
+    @Test
+    fun creating_a_recipe_book_adds_it_to_the_family() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onCreateRecipeBookClicked()
+            vm.state.value.dialog shouldBe Dialog.CreateRecipeBook()
+            vm.onRecipeBookNameChanged("  Holiday baking ")
+            vm.onDialogConfirmed()
+
+            vm.state.value.dialog shouldBe null
+            vm.state.value.recipeBooks.map { it.name } shouldBe listOf("Holiday baking")
+        }
+
+    @Test
+    fun a_blank_recipe_book_name_is_refused() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onCreateRecipeBookClicked()
+            vm.onRecipeBookNameChanged("   ")
+            vm.onDialogConfirmed()
+
+            vm.state.value.dialog shouldNotBe null
+            recipeBooks.getBooks(familyId) shouldBe emptyList()
+        }
+
+    @Test
+    fun renaming_a_recipe_book_starts_from_its_current_name() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            recipeBooks.books[familyId] = mutableListOf(FamilyRecipeBook("b1", "Dinners"))
+            val vm = viewModel(repository, familyId)
+
+            vm.onRenameRecipeBookClicked("b1")
+            val dialog = vm.state.value.dialog as Dialog.RenameRecipeBook
+            dialog.name shouldBe "Dinners"
+            dialog.canConfirm shouldBe false
+
+            vm.onRecipeBookNameChanged("Sunday dinners")
+            vm.onDialogConfirmed()
+
+            vm.state.value.recipeBooks.map { it.name } shouldBe listOf("Sunday dinners")
+        }
+
+    @Test
+    fun deleting_a_recipe_book_asks_first_and_then_drops_it() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            recipeBooks.books[familyId] =
+                mutableListOf(FamilyRecipeBook("b1", "Dinners"), FamilyRecipeBook("b2", "Baking"))
+            val vm = viewModel(repository, familyId)
+
+            vm.onDeleteRecipeBookClicked("b1")
+            (vm.state.value.dialog as Dialog.DeleteRecipeBook).book.id shouldBe "b1"
+            vm.onDialogConfirmed()
+
+            vm.state.value.recipeBooks.map { it.id } shouldBe listOf("b2")
+        }
+
+    @Test
+    fun a_failed_recipe_book_action_toasts() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            recipeBooks.error = IllegalStateException("forbidden")
+            vm.onCreateRecipeBookClicked()
+            vm.onRecipeBookNameChanged("Dinners")
+            vm.onDialogConfirmed()
+
+            vm.state.value.isWorking shouldBe false
+            toastService.shown.size shouldBe 1
         }
 }
