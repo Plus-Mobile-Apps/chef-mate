@@ -141,7 +141,9 @@ class WatchDataBridge(
     }
 
     private fun encode(listToItems: List<Pair<GroceryListModel, List<GroceryItem>>>): String {
-        val lists = listToItems.map { (list, _) -> WatchListDto(list.id, list.name, list.isShared) }
+        val lists = listToItems.map { (list, _) ->
+            WatchListDto(list.id, list.name, list.isShared || list.isFamily)
+        }
         val items = listToItems.flatMap { (list, items) ->
             items.map {
                 WatchItemDto(

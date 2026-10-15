@@ -114,6 +114,7 @@ import chefmate.client.grocery.core.public.generated.resources.grocery_delete_pu
 import chefmate.client.grocery.core.public.generated.resources.grocery_detail
 import chefmate.client.grocery.core.public.generated.resources.grocery_done
 import chefmate.client.grocery.core.public.generated.resources.grocery_edit_list
+import chefmate.client.grocery.core.public.generated.resources.grocery_family_lists_fallback
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter_all
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter_by
@@ -755,8 +756,9 @@ private fun ColumnScope.GroceryListSelectorContent(
     onCreateListClicked: () -> Unit,
     onEditListClicked: (GroceryListModel) -> Unit,
 ) {
-    val myLists = state.lists.filter { !it.isShared }
+    val myLists = state.lists.filter { !it.isShared && !it.isFamily }
     val sharedLists = state.lists.filter { it.isShared }
+    val familyLists = state.lists.filter { it.isFamily }.groupBy { it.familyId }
 
     Text(
         text = stringResource(Res.string.grocery_my_lists),
@@ -786,6 +788,26 @@ private fun ColumnScope.GroceryListSelectorContent(
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         },
     )
+    // One section per family, titled with the family's name. Family lists are managed from Manage
+    // Family, so they offer no edit action here.
+    familyLists.values.forEach { lists ->
+        HorizontalDivider()
+        Text(
+            text =
+                lists.first().familyName
+                    ?: stringResource(Res.string.grocery_family_lists_fallback),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        lists.forEach { list ->
+            GroceryListSelectorItem(
+                list = list,
+                isSelected = list.id == state.selectedList?.id,
+                onListSelected = onListSelected,
+                onEditListClicked = null,
+            )
+        }
+    }
     if (sharedLists.isNotEmpty()) {
         HorizontalDivider()
         Text(
@@ -1233,7 +1255,8 @@ private fun GroceryListSelectorItem(
     list: GroceryListModel,
     isSelected: Boolean,
     onListSelected: (GroceryListModel) -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
+    /** Null hides the edit action. */
+    onEditListClicked: ((GroceryListModel) -> Unit)?,
 ) {
     ListItem(
         headlineContent = {
@@ -1258,14 +1281,17 @@ private fun GroceryListSelectorItem(
             }
         },
         modifier = Modifier.clickable { onListSelected(list) },
-        trailingContent = {
-            IconButton(onClick = { onEditListClicked(list) }) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(Res.string.grocery_edit_list),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        },
+        trailingContent =
+            onEditListClicked?.let { onEdit ->
+                {
+                    IconButton(onClick = { onEdit(list) }) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = stringResource(Res.string.grocery_edit_list),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            },
     )
 }
