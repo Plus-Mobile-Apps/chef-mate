@@ -30,6 +30,9 @@
     <string name="onboarding_grocery_lists_title">Shop together with shared lists</string>
     <string name="onboarding_grocery_lists_message">Keep more than one grocery list — one for the week, one for a party, one for the hardware run. Share a list with family or roommates and everyone’s changes stay in sync as you shop.</string>
 
+    <string name="onboarding_family_sharing_title">Plan, shop, and cook as a family</string>
+    <string name="onboarding_family_sharing_message">Start a family from Manage Family in the More tab and invite the people you cook with. Plan meals together on a family meal plan, shop from the same family grocery lists, and collect everyone’s favorites in family recipe books — changes show up for the whole family.</string>
+
     <string name="onboarding_start_cooking_title">You’re all set</string>
     <string name="onboarding_start_cooking_message">That’s the whole tour. Save your favorite recipes, plan out your week, and build grocery lists that keep you organized — all from one app. Jump in whenever you’re ready; you can revisit these features any time from the app.</string>
     <string name="onboarding_start_cooking_button">Start cooking</string>

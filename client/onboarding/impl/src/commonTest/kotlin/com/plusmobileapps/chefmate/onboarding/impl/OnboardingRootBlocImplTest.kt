@@ -7,6 +7,7 @@ import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.OnboardingRepository
 import com.plusmobileapps.chefmate.onboarding.AddToGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.CookModeBloc
+import com.plusmobileapps.chefmate.onboarding.FamilySharingBloc
 import com.plusmobileapps.chefmate.onboarding.GroceryListsBloc
 import com.plusmobileapps.chefmate.onboarding.MealPlanningBloc
 import com.plusmobileapps.chefmate.onboarding.OnboardingRootBloc
@@ -35,6 +36,7 @@ class OnboardingRootBlocImplTest {
     var cookModeOutput: Consumer<CookModeBloc.Output> = Consumer {}
     var recipeBooksOutput: Consumer<RecipeBooksBloc.Output> = Consumer {}
     var groceryListsOutput: Consumer<GroceryListsBloc.Output> = Consumer {}
+    var familySharingOutput: Consumer<FamilySharingBloc.Output> = Consumer {}
     var startCookingOutput: Consumer<StartCookingBloc.Output> = Consumer {}
     var startCookingShowSignUp: Boolean? = null
 
@@ -83,6 +85,10 @@ class OnboardingRootBlocImplTest {
                 groceryListsOutput = output
                 mock()
             },
+            familySharing = { _, output ->
+                familySharingOutput = output
+                mock()
+            },
             startCooking = { _, showSignUp, output ->
                 startCookingShowSignUp = showSignUp
                 startCookingOutput = output
@@ -104,6 +110,7 @@ class OnboardingRootBlocImplTest {
         cookModeOutput.onNext(CookModeBloc.Output.Next)
         recipeBooksOutput.onNext(RecipeBooksBloc.Output.Next)
         groceryListsOutput.onNext(GroceryListsBloc.Output.Next)
+        familySharingOutput.onNext(FamilySharingBloc.Output.Next)
     }
 
     @Test
@@ -136,6 +143,9 @@ class OnboardingRootBlocImplTest {
         bloc.instance() should instanceOf<OnboardingRootBloc.Child.GroceryLists>()
 
         groceryListsOutput.onNext(GroceryListsBloc.Output.Next)
+        bloc.instance() should instanceOf<OnboardingRootBloc.Child.FamilySharing>()
+
+        familySharingOutput.onNext(FamilySharingBloc.Output.Next)
         bloc.instance() should instanceOf<OnboardingRootBloc.Child.StartCooking>()
     }
 
