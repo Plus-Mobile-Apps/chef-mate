@@ -17,6 +17,7 @@ class TestingConventionPlugin : Plugin<Project> {
 fun Project.applyTesting(enableDatabaseTesting: Boolean = false) {
     pluginManager.apply(libs.plugins.ksp.get().pluginId)
     pluginManager.apply(libs.plugins.mokkery.get().pluginId)
+    linkSwiftCompatibilityLibsIntoIosTests()
 
     extensions.configure<KotlinMultiplatformExtension> {
         if (enableDatabaseTesting) {
