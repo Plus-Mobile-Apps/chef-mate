@@ -56,6 +56,27 @@ class ManageFamilyNavigationUiTest {
         }
 
     @Test
+    fun an_owner_invites_someone_from_the_members_header_dialog() =
+        runRootBlocTest(
+            beforeContent = { app ->
+                app.testFeatureFlags.set(FeatureFlagRegistry.ManageFamily, true)
+                app.testFamilyRepository.seedFamily(name = "The Smiths", myRole = FamilyRole.OWNER)
+            }
+        ) {
+            bottomNav().clickMoreTab()
+            more().awaitDisplayed().clickManageFamilyRow()
+            familyList().awaitDisplayed().openFamily("The Smiths")
+
+            familyDetail()
+                .awaitDisplayed()
+                .openInvite()
+                .typeInviteEmail("casey@example.com")
+                .sendInvite()
+                .awaitMember("casey@example.com")
+                .assertInviteDialogClosed()
+        }
+
+    @Test
     fun a_member_sees_no_delete_button_on_a_family_they_do_not_own() =
         runRootBlocTest(
             beforeContent = { app ->

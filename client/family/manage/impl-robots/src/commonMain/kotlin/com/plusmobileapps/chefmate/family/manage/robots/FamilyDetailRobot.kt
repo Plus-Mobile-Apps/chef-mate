@@ -12,10 +12,11 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.waitUntilDoesNotExist
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailTestTags
 
-/** Robot for one family's member list, invite form and danger zone. */
+/** Robot for one family's member list, invite dialog and danger zone. */
 class FamilyDetailRobot(private val test: ComposeUiTest) {
 
     private val onScreen = hasAnyAncestor(hasTestTag(FamilyDetailTestTags.SCREEN))
@@ -30,6 +31,12 @@ class FamilyDetailRobot(private val test: ComposeUiTest) {
 
     fun awaitMember(text: String): FamilyDetailRobot = apply {
         test.waitUntilExactlyOneExists(hasText(text, substring = true) and onScreen)
+    }
+
+    /** Opens the invite dialog from the Members header. */
+    fun openInvite(): FamilyDetailRobot = apply {
+        test.onNodeWithTag(FamilyDetailTestTags.INVITE_OPEN_BUTTON).performClick()
+        test.waitUntilExactlyOneExists(hasTestTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD))
     }
 
     fun typeInviteEmail(email: String): FamilyDetailRobot = apply {
@@ -54,7 +61,11 @@ class FamilyDetailRobot(private val test: ComposeUiTest) {
     }
 
     fun assertInviteNotShown(): FamilyDetailRobot = apply {
-        test.onNodeWithTag(FamilyDetailTestTags.INVITE_BUTTON).assertDoesNotExist()
+        test.onNodeWithTag(FamilyDetailTestTags.INVITE_OPEN_BUTTON).assertDoesNotExist()
+    }
+
+    fun assertInviteDialogClosed(): FamilyDetailRobot = apply {
+        test.waitUntilDoesNotExist(hasTestTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD))
     }
 
     fun assertDeleteNotShown(): FamilyDetailRobot = apply {
