@@ -18,6 +18,7 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryListInvite
 import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
+import com.plusmobileapps.chefmate.grocery.data.GroceryListSelectionRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
 import com.plusmobileapps.chefmate.grocery.data.IngredientParser
 import com.plusmobileapps.chefmate.grocery.data.ListRole
@@ -46,6 +47,7 @@ class GroceryListViewModel(
     @Main mainContext: CoroutineContext,
     private val repository: GroceryRepository,
     private val autocompleteRepository: GroceryAutocompleteRepository,
+    private val selectionRepository: GroceryListSelectionRepository,
     settings: Settings,
     private val coachMarkController: CoachMarkController,
     private val toastService: ToastService,
@@ -59,7 +61,8 @@ class GroceryListViewModel(
 
     private val _state = MutableStateFlow(State(sort = initialSort, filter = initialFilter))
     private val _newGroceryItemName = MutableStateFlow("")
-    private val selectedListId = MutableStateFlow<Long?>(null)
+    // Starts on the list the user last picked; falls back below if it no longer exists.
+    private val selectedListId = MutableStateFlow(selectionRepository.lastSelectedListId)
     private val _sort = MutableStateFlow(initialSort)
     private val _filter = MutableStateFlow(initialFilter)
     private val _recipeFilter = MutableStateFlow<String?>(null)
@@ -96,7 +99,11 @@ class GroceryListViewModel(
                     if (updatedSelected != null && selectedListId.value != updatedSelected.id) {
                         selectedListId.value = updatedSelected.id
                     }
-                    currentState.copy(lists = lists, selectedList = updatedSelected)
+                    currentState.copy(
+                        lists = lists,
+                        selectedList = updatedSelected,
+                        currentUserRole = updatedSelected?.role ?: currentState.currentUserRole,
+                    )
                 }
             }
         }
@@ -281,6 +288,7 @@ class GroceryListViewModel(
 
     fun onListSelected(list: GroceryListModel) {
         selectedListId.value = list.id
+        selectionRepository.select(list.id)
         _state.update {
             it.copy(selectedList = list, showListSelector = false, currentUserRole = list.role)
         }
@@ -300,6 +308,7 @@ class GroceryListViewModel(
         scope.launch {
             val newId = repository.createGroceryList(name)
             selectedListId.value = newId
+            selectionRepository.select(newId)
         }
     }
 
@@ -310,6 +319,8 @@ class GroceryListViewModel(
                 val remaining = _state.value.lists.filter { it.id != list.id }
                 val next = remaining.firstOrNull()
                 selectedListId.value = next?.id
+                if (next != null) selectionRepository.select(next.id)
+                else selectionRepository.clear()
                 _state.update { it.copy(selectedList = next) }
             }
         }

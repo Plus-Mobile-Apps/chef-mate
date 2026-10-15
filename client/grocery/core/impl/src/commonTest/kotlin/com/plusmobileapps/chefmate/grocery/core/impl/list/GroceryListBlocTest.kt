@@ -19,7 +19,9 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
+import com.plusmobileapps.chefmate.grocery.data.ListRole
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryAutocompleteRepository
+import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryListSelectionRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
 import com.plusmobileapps.chefmate.text.FixedString
@@ -45,6 +47,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 
 class GroceryListBlocTest {
@@ -62,6 +65,7 @@ class GroceryListBlocTest {
         everySuspend { ensureDefaultList() } returns 1L
     }
     val autocompleteRepository = FakeGroceryAutocompleteRepository()
+    val selectionRepository = FakeGroceryListSelectionRepository()
     val toastService = FakeToastService()
 
     var detailItemId: Long? = null
@@ -86,6 +90,7 @@ class GroceryListBlocTest {
                     mainContext = context.mainContext,
                     repository = repository,
                     autocompleteRepository = autocompleteRepository,
+                    selectionRepository = selectionRepository,
                     settings = settings,
                     coachMarkController = coachMarkController,
                     toastService = toastService,
@@ -629,6 +634,7 @@ class GroceryListBlocTest {
                         mainContext = freshContext.mainContext,
                         repository = repository,
                         autocompleteRepository = autocompleteRepository,
+                        selectionRepository = selectionRepository,
                         settings = MapSettings(),
                         coachMarkController = controller,
                         toastService = toastService,
@@ -672,5 +678,73 @@ class GroceryListBlocTest {
             bakingItems.items[0].recipeName shouldBe "Chocolate Cake"
             bakingItems.items[1].recipeName shouldBe null
         }
+    }
+
+    private val weekly = GroceryListModel(id = 1L, name = "Weekly")
+    private val party = GroceryListModel(id = 2L, name = "Party", role = ListRole.VIEWER)
+
+    private fun reopenedBloc(selection: FakeGroceryListSelectionRepository): GroceryListBloc {
+        val freshContext = TestBlocContext.Companion.create()
+        return GroceryListBlocImpl(
+            context = freshContext,
+            output = output,
+            viewModelFactory = {
+                GroceryListViewModel(
+                    mainContext = freshContext.mainContext,
+                    repository = repository,
+                    autocompleteRepository = autocompleteRepository,
+                    selectionRepository = selection,
+                    settings = settings,
+                    coachMarkController = coachMarkController,
+                    toastService = toastService,
+                )
+            },
+            groceryDetailFactory = groceryDetailFactory,
+            toastService = toastService,
+        )
+    }
+
+    @Test
+    fun When_list_selected_Then_selection_is_remembered() = runTest {
+        every { repository.getGroceries(2L) } returns flowOf(emptyList())
+        groceryLists.emit(listOf(weekly, party))
+
+        bloc.onListSelected(party)
+
+        selectionRepository.lastSelectedListId shouldBe 2L
+    }
+
+    @Test
+    fun When_reopened_Then_last_selected_list_is_restored_with_its_role() = runTest {
+        every { repository.getGroceries(2L) } returns flowOf(emptyList())
+        val reopened = reopenedBloc(FakeGroceryListSelectionRepository(lastSelectedListId = 2L))
+
+        groceryLists.emit(listOf(weekly, party))
+
+        reopened.state.value.selectedList shouldBe party
+        reopened.state.value.currentUserRole shouldBe ListRole.VIEWER
+    }
+
+    @Test
+    fun When_reopened_and_last_selected_list_is_gone_Then_falls_back_to_first_list() = runTest {
+        every { repository.getGroceries(99L) } returns flowOf(emptyList())
+        val selection = FakeGroceryListSelectionRepository(lastSelectedListId = 99L)
+        val reopened = reopenedBloc(selection)
+
+        groceryLists.emit(listOf(weekly, party))
+
+        reopened.state.value.selectedList shouldBe weekly
+    }
+
+    @Test
+    fun When_selected_list_deleted_Then_next_list_is_remembered() = runTest {
+        every { repository.getGroceries(2L) } returns flowOf(emptyList())
+        everySuspend { repository.deleteGroceryList(2L) } returns Unit
+        groceryLists.emit(listOf(weekly, party))
+        bloc.onListSelected(party)
+
+        bloc.onDeleteListClicked(party)
+
+        selectionRepository.lastSelectedListId shouldBe 1L
     }
 }
