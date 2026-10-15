@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.family.manage
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import chefmate.client.family.manage.public.generated.resources.Res
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_load_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_error
 import chefmate.client.family.manage.public.generated.resources.family_list_load_error
 import com.plusmobileapps.chefmate.family.data.Family
@@ -12,6 +13,7 @@ import com.plusmobileapps.chefmate.family.data.FamilyPermissions
 import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.MemberItem
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +47,8 @@ private fun familyDetailBloc(model: FamilyDetailBloc.Model): FamilyDetailBloc =
 
         override fun onRetryClicked() = Unit
 
+        override fun onInviteSomeoneClicked() = Unit
+
         override fun onInviteEmailChanged(email: String) = Unit
 
         override fun onInviteRoleChanged(role: FamilyRole) = Unit
@@ -64,6 +68,14 @@ private fun familyDetailBloc(model: FamilyDetailBloc.Model): FamilyDetailBloc =
         override fun onLeaveClicked() = Unit
 
         override fun onDeleteClicked() = Unit
+
+        override fun onCreateGroceryListClicked() = Unit
+
+        override fun onRenameGroceryListClicked(listId: String) = Unit
+
+        override fun onDeleteGroceryListClicked(listId: String) = Unit
+
+        override fun onGroceryListNameChanged(name: String) = Unit
 
         override fun onDialogConfirmed() = Unit
 
@@ -147,6 +159,24 @@ private fun detailModel(
     )
 }
 
+private val sampleGroceryLists =
+    listOf(
+        FamilyGroceryList(id = "g1", name = "Weekly shop", itemCount = 12),
+        FamilyGroceryList(id = "g2", name = "Costco run", itemCount = 1),
+    )
+
+/** [detailModel] with the family grocery lists section showing [lists]. */
+private fun detailModelWithGroceryLists(
+    role: FamilyRole,
+    lists: List<FamilyGroceryList> = sampleGroceryLists,
+): FamilyDetailBloc.Model =
+    detailModel(role)
+        .copy(
+            showGroceryLists = true,
+            groceryLists = lists,
+            canManageGroceryLists = FamilyPermissions.canManageGroceryLists(role),
+        )
+
 val previewFamilyListBloc: FamilyListBloc =
     familyListBloc(FamilyListBloc.Model(families = sampleFamilies, isLoading = false))
 
@@ -186,9 +216,17 @@ val previewFamilyDetailInviteErrorBloc: FamilyDetailBloc =
     familyDetailBloc(
         detailModel(FamilyRole.OWNER)
             .copy(
+                dialog = Dialog.Invite,
                 inviteEmail = "casey@example.com",
                 inviteError = Res.string.family_detail_invite_error.asTextData(),
             )
+    )
+
+/** The owner's invite dialog, with the member/admin role choice. */
+val previewFamilyDetailInviteDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModel(FamilyRole.OWNER)
+            .copy(dialog = Dialog.Invite, inviteEmail = "casey@example.com")
     )
 
 val previewFamilyDetailDeleteDialogBloc: FamilyDetailBloc =
@@ -222,4 +260,47 @@ internal fun FamilyDetailOwnerPreview() {
 @Composable
 internal fun FamilyDetailMemberPreview() {
     ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailMemberBloc) }
+}
+
+/** An owner managing the family's grocery lists: rename/delete menus and "New grocery list". */
+val previewFamilyDetailGroceryListsOwnerBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithGroceryLists(FamilyRole.OWNER))
+
+/** A member sees the family's lists but can't manage them. */
+val previewFamilyDetailGroceryListsMemberBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithGroceryLists(FamilyRole.MEMBER))
+
+val previewFamilyDetailGroceryListsEmptyBloc: FamilyDetailBloc =
+    familyDetailBloc(detailModelWithGroceryLists(FamilyRole.ADMIN, lists = emptyList()))
+
+val previewFamilyDetailGroceryListsErrorBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithGroceryLists(FamilyRole.OWNER, lists = emptyList())
+            .copy(
+                groceryListsError = Res.string.family_detail_grocery_lists_load_error.asTextData()
+            )
+    )
+
+val previewFamilyDetailCreateGroceryListDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithGroceryLists(FamilyRole.OWNER)
+            .copy(dialog = Dialog.CreateGroceryList(name = "Lake house"))
+    )
+
+val previewFamilyDetailDeleteGroceryListDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModelWithGroceryLists(FamilyRole.OWNER)
+            .copy(dialog = Dialog.DeleteGroceryList(sampleGroceryLists.first()))
+    )
+
+@Preview
+@Composable
+internal fun FamilyDetailGroceryListsOwnerPreview() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsOwnerBloc) }
+}
+
+@Preview
+@Composable
+internal fun FamilyDetailGroceryListsMemberPreview() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsMemberBloc) }
 }

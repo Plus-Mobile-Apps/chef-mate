@@ -10,9 +10,14 @@ object FamilyListTestTags {
 object FamilyDetailTestTags {
     const val SCREEN = "family_detail_screen"
     const val MEMBER_ROW = "family_detail_member_row"
+    /** The person-add button on the Members header that opens the invite dialog. */
+    const val INVITE_OPEN_BUTTON = "family_detail_invite_open_button"
     const val INVITE_EMAIL_FIELD = "family_detail_invite_email_field"
     const val INVITE_BUTTON = "family_detail_invite_button"
     const val RENAME_BUTTON = "family_detail_rename_button"
     const val LEAVE_BUTTON = "family_detail_leave_button"
     const val DELETE_BUTTON = "family_detail_delete_button"
+    const val GROCERY_LIST_ROW = "family_detail_grocery_list_row"
+    const val NEW_GROCERY_LIST_BUTTON = "family_detail_new_grocery_list_button"
+    const val GROCERY_LIST_NAME_FIELD = "family_detail_grocery_list_name_field"
 }

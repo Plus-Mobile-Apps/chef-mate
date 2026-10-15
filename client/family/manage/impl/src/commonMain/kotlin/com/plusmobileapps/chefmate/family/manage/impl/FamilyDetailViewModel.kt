@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.family.manage.impl
 
 import chefmate.client.family.manage.public.generated.resources.Res
 import chefmate.client.family.manage.public.generated.resources.family_detail_action_error
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_load_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_email_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_error
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_sent
@@ -15,6 +16,11 @@ import com.plusmobileapps.chefmate.family.data.FamilyRepository
 import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.MemberItem
+import com.plusmobileapps.chefmate.featureflag.FeatureFlagRegistry
+import com.plusmobileapps.chefmate.featureflag.FeatureFlags
+import com.plusmobileapps.chefmate.featureflag.isEnabled
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryListRepository
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.ResourceString
@@ -24,6 +30,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,8 +43,12 @@ class FamilyDetailViewModel(
     @Assisted private val onClosed: () -> Unit,
     @Main mainContext: CoroutineContext,
     private val repository: FamilyRepository,
+    private val groceryListRepository: FamilyGroceryListRepository,
     private val toastService: ToastService,
+    featureFlags: FeatureFlags,
 ) : ViewModel(mainContext) {
+
+    private val groceryListsEnabled = featureFlags.isEnabled(FeatureFlagRegistry.FamilyGroceryLists)
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
@@ -64,8 +75,11 @@ class FamilyDetailViewModel(
                     return@launch
                 }
                 val rows = repository.getMembers(familyId)
+                val groceryLists = loadGroceryLists()
                 _state.update { state ->
-                    state.loaded(name = family.name, role = family.myRole, rows = rows)
+                    state
+                        .loaded(name = family.name, role = family.myRole, rows = rows)
+                        .withGroceryLists(groceryLists)
                 }
             } catch (_: Throwable) {
                 _state.update {
@@ -75,6 +89,20 @@ class FamilyDetailViewModel(
                     )
                 }
             }
+        }
+    }
+
+    fun onInviteSomeoneClicked() {
+        val current = _state.value
+        if (!current.canInvite || current.dialog != null) return
+        // Start every invite fresh, defaulting to the first role the user may invite as.
+        _state.update {
+            it.copy(
+                dialog = Dialog.Invite,
+                inviteEmail = "",
+                inviteError = null,
+                inviteRole = it.invitableRoles.first(),
+            )
         }
     }
 
@@ -100,7 +128,13 @@ class FamilyDetailViewModel(
         scope.launch {
             try {
                 repository.invite(familyId, email, current.inviteRole)
-                _state.update { it.copy(inviteEmail = "", isInviting = false) }
+                _state.update {
+                    it.copy(
+                        inviteEmail = "",
+                        isInviting = false,
+                        dialog = it.dialog.takeUnless { dialog -> dialog == Dialog.Invite },
+                    )
+                }
                 toastService.show(
                     PhraseModel(Res.string.family_detail_invite_sent, "email" to FixedString(email))
                 )
@@ -147,15 +181,53 @@ class FamilyDetailViewModel(
         _state.update { it.copy(dialog = Dialog.Delete) }
     }
 
+    fun onCreateGroceryListClicked() {
+        if (!_state.value.canManageGroceryLists) return
+        _state.update { it.copy(dialog = Dialog.CreateGroceryList()) }
+    }
+
+    fun onRenameGroceryListClicked(listId: String) {
+        val current = _state.value
+        if (!current.canManageGroceryLists) return
+        val list = current.groceryLists.firstOrNull { it.id == listId } ?: return
+        _state.update { it.copy(dialog = Dialog.RenameGroceryList(list, list.name)) }
+    }
+
+    fun onDeleteGroceryListClicked(listId: String) {
+        val current = _state.value
+        if (!current.canManageGroceryLists) return
+        val list = current.groceryLists.firstOrNull { it.id == listId } ?: return
+        _state.update { it.copy(dialog = Dialog.DeleteGroceryList(list)) }
+    }
+
+    fun onGroceryListNameChanged(name: String) {
+        _state.update { state ->
+            when (val dialog = state.dialog) {
+                is Dialog.CreateGroceryList -> state.copy(dialog = dialog.copy(name = name))
+                is Dialog.RenameGroceryList -> state.copy(dialog = dialog.copy(name = name))
+                else -> state
+            }
+        }
+    }
+
     fun onDialogDismissed() {
-        _state.update { it.copy(dialog = null) }
+        _state.update { it.copy(dialog = null, inviteError = null) }
     }
 
     fun onDialogConfirmed() {
         val current = _state.value
         val dialog = current.dialog ?: return
+        // The invite dialog stays open while sending so a rejected invite can show inline.
+        if (dialog == Dialog.Invite) return onInviteClicked()
         if (current.isWorking) return
-        if (dialog is Dialog.Rename && !dialog.canConfirm) return
+        val canConfirm =
+            when (dialog) {
+                is Dialog.Rename -> dialog.canConfirm
+                is Dialog.CreateGroceryList -> dialog.canConfirm
+                is Dialog.RenameGroceryList -> dialog.canConfirm
+                else -> true
+            }
+        if (!canConfirm) return
         _state.update { it.copy(dialog = null, isWorking = true) }
         scope.launch {
             // Leaving and deleting take the family away from the user, so they pop the screen
@@ -167,13 +239,42 @@ class FamilyDetailViewModel(
                     is Dialog.RemoveMember -> repository.removeMember(dialog.member.id)
                     Dialog.Leave -> repository.leaveFamily(familyId)
                     Dialog.Delete -> repository.deleteFamily(familyId)
+                    is Dialog.CreateGroceryList ->
+                        groceryListRepository.createList(familyId, dialog.name.trim())
+                    is Dialog.RenameGroceryList ->
+                        groceryListRepository.renameList(dialog.list.id, dialog.name.trim())
+                    is Dialog.DeleteGroceryList -> groceryListRepository.deleteList(dialog.list.id)
+                    // Handled by onInviteClicked above.
+                    Dialog.Invite -> Unit
                 }
                 _state.update { it.copy(isWorking = false) }
-                if (closesScreen) onClosed() else load()
+                if (closesScreen) {
+                    // Drop the family's lists from the grocery list now rather than on the next
+                    // sync.
+                    groceryListRepository.refreshLocalLists()
+                    onClosed()
+                } else {
+                    load()
+                }
             } catch (_: Throwable) {
                 _state.update { it.copy(isWorking = false) }
                 toastService.show(ResourceString(Res.string.family_detail_action_error))
             }
+        }
+    }
+
+    /**
+     * The family's grocery lists, or null when the section is off. A failure here is reported on
+     * the section rather than failing the whole screen.
+     */
+    private suspend fun loadGroceryLists(): Result<List<FamilyGroceryList>>? {
+        if (!groceryListsEnabled.value) return null
+        return try {
+            Result.success(groceryListRepository.getLists(familyId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Result.failure(e)
         }
     }
 
@@ -213,7 +314,14 @@ class FamilyDetailViewModel(
         val inviteError: TextData? = null,
         val isWorking: Boolean = false,
         val dialog: Dialog? = null,
+        val showGroceryLists: Boolean = false,
+        val groceryLists: List<FamilyGroceryList> = emptyList(),
+        val groceryListsError: TextData? = null,
+        val canManageGroceryLists: Boolean = false,
     ) {
+        val canInvite: Boolean
+            get() = invitableRoles.isNotEmpty()
+
         fun rowFor(memberId: String): FamilyMember? =
             (members + invites).firstOrNull { it.member.id == memberId }?.member
 
@@ -242,6 +350,7 @@ class FamilyDetailViewModel(
                 canRename = FamilyPermissions.canRename(role),
                 canLeave = FamilyPermissions.canLeave(role),
                 canDelete = FamilyPermissions.canDelete(role),
+                canManageGroceryLists = FamilyPermissions.canManageGroceryLists(role),
                 // Keep whatever the user has already picked if it's still offered; otherwise fall
                 // back to the first role they may invite as.
                 inviteRole =
@@ -251,6 +360,26 @@ class FamilyDetailViewModel(
             )
         }
     }
+
+    /** Folds the grocery lists load into the state; null means the section is off. */
+    private fun State.withGroceryLists(result: Result<List<FamilyGroceryList>>?): State =
+        when {
+            result == null ->
+                copy(showGroceryLists = false, groceryLists = emptyList(), groceryListsError = null)
+            result.isSuccess ->
+                copy(
+                    showGroceryLists = true,
+                    groceryLists = result.getOrThrow(),
+                    groceryListsError = null,
+                )
+            // Keep the last lists we had so a flaky reload doesn't blank the section.
+            else ->
+                copy(
+                    showGroceryLists = true,
+                    groceryListsError =
+                        ResourceString(Res.string.family_detail_grocery_lists_load_error),
+                )
+        }
 
     @AssistedFactory
     fun interface Factory {

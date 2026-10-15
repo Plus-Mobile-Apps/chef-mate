@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -46,6 +48,19 @@ import chefmate.client.family.manage.public.generated.resources.family_detail_de
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_confirm
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_message
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_create_confirm
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_create_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete_message
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_items
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_name_label
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_new
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_rename
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_rename_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_empty
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_hint
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_as
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_button
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_email_label
@@ -72,13 +87,16 @@ import chefmate.client.family.manage.public.generated.resources.family_list_titl
 import com.plusmobileapps.chefmate.family.data.FamilyMemberStatus
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.MemberItem
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
+import com.plusmobileapps.chefmate.text.PluralResourceString
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusAvatar
 import com.plusmobileapps.chefmate.ui.components.PlusButton
 import com.plusmobileapps.chefmate.ui.components.PlusButtonVariant
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
+import com.plusmobileapps.chefmate.ui.components.PlusDialogScaffold
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
@@ -114,7 +132,7 @@ fun FamilyDetailScreen(bloc: FamilyDetailBloc, modifier: Modifier = Modifier) {
             model.isLoading -> CenteredLoading()
             loadError != null -> LoadError(message = loadError, onRetry = bloc::onRetryClicked)
             else -> {
-                SectionTitle(Res.string.family_detail_members.asTextData())
+                MembersHeader(model = model, bloc = bloc)
                 model.members.forEach { item -> MemberRow(item = item, bloc = bloc) }
 
                 if (model.invites.isNotEmpty()) {
@@ -125,8 +143,8 @@ fun FamilyDetailScreen(bloc: FamilyDetailBloc, modifier: Modifier = Modifier) {
                     model.invites.forEach { item -> MemberRow(item = item, bloc = bloc) }
                 }
 
-                if (model.canInvite) {
-                    InviteSection(model = model, bloc = bloc)
+                if (model.showGroceryLists) {
+                    GroceryListsSection(model = model, bloc = bloc)
                 }
 
                 if (model.canLeave || model.canDelete) {
@@ -254,75 +272,211 @@ private fun MemberActionsMenu(item: MemberItem, bloc: FamilyDetailBloc) {
 }
 
 @Composable
-private fun InviteSection(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
-    val focusManager = LocalFocusManager.current
-    Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .padding(
-                    horizontal = ChefMateTheme.dimens.paddingNormal,
-                    vertical = ChefMateTheme.dimens.paddingSmall,
-                ),
-        verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall),
-    ) {
-        HorizontalDivider()
-        SectionTitle(
-            Res.string.family_detail_invite_section.asTextData(),
-            modifier = Modifier.padding(top = ChefMateTheme.dimens.paddingSmall),
-        )
-        PlusTextField(
-            value = model.inviteEmail,
-            onValueChange = bloc::onInviteEmailChanged,
-            modifier = Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD),
-            label = { Text(stringResource(Res.string.family_detail_invite_email_label)) },
-            singleLine = true,
-            error = model.inviteError,
-            keyboardOptions =
-                KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    capitalization = KeyboardCapitalization.None,
-                    autoCorrectEnabled = false,
-                    imeAction = ImeAction.Send,
-                ),
-            keyboardActions =
-                KeyboardActions(
-                    onSend = {
-                        bloc.onInviteClicked()
-                        focusManager.clearFocus()
-                    }
-                ),
-        )
-        // Only the owner can invite admins, so admins get no role choice at all.
-        if (model.invitableRoles.size > 1) {
-            Text(
-                text = stringResource(Res.string.family_detail_invite_as),
-                style = ChefMateTheme.typography.labelLarge,
-                color = ChefMateTheme.colorScheme.onSurfaceVariant,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)
-            ) {
-                model.invitableRoles.forEach { role ->
-                    FilterChip(
-                        selected = model.inviteRole == role,
-                        onClick = { bloc.onInviteRoleChanged(role) },
-                        label = { Text(role.label().localized()) },
-                    )
-                }
-            }
+private fun GroceryListsSection(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    val dimens = ChefMateTheme.dimens
+    HorizontalDivider(modifier = Modifier.padding(horizontal = dimens.paddingNormal))
+    SectionTitle(
+        Res.string.family_detail_grocery_lists.asTextData(),
+        modifier = Modifier.padding(top = dimens.paddingSmall),
+    )
+    val error = model.groceryListsError
+    val hint =
+        when {
+            error != null -> error.localized()
+            model.groceryLists.isEmpty() ->
+                stringResource(Res.string.family_detail_grocery_lists_empty)
+            else -> stringResource(Res.string.family_detail_grocery_lists_hint)
         }
+    Text(
+        text = hint,
+        style = ChefMateTheme.typography.bodySmall,
+        color =
+            if (error != null) ChefMateTheme.colorScheme.error
+            else ChefMateTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = dimens.paddingNormal),
+    )
+    model.groceryLists.forEach { list ->
+        GroceryListRow(list = list, canManage = model.canManageGroceryLists, bloc = bloc)
+    }
+    if (model.canManageGroceryLists) {
         PlusButton(
-            text = Res.string.family_detail_invite_button.asTextData(),
+            text = Res.string.family_detail_grocery_list_new.asTextData(),
             variant = PlusButtonVariant.SECONDARY,
-            isLoading = model.isInviting,
-            enabled = model.inviteEmail.isNotBlank(),
-            onClick = {
-                bloc.onInviteClicked()
-                focusManager.clearFocus()
-            },
-            modifier = Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_BUTTON),
+            enabled = !model.isWorking,
+            onClick = bloc::onCreateGroceryListClicked,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = dimens.paddingNormal, vertical = dimens.paddingSmall)
+                    .testTag(FamilyDetailTestTags.NEW_GROCERY_LIST_BUTTON),
         )
     }
+}
+
+@Composable
+private fun GroceryListRow(list: FamilyGroceryList, canManage: Boolean, bloc: FamilyDetailBloc) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = ChefMateTheme.dimens.rowHeight)
+                .padding(start = ChefMateTheme.dimens.paddingNormal)
+                .testTag(FamilyDetailTestTags.GROCERY_LIST_ROW),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = list.name, style = ChefMateTheme.typography.bodyLarge)
+            Text(
+                text =
+                    PluralResourceString(
+                            Res.plurals.family_detail_grocery_list_items,
+                            list.itemCount,
+                            mapOf("quantity" to FixedString(list.itemCount.toString())),
+                        )
+                        .localized(),
+                style = ChefMateTheme.typography.bodySmall,
+                color = ChefMateTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (canManage) {
+            GroceryListActionsMenu(list = list, bloc = bloc)
+        } else {
+            Box(modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingNormal))
+        }
+    }
+}
+
+@Composable
+private fun GroceryListActionsMenu(list: FamilyGroceryList, bloc: FamilyDetailBloc) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription =
+                    PhraseModel(
+                            Res.string.family_detail_member_actions_a11y,
+                            "name" to FixedString(list.name),
+                        )
+                        .localized(),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.family_detail_grocery_list_rename)) },
+                onClick = {
+                    expanded = false
+                    bloc.onRenameGroceryListClicked(list.id)
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.family_detail_grocery_list_delete),
+                        color = ChefMateTheme.colorScheme.error,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    bloc.onDeleteGroceryListClicked(list.id)
+                },
+            )
+        }
+    }
+}
+
+/** The Members title, with the invite button trailing it for users who may invite. */
+@Composable
+private fun MembersHeader(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(end = ChefMateTheme.dimens.paddingExtraSmall),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SectionTitle(
+            Res.string.family_detail_members.asTextData(),
+            modifier = Modifier.weight(1f),
+        )
+        if (model.canInvite) {
+            IconButton(
+                onClick = bloc::onInviteSomeoneClicked,
+                modifier = Modifier.testTag(FamilyDetailTestTags.INVITE_OPEN_BUTTON),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PersonAdd,
+                    contentDescription = stringResource(Res.string.family_detail_invite_section),
+                    tint = ChefMateTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InviteDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val canSend = model.inviteEmail.isNotBlank() && !model.isInviting
+    PlusDialogScaffold(
+        onDismissRequest = bloc::onDialogDismissed,
+        header = { Text(stringResource(Res.string.family_detail_invite_section)) },
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)) {
+                PlusTextField(
+                    value = model.inviteEmail,
+                    onValueChange = bloc::onInviteEmailChanged,
+                    modifier =
+                        Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD),
+                    label = { Text(stringResource(Res.string.family_detail_invite_email_label)) },
+                    singleLine = true,
+                    error = model.inviteError,
+                    focusRequester = focusRequester,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Send,
+                        ),
+                    keyboardActions =
+                        KeyboardActions(onSend = { if (canSend) bloc.onInviteClicked() }),
+                )
+                // Only the owner can invite admins, so admins get no role choice at all.
+                if (model.invitableRoles.size > 1) {
+                    Text(
+                        text = stringResource(Res.string.family_detail_invite_as),
+                        style = ChefMateTheme.typography.labelLarge,
+                        color = ChefMateTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement =
+                            Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)
+                    ) {
+                        model.invitableRoles.forEach { role ->
+                            FilterChip(
+                                selected = model.inviteRole == role,
+                                onClick = { bloc.onInviteRoleChanged(role) },
+                                label = { Text(role.label().localized()) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        footer = {
+            Row(horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingNormal)) {
+                PlusButton(
+                    text = Res.string.family_cancel.asTextData(),
+                    variant = PlusButtonVariant.SECONDARY,
+                    onClick = bloc::onDialogDismissed,
+                )
+                PlusButton(
+                    text = Res.string.family_detail_invite_button.asTextData(),
+                    isLoading = model.isInviting,
+                    enabled = canSend,
+                    onClick = bloc::onInviteClicked,
+                    modifier = Modifier.testTag(FamilyDetailTestTags.INVITE_BUTTON),
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -363,6 +517,7 @@ private fun FamilyDetailDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetail
     val familyName = "name" to FixedString(model.name)
     when (val dialog = model.dialog) {
         null -> Unit
+        Dialog.Invite -> InviteDialog(model = model, bloc = bloc)
         is Dialog.Rename ->
             FamilyNameDialog(
                 title = Res.string.family_detail_rename_title.asTextData(),
@@ -400,6 +555,45 @@ private fun FamilyDetailDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetail
             PlusDialog(
                 title = Res.string.family_detail_delete_title.asTextData(),
                 message = PhraseModel(Res.string.family_detail_delete_message, familyName),
+                confirmButtonText = Res.string.family_detail_delete_confirm.asTextData(),
+                dismissButtonText = Res.string.family_cancel.asTextData(),
+                onConfirmClick = bloc::onDialogConfirmed,
+                onDismissRequest = bloc::onDialogDismissed,
+            )
+        is Dialog.CreateGroceryList ->
+            FamilyNameDialog(
+                title = Res.string.family_detail_grocery_list_create_title.asTextData(),
+                confirmText = Res.string.family_detail_grocery_list_create_confirm.asTextData(),
+                name = dialog.name,
+                canConfirm = dialog.canConfirm && !model.isWorking,
+                isSaving = model.isWorking,
+                onNameChange = bloc::onGroceryListNameChanged,
+                onConfirm = bloc::onDialogConfirmed,
+                onDismiss = bloc::onDialogDismissed,
+                label = Res.string.family_detail_grocery_list_name_label.asTextData(),
+                fieldTestTag = FamilyDetailTestTags.GROCERY_LIST_NAME_FIELD,
+            )
+        is Dialog.RenameGroceryList ->
+            FamilyNameDialog(
+                title = Res.string.family_detail_grocery_list_rename_title.asTextData(),
+                confirmText = Res.string.family_detail_rename_confirm.asTextData(),
+                name = dialog.name,
+                canConfirm = dialog.canConfirm && !model.isWorking,
+                isSaving = model.isWorking,
+                onNameChange = bloc::onGroceryListNameChanged,
+                onConfirm = bloc::onDialogConfirmed,
+                onDismiss = bloc::onDialogDismissed,
+                label = Res.string.family_detail_grocery_list_name_label.asTextData(),
+                fieldTestTag = FamilyDetailTestTags.GROCERY_LIST_NAME_FIELD,
+            )
+        is Dialog.DeleteGroceryList ->
+            PlusDialog(
+                title = Res.string.family_detail_grocery_list_delete_title.asTextData(),
+                message =
+                    PhraseModel(
+                        Res.string.family_detail_grocery_list_delete_message,
+                        "name" to FixedString(dialog.list.name),
+                    ),
                 confirmButtonText = Res.string.family_detail_delete_confirm.asTextData(),
                 dismissButtonText = Res.string.family_cancel.asTextData(),
                 onConfirmClick = bloc::onDialogConfirmed,

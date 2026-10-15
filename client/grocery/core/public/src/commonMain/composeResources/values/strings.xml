@@ -75,6 +75,7 @@
     <string name="grocery_reject">Reject</string>
     <string name="grocery_shared_with_you">Shared with you</string>
     <string name="grocery_my_lists">My Lists</string>
+    <string name="grocery_family_lists_fallback">Family lists</string>
     <string name="grocery_role_owner">Owner</string>
     <string name="grocery_role_editor">Editor</string>
     <string name="grocery_role_viewer">Viewer</string>

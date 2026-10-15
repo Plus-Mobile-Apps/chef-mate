@@ -12,6 +12,7 @@ kotlin {
             api(projects.client.text.public)
             api(projects.client.ui.public)
             api(projects.client.family.data.public)
+            api(projects.client.grocery.data.public)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(compose.components.resources)
         }

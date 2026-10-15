@@ -8,6 +8,9 @@ package com.plusmobileapps.chefmate.family.data
  *   deletes the family. Can't leave and can't be removed.
  * - Admin: invites members, removes members, renames the family, leaves.
  * - Member: views and leaves.
+ *
+ * Family grocery lists: every member edits their items; owners and admins create, rename and delete
+ * the lists.
  */
 object FamilyPermissions {
 
@@ -47,4 +50,7 @@ object FamilyPermissions {
     fun canDelete(actor: FamilyRole): Boolean = actor == FamilyRole.OWNER
 
     fun canLeave(actor: FamilyRole): Boolean = actor != FamilyRole.OWNER
+
+    /** Whether [actor] may create, rename and delete the family's grocery lists. */
+    fun canManageGroceryLists(actor: FamilyRole): Boolean = actor != FamilyRole.MEMBER
 }

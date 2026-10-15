@@ -9,6 +9,8 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.client.family.manage.public)
             implementation(projects.client.family.data.public)
+            implementation(projects.client.grocery.data.public)
+            implementation(projects.client.featureflag.public)
             implementation(projects.client.text.public)
             implementation(projects.client.toast.public)
             implementation(projects.client.shared)
@@ -18,6 +20,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(projects.client.family.data.testing)
+            implementation(projects.client.grocery.data.testing)
+            implementation(projects.client.featureflag.testing)
             implementation(projects.client.toast.testing)
         }
     }

@@ -47,4 +47,17 @@ interface GroceryRemoteDataSource {
     suspend fun respondToInvitation(memberId: String, userId: String, accept: Boolean)
 
     suspend fun removeFromList(memberId: String)
+
+    /** Names of the families with [familyIds] that the user belongs to. */
+    suspend fun fetchFamilyNames(familyIds: Collection<String>): List<RemoteFamilyName>
+
+    /** The family's grocery lists. Empty when the user isn't a member. */
+    suspend fun fetchFamilyGroceryLists(familyId: String): List<RemoteFamilyGroceryList>
+
+    /** Creates a list in the family and returns its id. Family owners and admins only. */
+    suspend fun createFamilyGroceryList(familyId: String, name: String): String
+
+    suspend fun renameFamilyGroceryList(listId: String, name: String)
+
+    suspend fun deleteFamilyGroceryList(listId: String)
 }

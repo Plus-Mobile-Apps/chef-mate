@@ -1,6 +1,8 @@
 package com.plusmobileapps.chefmate.grocery.data.testing
 
 import com.plusmobileapps.chefmate.grocery.data.remote.GroceryRemoteDataSource
+import com.plusmobileapps.chefmate.grocery.data.remote.RemoteFamilyGroceryList
+import com.plusmobileapps.chefmate.grocery.data.remote.RemoteFamilyName
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryItem
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryList
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryListCollaborator
@@ -24,7 +26,11 @@ class FakeGroceryRemoteDataSource : GroceryRemoteDataSource {
 
     override suspend fun ensureDefaultList(ownerId: String): String {
         val lists = remoteLists.getOrPut(ownerId) { mutableListOf() }
-        if (lists.isNotEmpty()) return lists.first().id!!
+        lists
+            .firstOrNull { it.familyId == null }
+            ?.let {
+                return it.id!!
+            }
         val newList =
             RemoteGroceryList(
                 id = "remote-default-${nextListId++}",
@@ -170,5 +176,58 @@ class FakeGroceryRemoteDataSource : GroceryRemoteDataSource {
 
     override suspend fun removeFromList(memberId: String) {
         remoteMembers.values.forEach { it.removeAll { m -> m.id == memberId } }
+    }
+
+    /** Family id → name for the families the signed-in user belongs to. */
+    val familyNames = mutableMapOf<String, String>()
+
+    /** When set, every family-list RPC throws it, e.g. to simulate a permission error. */
+    var familyListError: Throwable? = null
+
+    override suspend fun fetchFamilyNames(familyIds: Collection<String>): List<RemoteFamilyName> =
+        familyIds.mapNotNull { id ->
+            familyNames[id]?.let { RemoteFamilyName(id, it) }
+        }
+
+    override suspend fun fetchFamilyGroceryLists(familyId: String): List<RemoteFamilyGroceryList> {
+        familyListError?.let { throw it }
+        return remoteLists.values
+            .flatten()
+            .filter { it.familyId == familyId }
+            .map { list ->
+                RemoteFamilyGroceryList(
+                    id = list.id!!,
+                    name = list.name,
+                    itemCount = remoteItems[list.id].orEmpty().size,
+                )
+            }
+    }
+
+    /** Family lists are filed under the family id, standing in for the creating user. */
+    override suspend fun createFamilyGroceryList(familyId: String, name: String): String {
+        familyListError?.let { throw it }
+        val list =
+            RemoteGroceryList(
+                id = "remote-family-list-${nextListId++}",
+                name = name,
+                ownerId = familyId,
+                familyId = familyId,
+            )
+        remoteLists.getOrPut(familyId) { mutableListOf() }.add(list)
+        return list.id!!
+    }
+
+    override suspend fun renameFamilyGroceryList(listId: String, name: String) {
+        familyListError?.let { throw it }
+        remoteLists.values.forEach { lists ->
+            val index = lists.indexOfFirst { it.id == listId }
+            if (index >= 0) lists[index] = lists[index].copy(name = name)
+        }
+    }
+
+    override suspend fun deleteFamilyGroceryList(listId: String) {
+        familyListError?.let { throw it }
+        deleteGroceryList(listId)
+        remoteItems.remove(listId)
     }
 }

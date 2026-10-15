@@ -1,0 +1,4 @@
+-- Family grocery lists: a list shared with a family carries that family's remote id (Supabase
+-- grocery_lists.family_id) and its name for display. NULL means a personal list.
+ALTER TABLE GroceryList ADD COLUMN familyId TEXT;
+ALTER TABLE GroceryList ADD COLUMN familyName TEXT;
