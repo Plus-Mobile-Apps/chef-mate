@@ -185,9 +185,8 @@ class FamilyRecipeBookRepositoryImplTest {
             fakeAuth.setAuthenticated()
 
             // families.id ON DELETE SET NULL
-            server.books.replaceAll {
-                if (it.id == "family-book") it.copy(familyId = null) else it
-            }
+            val index = server.books.indexOfFirst { it.id == "family-book" }
+            server.books[index] = server.books[index].copy(familyId = null)
             repository.refreshLocalBooks()
 
             val book = localBooks().single { it.name == "Dinners" }
