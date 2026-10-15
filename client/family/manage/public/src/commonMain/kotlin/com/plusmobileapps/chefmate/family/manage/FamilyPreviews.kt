@@ -216,9 +216,17 @@ val previewFamilyDetailInviteErrorBloc: FamilyDetailBloc =
     familyDetailBloc(
         detailModel(FamilyRole.OWNER)
             .copy(
+                dialog = Dialog.Invite,
                 inviteEmail = "casey@example.com",
                 inviteError = Res.string.family_detail_invite_error.asTextData(),
             )
+    )
+
+/** The owner's invite dialog, with the member/admin role choice. */
+val previewFamilyDetailInviteDialogBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModel(FamilyRole.OWNER)
+            .copy(dialog = Dialog.Invite, inviteEmail = "casey@example.com")
     )
 
 val previewFamilyDetailDeleteDialogBloc: FamilyDetailBloc =

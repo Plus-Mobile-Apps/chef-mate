@@ -14,6 +14,7 @@ import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryLists
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsErrorBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsMemberBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsOwnerBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailInviteDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailInviteErrorBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailMemberBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailOwnerBloc
@@ -25,7 +26,7 @@ import com.plusmobileapps.chefmate.family.manage.previewFamilyListLoadingBloc
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 // Manage Family: the list of families and one family's detail, captured per role because the
-// available actions (invite, role picker, rename, leave, delete) differ for owner, admin and
+// available actions (invite dialog, role picker, rename, leave, delete) differ for owner, admin and
 // member.
 
 @PreviewTest
@@ -96,6 +97,13 @@ fun FamilyDetailAdminScreenshot() {
 @Composable
 fun FamilyDetailMemberScreenshot() {
     ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailMemberBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+fun FamilyDetailInviteDialogScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailInviteDialogBloc) }
 }
 
 @PreviewTest
