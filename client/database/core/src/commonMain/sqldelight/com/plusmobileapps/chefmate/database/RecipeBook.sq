@@ -10,7 +10,9 @@ CREATE TABLE RecipeBook (
     clientId TEXT,
     isDirty INTEGER AS Boolean NOT NULL DEFAULT 0,
     ownerId TEXT,
-    isPendingDelete INTEGER AS Boolean NOT NULL DEFAULT 0
+    isPendingDelete INTEGER AS Boolean NOT NULL DEFAULT 0,
+    familyId TEXT,
+    familyName TEXT
 );
 
 CREATE INDEX idx_recipe_book_owner ON RecipeBook(ownerId);
@@ -79,3 +81,9 @@ UPDATE RecipeBook SET clientId = ? WHERE id = ?;
 
 clearDirty:
 UPDATE RecipeBook SET isDirty = 0 WHERE id = ?;
+
+updateFamily:
+UPDATE RecipeBook SET familyId = ?, familyName = ? WHERE id = ?;
+
+getFamilyBooks:
+SELECT * FROM RecipeBook WHERE familyId IS NOT NULL;
