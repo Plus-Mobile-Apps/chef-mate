@@ -238,6 +238,8 @@ include(":client:subscription:public")
 
 include(":client:subscription:testing")
 
+include(":client:subscription:impl-robots")
+
 include(":client:testing")
 
 include(":client:text:public")
