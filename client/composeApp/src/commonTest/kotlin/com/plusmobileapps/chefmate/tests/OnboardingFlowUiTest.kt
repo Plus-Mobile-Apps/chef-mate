@@ -33,6 +33,8 @@ class OnboardingFlowUiTest {
                 .clickRecipeBooksNext()
                 .assertGroceryListsDisplayed()
                 .clickGroceryListsNext()
+                .assertFamilySharingDisplayed()
+                .clickFamilySharingNext()
                 .assertStartCookingDisplayed()
                 .clickStartCooking()
 
