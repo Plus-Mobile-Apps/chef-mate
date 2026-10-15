@@ -323,6 +323,28 @@ val previewRecipeBooksWithShared: List<RecipeBook> =
             ),
         )
 
+/** [previewRecipeBooksWithShared] plus two books shared with the user's family. */
+val previewRecipeBooksWithFamily: List<RecipeBook> =
+    previewRecipeBooksWithShared +
+        listOf(
+            RecipeBook.Sample.copy(
+                id = 6L,
+                name = "Sunday Dinners",
+                isDefault = false,
+                isOwnedByCurrentUser = false,
+                familyId = "family-1",
+                familyName = "The Smiths",
+            ),
+            RecipeBook.Sample.copy(
+                id = 7L,
+                name = "Holiday Baking",
+                isDefault = false,
+                isOwnedByCurrentUser = false,
+                familyId = "family-1",
+                familyName = "The Smiths",
+            ),
+        )
+
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 internal fun RecipeListPreview() {
