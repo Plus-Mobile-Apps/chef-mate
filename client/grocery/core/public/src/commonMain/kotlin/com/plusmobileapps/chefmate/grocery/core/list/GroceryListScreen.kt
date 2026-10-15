@@ -751,11 +751,12 @@ private fun GrocerySortFilterBottomSheet(
 }
 
 /**
- * Rows of the list picker (My Lists / Shared with me + create), shown by [PlusDropdownSelector] as
- * a dropdown on tablet/desktop and a bottom sheet on phones.
+ * Rows of the list picker (My Lists / family lists / Shared with me + create), shown by
+ * [PlusDropdownSelector] as a dropdown on tablet/desktop and a bottom sheet on phones. Public so
+ * screenshot tests can render it directly, since neither presentation snapshots under the plugin.
  */
 @Composable
-private fun ColumnScope.GroceryListSelectorContent(
+fun ColumnScope.GroceryListSelectorContent(
     state: GroceryListBloc.Model,
     onDismiss: () -> Unit,
     onListSelected: (GroceryListModel) -> Unit,

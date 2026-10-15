@@ -361,6 +361,26 @@ val previewFamilyDetailSharedSectionsBloc: FamilyDetailBloc =
             )
     )
 
+/**
+ * A settled family as the onboarding tour shows it: two accepted members and no pending invites,
+ * with the shared grocery lists and recipe books underneath.
+ */
+val previewFamilyDetailOnboardingBloc: FamilyDetailBloc =
+    familyDetailBloc(
+        detailModel(
+                FamilyRole.OWNER,
+                members = sampleMembers.filter { it.id == "m1" || it.id == "m2" },
+            )
+            .copy(
+                showGroceryLists = true,
+                groceryLists = sampleGroceryLists,
+                canManageGroceryLists = true,
+                showRecipeBooks = true,
+                recipeBooks = sampleRecipeBooks,
+                canManageRecipeBooks = true,
+            )
+    )
+
 val previewFamilyDetailCreateRecipeBookDialogBloc: FamilyDetailBloc =
     familyDetailBloc(
         detailModelWithRecipeBooks(FamilyRole.OWNER)
