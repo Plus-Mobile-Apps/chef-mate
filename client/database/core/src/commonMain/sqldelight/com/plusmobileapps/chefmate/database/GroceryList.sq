@@ -10,7 +10,9 @@ CREATE TABLE GroceryList (
     isDirty INTEGER AS Boolean NOT NULL DEFAULT 0,
     ownerId TEXT,
     role TEXT NOT NULL DEFAULT 'owner',
-    isShared INTEGER AS Boolean NOT NULL DEFAULT 0
+    isShared INTEGER AS Boolean NOT NULL DEFAULT 0,
+    familyId TEXT,
+    familyName TEXT
 );
 
 getAll:
@@ -63,3 +65,9 @@ SELECT * FROM GroceryList WHERE isShared = 1 ORDER BY createdAt ASC;
 
 getOwnedLists:
 SELECT * FROM GroceryList WHERE role = 'owner' ORDER BY createdAt ASC;
+
+updateFamily:
+UPDATE GroceryList SET familyId = ?, familyName = ? WHERE id = ?;
+
+updateNameFromRemote:
+UPDATE GroceryList SET name = ? WHERE id = ?;

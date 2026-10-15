@@ -176,6 +176,8 @@ class GroceryRepositoryImpl(
                             },
                         role = entity.role.toListRole(),
                         isShared = entity.isShared,
+                        familyId = entity.familyId,
+                        familyName = entity.familyName,
                     )
                 }
             }
@@ -404,7 +406,8 @@ class GroceryRepositoryImpl(
         withContext(ioContext) {
             val existing = listQueries.getAll().executeAsList()
             if (existing.isNotEmpty()) {
-                existing.first().id
+                // Prefer a personal list so un-targeted adds don't land on a family's list.
+                (existing.firstOrNull { it.familyId == null } ?: existing.first()).id
             } else {
                 listQueries.transactionWithResult {
                     listQueries.create(
@@ -556,12 +559,16 @@ class GroceryRepositoryImpl(
             // entry rather than pushing a duplicate when signing in on a new device.
             val remoteLists = remoteDataSource.fetchAccessibleGroceryLists()
             val remoteListIds = remoteLists.mapNotNull { it.id }.toSet()
+            val familyNames = fetchFamilyNames(remoteLists.mapNotNull { it.familyId }.toSet())
             withContext(ioContext) {
                 for (remoteList in remoteLists) {
                     val remoteId = remoteList.id ?: continue
-                    val isOwned = remoteList.ownerId == userId
+                    val familyId = remoteList.familyId
+                    // A family list belongs to the family, not its creator: every member edits its
+                    // items, and nobody manages it from the grocery list (see Manage Family).
+                    val isOwned = familyId == null && remoteList.ownerId == userId
                     val role = if (isOwned) "owner" else "editor"
-                    val isShared = !isOwned
+                    val isShared = familyId == null && !isOwned
 
                     val existing = listQueries.getByRemoteId(remoteId).executeAsOneOrNull()
                     if (existing != null) {
@@ -571,15 +578,34 @@ class GroceryRepositoryImpl(
                             isShared = isShared,
                             id = existing.id,
                         )
+                        listQueries.updateFamily(
+                            familyId = familyId,
+                            familyName = familyId?.let { familyNames[it] ?: existing.familyName },
+                            id = existing.id,
+                        )
+                        // A family list is renamed through Manage Family, never locally, so the
+                        // remote name always wins.
+                        if (familyId != null && existing.name != remoteList.name) {
+                            listQueries.updateNameFromRemote(
+                                name = remoteList.name,
+                                id = existing.id,
+                            )
+                        }
                         continue
                     }
 
                     // Match a local unsynced list by name so we don't duplicate the local
-                    // default list when signing in on a new device.
+                    // default list when signing in on a new device. Only the user's own personal
+                    // lists can be that local list.
                     val localLists = listQueries.getAll().executeAsList()
-                    val matchedByName = localLists.firstOrNull {
-                        it.remoteId == null && it.name == remoteList.name
-                    }
+                    val matchedByName =
+                        if (isOwned) {
+                            localLists.firstOrNull {
+                                it.remoteId == null && it.name == remoteList.name
+                            }
+                        } else {
+                            null
+                        }
                     if (matchedByName != null) {
                         listQueries.updateRemoteId(remoteId = remoteId, id = matchedByName.id)
                         listQueries.updateOwnership(
@@ -598,6 +624,11 @@ class GroceryRepositoryImpl(
                             ownerId = remoteList.ownerId,
                             role = role,
                             isShared = isShared,
+                            id = newId,
+                        )
+                        listQueries.updateFamily(
+                            familyId = familyId,
+                            familyName = familyId?.let { familyNames[it] },
                             id = newId,
                         )
                     }
@@ -971,10 +1002,27 @@ class GroceryRepositoryImpl(
             }
             .flowOn(ioContext)
 
+    /**
+     * Names for the families that own [familyIds], keyed by id. Empty on failure — callers keep the
+     * last known name rather than failing the whole sync over a label.
+     */
+    private suspend fun fetchFamilyNames(familyIds: Set<String>): Map<String, String> {
+        if (familyIds.isEmpty()) return emptyMap()
+        return try {
+            remoteDataSource.fetchFamilyNames(familyIds).associate { it.id to it.name }
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            Logger.e(throwable = t, tag = TAG) { "fetching family names failed" }
+            emptyMap()
+        }
+    }
+
     private suspend fun syncListMembers(userId: String) {
         val allLists = withContext(ioContext) { listQueries.getAll().executeAsList() }
         for (list in allLists) {
             val remoteListId = list.remoteId ?: continue
+            // Family lists have no collaborators — the family is the membership.
+            if (list.familyId != null) continue
             try {
                 val remoteMembers = remoteDataSource.fetchListMembers(remoteListId)
                 cacheListCollaborators(
