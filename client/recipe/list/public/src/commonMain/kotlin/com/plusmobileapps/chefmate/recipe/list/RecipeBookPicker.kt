@@ -25,6 +25,7 @@ import chefmate.client.recipe.list.public.generated.resources.Res
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_all_recipes
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_create
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_edit
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_family_fallback
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_my_books
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_shared_badge
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_book_shared_with_you
@@ -36,7 +37,8 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Body of the recipe-book picker, shown by [PlusDropdownSelector] as a dropdown on tablet/desktop
  * and a bottom sheet on phones. Mirrors the grocery list selector: the cross-book "All recipes"
- * entry, then the user's own books, then the books other people have shared with them.
+ * entry, then the user's own books, then the books other people have shared with them, then one
+ * section per family the user shares books with.
  */
 @Composable
 fun RecipeBookPickerContent(
@@ -50,7 +52,8 @@ fun RecipeBookPickerContent(
     modifier: Modifier = Modifier,
 ) {
     val myBooks = books.filter { it.isOwnedByCurrentUser }
-    val sharedBooks = books.filter { !it.isOwnedByCurrentUser }
+    val sharedBooks = books.filter { !it.isOwnedByCurrentUser && !it.isFamily }
+    val familyBooks = books.filter { it.isFamily }.groupBy { it.familyId }
 
     Column(modifier = modifier.testTag(RecipeListTestTags.BOOK_PICKER)) {
         ListItem(
@@ -111,6 +114,25 @@ fun RecipeBookPickerContent(
                 )
             }
         }
+        // One section per family, titled with the family's name. Family books are managed from
+        // Manage Family, so they offer no edit action here.
+        familyBooks.values.forEach { familyBookList ->
+            HorizontalDivider()
+            SectionHeader(
+                text =
+                    familyBookList.first().familyName
+                        ?: stringResource(Res.string.recipe_list_book_family_fallback),
+                modifier = Modifier.testTag(RecipeListTestTags.BOOK_PICKER_FAMILY_HEADER),
+            )
+            familyBookList.forEach { book ->
+                RecipeBookPickerItem(
+                    book = book,
+                    isSelected = book.id == activeBookId,
+                    onBookSelected = onBookSelected,
+                    onEditBook = null,
+                )
+            }
+        }
     }
 }
 
@@ -132,13 +154,15 @@ private fun RecipeBookPickerItem(
     book: RecipeBook,
     isSelected: Boolean,
     onBookSelected: (Long) -> Unit,
-    onEditBook: (Long) -> Unit,
+    /** Null hides the edit action. */
+    onEditBook: ((Long) -> Unit)?,
 ) {
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = book.name, color = selectionColor(isSelected))
-                if (!book.isOwnedByCurrentUser) {
+                // A family book sits under its family's header, which already says it's shared.
+                if (!book.isOwnedByCurrentUser && !book.isFamily) {
                     Text(
                         text = stringResource(Res.string.recipe_list_book_shared_badge),
                         style = MaterialTheme.typography.labelSmall,
@@ -149,15 +173,18 @@ private fun RecipeBookPickerItem(
             }
         },
         modifier = Modifier.fillMaxWidth().clickable { onBookSelected(book.id) },
-        trailingContent = {
-            IconButton(onClick = { onEditBook(book.id) }) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(Res.string.recipe_list_book_edit),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        },
+        trailingContent =
+            onEditBook?.let { onEdit ->
+                {
+                    IconButton(onClick = { onEdit(book.id) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(Res.string.recipe_list_book_edit),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            },
     )
 }
 

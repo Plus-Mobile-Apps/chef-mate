@@ -16,7 +16,7 @@ import androidx.compose.ui.test.waitUntilDoesNotExist
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailTestTags
 
-/** Robot for one family's member list, invite dialog and danger zone. */
+/** Robot for one family's member list, invite dialog, shared recipe books and danger zone. */
 class FamilyDetailRobot(private val test: ComposeUiTest) {
 
     private val onScreen = hasAnyAncestor(hasTestTag(FamilyDetailTestTags.SCREEN))
@@ -70,6 +70,32 @@ class FamilyDetailRobot(private val test: ComposeUiTest) {
 
     fun assertDeleteNotShown(): FamilyDetailRobot = apply {
         test.onNodeWithTag(FamilyDetailTestTags.DELETE_BUTTON).assertDoesNotExist()
+    }
+
+    /** Opens the "New recipe book" dialog from the Recipe books section. */
+    fun openNewRecipeBook(): FamilyDetailRobot = apply {
+        test.waitUntilExactlyOneExists(hasTestTag(FamilyDetailTestTags.NEW_RECIPE_BOOK_BUTTON))
+        test.onNodeWithTag(FamilyDetailTestTags.NEW_RECIPE_BOOK_BUTTON).performClick()
+        test.waitUntilExactlyOneExists(hasTestTag(FamilyDetailTestTags.RECIPE_BOOK_NAME_FIELD))
+    }
+
+    fun typeRecipeBookName(name: String): FamilyDetailRobot = apply {
+        test
+            .onNode(
+                hasSetTextAction() and
+                    hasAnyAncestor(hasTestTag(FamilyDetailTestTags.RECIPE_BOOK_NAME_FIELD))
+            )
+            .performTextReplacement(name)
+    }
+
+    fun awaitRecipeBook(name: String): FamilyDetailRobot = apply {
+        test.waitUntilExactlyOneExists(
+            hasText(name) and hasAnyAncestor(hasTestTag(FamilyDetailTestTags.RECIPE_BOOK_ROW))
+        )
+    }
+
+    fun assertNewRecipeBookNotShown(): FamilyDetailRobot = apply {
+        test.onNodeWithTag(FamilyDetailTestTags.NEW_RECIPE_BOOK_BUTTON).assertDoesNotExist()
     }
 
     /** Taps the confirm button of whichever dialog is showing. */

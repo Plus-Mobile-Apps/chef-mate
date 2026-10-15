@@ -142,4 +142,56 @@ class ManageFamilyNavigationUiTest {
             // including landing on Manage Family once sign-in succeeds, is covered in RootBlocTest.
             more().awaitDisplayed().assertManageFamilyRowShown()
         }
+
+    @Test
+    fun an_owner_creates_a_family_recipe_book_from_manage_family() =
+        runRootBlocTest(
+            beforeContent = { app ->
+                app.testFeatureFlags.set(FeatureFlagRegistry.ManageFamily, true)
+                app.testFeatureFlags.set(FeatureFlagRegistry.FamilyRecipeBooks, true)
+                app.testFamilyRepository.seedFamily(name = "The Smiths", myRole = FamilyRole.OWNER)
+            }
+        ) {
+            bottomNav().clickMoreTab()
+            more().awaitDisplayed().clickManageFamilyRow()
+            familyList().awaitDisplayed().openFamily("The Smiths")
+
+            familyDetail()
+                .awaitDisplayed()
+                .openNewRecipeBook()
+                .typeRecipeBookName("Sunday dinners")
+                .confirmDialog("Create")
+                .awaitRecipeBook("Sunday dinners")
+        }
+
+    @Test
+    fun a_member_sees_the_family_recipe_books_but_cannot_add_one() =
+        runRootBlocTest(
+            beforeContent = { app ->
+                app.testFeatureFlags.set(FeatureFlagRegistry.ManageFamily, true)
+                app.testFeatureFlags.set(FeatureFlagRegistry.FamilyRecipeBooks, true)
+                val familyId =
+                    app.testFamilyRepository.seedFamily(
+                        name = "Lake House",
+                        myRole = FamilyRole.MEMBER,
+                        others =
+                            listOf(
+                                FakeFamilyRepository.SeedMember(
+                                    email = "owner@example.com",
+                                    role = FamilyRole.OWNER,
+                                )
+                            ),
+                    )
+                app.testFamilyRecipeBookRepository.seedBook(familyId, "Cabin breakfasts")
+            }
+        ) {
+            bottomNav().clickMoreTab()
+            more().awaitDisplayed().clickManageFamilyRow()
+            familyList().awaitDisplayed().openFamily("Lake House")
+
+            familyDetail()
+                .awaitDisplayed()
+                .awaitRecipeBook("Cabin breakfasts")
+                .assertNewRecipeBookNotShown()
+        }
 }

@@ -10,6 +10,7 @@ kotlin {
             implementation(projects.client.family.manage.public)
             implementation(projects.client.family.data.public)
             implementation(projects.client.grocery.data.public)
+            implementation(projects.client.recipebook.data.public)
             implementation(projects.client.featureflag.public)
             implementation(projects.client.text.public)
             implementation(projects.client.toast.public)
@@ -21,6 +22,7 @@ kotlin {
         commonTest.dependencies {
             implementation(projects.client.family.data.testing)
             implementation(projects.client.grocery.data.testing)
+            implementation(projects.client.recipebook.data.testing)
             implementation(projects.client.featureflag.testing)
             implementation(projects.client.toast.testing)
         }

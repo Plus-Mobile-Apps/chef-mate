@@ -71,6 +71,13 @@ object FeatureFlagRegistry {
             description = "Let families share grocery lists, managed from Manage Family.",
         )
 
+    object FamilyRecipeBooks :
+        BooleanFlag(
+            key = "family_recipe_books",
+            defaultValue = false,
+            description = "Let families share recipe books, managed from Manage Family.",
+        )
+
     val all: List<FeatureFlag<*>> =
         listOf(
             CookModeV2,
@@ -80,5 +87,6 @@ object FeatureFlagRegistry {
             ManageFamily,
             FamilyMealPlans,
             FamilyGroceryLists,
+            FamilyRecipeBooks,
         )
 }

@@ -11,6 +11,9 @@ package com.plusmobileapps.chefmate.family.data
  *
  * Family grocery lists: every member edits their items; owners and admins create, rename and delete
  * the lists.
+ *
+ * Family recipe books: every member reads the recipes in them and files their own recipes in;
+ * owners and admins create, rename and delete the books.
  */
 object FamilyPermissions {
 
@@ -53,4 +56,7 @@ object FamilyPermissions {
 
     /** Whether [actor] may create, rename and delete the family's grocery lists. */
     fun canManageGroceryLists(actor: FamilyRole): Boolean = actor != FamilyRole.MEMBER
+
+    /** Whether [actor] may create, rename and delete the family's recipe books. */
+    fun canManageRecipeBooks(actor: FamilyRole): Boolean = actor != FamilyRole.MEMBER
 }

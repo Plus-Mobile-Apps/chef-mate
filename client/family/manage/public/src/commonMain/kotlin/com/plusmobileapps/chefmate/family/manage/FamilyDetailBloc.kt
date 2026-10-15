@@ -7,6 +7,7 @@ import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.family.data.FamilyMember
 import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
+import com.plusmobileapps.chefmate.recipebook.data.FamilyRecipeBook
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.ui.ComposeScreen
 import kotlinx.coroutines.flow.StateFlow
@@ -64,6 +65,17 @@ interface FamilyDetailBloc : ComposeScreen {
     /** Edits the name in the create / rename grocery list dialog. */
     fun onGroceryListNameChanged(name: String)
 
+    /** Opens the "New recipe book" dialog. */
+    fun onCreateRecipeBookClicked()
+
+    fun onRenameRecipeBookClicked(bookId: String)
+
+    /** Asks to confirm deleting the family recipe book with [bookId]. */
+    fun onDeleteRecipeBookClicked(bookId: String)
+
+    /** Edits the name in the create / rename recipe book dialog. */
+    fun onRecipeBookNameChanged(name: String)
+
     /** Confirms whichever [Model.dialog] is showing. */
     fun onDialogConfirmed()
 
@@ -98,6 +110,13 @@ interface FamilyDetailBloc : ComposeScreen {
         val groceryListsError: TextData? = null,
         /** Whether the user may create, rename and delete the family's grocery lists. */
         val canManageGroceryLists: Boolean = false,
+        /** Whether the family's recipe books section is shown at all. */
+        val showRecipeBooks: Boolean = false,
+        val recipeBooks: List<FamilyRecipeBook> = emptyList(),
+        /** Set when the books couldn't load; the rest of the screen still works. */
+        val recipeBooksError: TextData? = null,
+        /** Whether the user may create, rename and delete the family's recipe books. */
+        val canManageRecipeBooks: Boolean = false,
     ) {
         val canInvite: Boolean
             get() = invitableRoles.isNotEmpty()
@@ -140,6 +159,18 @@ interface FamilyDetailBloc : ComposeScreen {
         }
 
         data class DeleteGroceryList(val list: FamilyGroceryList) : Dialog()
+
+        data class CreateRecipeBook(val name: String = "") : Dialog() {
+            val canConfirm: Boolean
+                get() = name.isNotBlank()
+        }
+
+        data class RenameRecipeBook(val book: FamilyRecipeBook, val name: String) : Dialog() {
+            val canConfirm: Boolean
+                get() = name.isNotBlank() && name.trim() != book.name
+        }
+
+        data class DeleteRecipeBook(val book: FamilyRecipeBook) : Dialog()
     }
 
     sealed class Output {

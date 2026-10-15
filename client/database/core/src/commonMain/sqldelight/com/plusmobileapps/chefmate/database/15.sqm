@@ -1,0 +1,4 @@
+-- Family recipe books: a book shared with a family carries that family's remote id (Supabase
+-- recipe_books.family_id) and its name for display. NULL means a personal book.
+ALTER TABLE RecipeBook ADD COLUMN familyId TEXT;
+ALTER TABLE RecipeBook ADD COLUMN familyName TEXT;

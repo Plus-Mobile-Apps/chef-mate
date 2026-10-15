@@ -8,8 +8,10 @@ import com.plusmobileapps.chefmate.family.manage.FamilyDetailScreen
 import com.plusmobileapps.chefmate.family.manage.FamilyListScreen
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailAdminBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailCreateGroceryListDialogBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailCreateRecipeBookDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailDeleteDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailDeleteGroceryListDialogBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailDeleteRecipeBookDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsEmptyBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsErrorBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsMemberBloc
@@ -18,6 +20,11 @@ import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailInviteDialog
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailInviteErrorBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailMemberBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailOwnerBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailRecipeBooksEmptyBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailRecipeBooksErrorBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailRecipeBooksMemberBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailRecipeBooksOwnerBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailSharedSectionsBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyListBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyListCreateDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyListEmptyBloc
@@ -172,4 +179,62 @@ fun FamilyDetailCreateGroceryListDialogScreenshot() {
 @Composable
 fun FamilyDetailDeleteGroceryListDialogScreenshot() {
     ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailDeleteGroceryListDialogBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailRecipeBooksOwnerScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksOwnerBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun FamilyDetailRecipeBooksOwnerDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksOwnerBloc)
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailRecipeBooksMemberScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksMemberBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailRecipeBooksEmptyScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksEmptyBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailRecipeBooksErrorScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailRecipeBooksErrorBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailCreateRecipeBookDialogScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailCreateRecipeBookDialogBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailDeleteRecipeBookDialogScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailDeleteRecipeBookDialogBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1600)
+@Composable
+fun FamilyDetailSharedSectionsScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailSharedSectionsBloc) }
 }

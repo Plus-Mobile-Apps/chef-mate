@@ -6,6 +6,7 @@ import com.plusmobileapps.chefmate.fakes.FakeDatabase
 import com.plusmobileapps.chefmate.fakes.FakeGeminiClient
 import com.plusmobileapps.chefmate.fakes.FakeGeminiRecipeExtractor
 import com.plusmobileapps.chefmate.fakes.TestAuthenticationRepository
+import com.plusmobileapps.chefmate.fakes.TestFamilyRecipeBookRepository
 import com.plusmobileapps.chefmate.fakes.TestFamilyRepository
 import com.plusmobileapps.chefmate.fakes.TestFeatureFlags
 import com.plusmobileapps.chefmate.fakes.TestSubscriptionRepository
@@ -17,6 +18,7 @@ interface TestApplicationComponent : ApplicationComponent {
     val fakeGeminiRecipeExtractor: FakeGeminiRecipeExtractor
     val testFeatureFlags: TestFeatureFlags
     val testFamilyRepository: TestFamilyRepository
+    val testFamilyRecipeBookRepository: TestFamilyRecipeBookRepository
     val testSubscriptionRepository: TestSubscriptionRepository
     val browserBookmarkRepository: BrowserBookmarkRepository
 }

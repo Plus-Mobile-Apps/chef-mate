@@ -39,11 +39,13 @@ class RecipeBookRepositoryImplTest {
     ) =
         RecipeBookRepositoryImpl(
             db = db.recipeBookQueries,
+            bookRecipeDb = db.recipeBookRecipeQueries,
             ioContext = testDispatcher,
             dateTimeUtil = dateTimeUtil,
             unique = FakeUnique(),
             remoteDataSource = remoteDataSource,
             memberRemoteDataSource = memberRemoteDataSource,
+            familyRemoteDataSource = FakeFamilyRecipeBookRemoteDataSource(),
             authRepository = fakeAuth,
             selectionRepository = RecipeBookSelectionRepositoryImpl(settings),
         )

@@ -13,6 +13,7 @@ kotlin {
             api(projects.client.ui.public)
             api(projects.client.family.data.public)
             api(projects.client.grocery.data.public)
+            api(projects.client.recipebook.data.public)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(compose.components.resources)
         }
