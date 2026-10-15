@@ -11,12 +11,13 @@ import com.plusmobileapps.chefmate.di.IO
 import com.plusmobileapps.chefmate.recipe.data.SyncStatus
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBookRepository
+import com.plusmobileapps.chefmate.recipebook.data.RecipeBookSelection
+import com.plusmobileapps.chefmate.recipebook.data.RecipeBookSelectionRepository
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RecipeBookMemberRemoteDataSource
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RecipeBookRemoteDataSource
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RemoteRecipeBook
 import com.plusmobileapps.chefmate.util.DateTimeUtil
 import com.plusmobileapps.chefmate.util.Unique
-import com.russhwolf.settings.Settings
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -46,7 +47,7 @@ class RecipeBookRepositoryImpl(
     private val remoteDataSource: RecipeBookRemoteDataSource,
     private val memberRemoteDataSource: RecipeBookMemberRemoteDataSource,
     private val authRepository: AuthenticationRepository,
-    private val settings: Settings,
+    private val selectionRepository: RecipeBookSelectionRepository,
 ) : RecipeBookRepository {
 
     private val scope = CoroutineScope(ioContext + SupervisorJob())
@@ -57,13 +58,13 @@ class RecipeBookRepositoryImpl(
     init {
         scope.launch {
             val defaultId = ensureDefaultBookId()
-            val stored = settings.getLong(KEY_ACTIVE_BOOK, NO_ACTIVE_BOOK)
             _activeBookId.value =
-                when {
+                when (val stored = selectionRepository.lastSelection) {
                     // The user explicitly picked the cross-book "All recipes" view.
-                    stored == ALL_RECIPES_SELECTED -> null
-                    stored != NO_ACTIVE_BOOK && bookExists(stored) -> stored
-                    else -> defaultId
+                    RecipeBookSelection.AllRecipes -> null
+                    is RecipeBookSelection.Book ->
+                        if (bookExists(stored.id)) stored.id else defaultId
+                    null -> defaultId
                 }
         }
         scope.launch {
@@ -87,12 +88,12 @@ class RecipeBookRepositoryImpl(
     override suspend fun getDefaultBookId(): Long = ensureDefaultBookId()
 
     override suspend fun setActiveBook(id: Long) {
-        settings.putLong(KEY_ACTIVE_BOOK, id)
+        selectionRepository.select(RecipeBookSelection.Book(id))
         _activeBookId.value = id
     }
 
     override suspend fun selectAllRecipes() {
-        settings.putLong(KEY_ACTIVE_BOOK, ALL_RECIPES_SELECTED)
+        selectionRepository.select(RecipeBookSelection.AllRecipes)
         _activeBookId.value = null
     }
 
@@ -177,7 +178,7 @@ class RecipeBookRepositoryImpl(
     override suspend fun clearLocalData() {
         withContext(ioContext) { db.deleteAll() }
         // Drop the persisted active-book selection — it points at a now-deleted row.
-        settings.putLong(KEY_ACTIVE_BOOK, NO_ACTIVE_BOOK)
+        selectionRepository.clear()
         // Recreate the baseline "My Recipes" book so a signed-out/fresh session stays valid.
         _activeBookId.value = ensureDefaultBookId()
     }
@@ -426,10 +427,6 @@ class RecipeBookRepositoryImpl(
 
     private companion object {
         const val TAG = "RecipeBookRepositoryImpl"
-        const val KEY_ACTIVE_BOOK = "recipe_active_book"
-        const val NO_ACTIVE_BOOK = -1L
-        // Sentinel persisted when the user picks the cross-book "All recipes" view.
-        const val ALL_RECIPES_SELECTED = -2L
         const val DEFAULT_BOOK_NAME = "My Recipes"
     }
 }

@@ -45,7 +45,7 @@ class RecipeBookRepositoryImplTest {
             remoteDataSource = remoteDataSource,
             memberRemoteDataSource = memberRemoteDataSource,
             authRepository = fakeAuth,
-            settings = settings,
+            selectionRepository = RecipeBookSelectionRepositoryImpl(settings),
         )
 
     @Test
