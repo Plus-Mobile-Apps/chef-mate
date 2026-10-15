@@ -32,7 +32,7 @@ class MealPlanScopeRepositoryImplTest {
             familyRepository = families,
             authRepository = auth,
             featureFlags = flags,
-            settings = settings,
+            selectionRepository = MealPlanSelectionRepositoryImpl(settings),
         )
 
     @Test

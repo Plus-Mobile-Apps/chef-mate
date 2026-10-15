@@ -11,8 +11,7 @@ import com.plusmobileapps.chefmate.featureflag.isEnabled
 import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealPlanScopeRepository
-import com.russhwolf.settings.Settings
-import com.russhwolf.settings.string
+import com.plusmobileapps.chefmate.meal.data.MealPlanSelectionRepository
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -36,21 +35,18 @@ class MealPlanScopeRepositoryImpl(
     private val familyRepository: FamilyRepository,
     private val authRepository: AuthenticationRepository,
     featureFlags: FeatureFlags,
-    settings: Settings,
+    private val selectionRepository: MealPlanSelectionRepository,
 ) : MealPlanScopeRepository {
 
     private val scope = CoroutineScope(ioContext + SupervisorJob())
     private val enabled = featureFlags.isEnabled(FeatureFlagRegistry.FamilyMealPlans)
-
-    // Persisted so the planner reopens on the plan the user last picked. Empty means personal.
-    private var selectedFamilyIdPref by settings.string(KEY_SELECTED_FAMILY_ID, "")
 
     private val _familyPlans = MutableStateFlow<List<FamilyPlan>>(emptyList())
     override val familyPlans: StateFlow<List<FamilyPlan>> = _familyPlans.asStateFlow()
 
     private val _selectedScope =
         MutableStateFlow(
-            if (enabled.value) scopeFor(selectedFamilyIdPref) else MealPlanScope.Personal
+            if (enabled.value) selectionRepository.lastSelectedScope else MealPlanScope.Personal
         )
     override val selectedScope: StateFlow<MealPlanScope> = _selectedScope.asStateFlow()
 
@@ -77,7 +73,7 @@ class MealPlanScopeRepositoryImpl(
     override fun select(scope: MealPlanScope) {
         val familyId = scope.familyId
         if (familyId != null && _familyPlans.value.none { it.familyId == familyId }) return
-        selectedFamilyIdPref = familyId.orEmpty()
+        selectionRepository.select(scope)
         _selectedScope.value = scope
     }
 
@@ -93,20 +89,13 @@ class MealPlanScopeRepositoryImpl(
         _familyPlans.value = plans
         // The selected family was deleted or the user left it: fall back to the personal plan.
         _selectedScope.update { current ->
-            val familyId = current.familyId ?: selectedFamilyIdPref.ifEmpty { null }
+            val familyId = current.familyId ?: selectionRepository.lastSelectedScope.familyId
             if (familyId != null && plans.any { it.familyId == familyId }) {
                 MealPlanScope.Family(familyId)
             } else {
-                selectedFamilyIdPref = ""
+                selectionRepository.clear()
                 MealPlanScope.Personal
             }
         }
-    }
-
-    private fun scopeFor(familyId: String): MealPlanScope =
-        if (familyId.isEmpty()) MealPlanScope.Personal else MealPlanScope.Family(familyId)
-
-    private companion object {
-        const val KEY_SELECTED_FAMILY_ID = "meal_plan_selected_family_id"
     }
 }
