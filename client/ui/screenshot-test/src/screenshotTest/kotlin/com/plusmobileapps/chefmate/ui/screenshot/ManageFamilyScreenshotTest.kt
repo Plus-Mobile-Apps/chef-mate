@@ -7,7 +7,13 @@ import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailScreen
 import com.plusmobileapps.chefmate.family.manage.FamilyListScreen
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailAdminBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailCreateGroceryListDialogBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailDeleteDialogBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailDeleteGroceryListDialogBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsEmptyBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsErrorBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsMemberBloc
+import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailGroceryListsOwnerBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailInviteErrorBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailMemberBloc
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailOwnerBloc
@@ -104,4 +110,58 @@ fun FamilyDetailInviteErrorScreenshot() {
 @Composable
 fun FamilyDetailDeleteDialogScreenshot() {
     ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailDeleteDialogBloc) }
+}
+
+// Family grocery lists: owners/admins get rename/delete menus and "New grocery list"; members
+// only see the lists. A failed lists load errors the section, not the screen.
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailGroceryListsOwnerScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsOwnerBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun FamilyDetailGroceryListsOwnerDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsOwnerBloc)
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailGroceryListsMemberScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsMemberBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailGroceryListsEmptyScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsEmptyBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailGroceryListsErrorScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailGroceryListsErrorBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailCreateGroceryListDialogScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailCreateGroceryListDialogBloc) }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1200)
+@Composable
+fun FamilyDetailDeleteGroceryListDialogScreenshot() {
+    ChefMateTheme { FamilyDetailScreen(bloc = previewFamilyDetailDeleteGroceryListDialogBloc) }
 }
