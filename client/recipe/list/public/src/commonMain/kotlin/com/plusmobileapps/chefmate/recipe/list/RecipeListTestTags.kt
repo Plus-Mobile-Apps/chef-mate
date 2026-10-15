@@ -19,6 +19,7 @@ object RecipeListTestTags {
     const val BOOK_PICKER_ALL_RECIPES: String = "recipe_list_book_picker_all_recipes"
     const val BOOK_PICKER_CREATE: String = "recipe_list_book_picker_create"
     const val BOOK_PICKER_SHARED_HEADER: String = "recipe_list_book_picker_shared_header"
+    const val BOOK_PICKER_FAMILY_HEADER: String = "recipe_list_book_picker_family_header"
     const val SELECTION_OVERFLOW: String = "recipe_list_selection_overflow"
     const val SELECTION_ADD_TO_BOOK: String = "recipe_list_selection_add_to_book"
     const val SELECTION_ADD_TO_CATEGORY: String = "recipe_list_selection_add_to_category"

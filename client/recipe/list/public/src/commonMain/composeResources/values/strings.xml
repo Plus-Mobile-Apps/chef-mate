@@ -94,6 +94,7 @@
     <string name="recipe_list_book_edit">Edit recipe book</string>
     <string name="recipe_list_book_my_books">My Books</string>
     <string name="recipe_list_book_shared_with_you">Shared with you</string>
+    <string name="recipe_list_book_family_fallback">Family books</string>
     <string name="recipe_list_book_shared_badge">Shared</string>
 
     <!-- Collaboration invite banner -->
