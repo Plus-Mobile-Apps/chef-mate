@@ -62,6 +62,8 @@ class FamilyDetailBlocImpl(
 
     override fun onRetryClicked() = viewModel.load()
 
+    override fun onInviteSomeoneClicked() = viewModel.onInviteSomeoneClicked()
+
     override fun onInviteEmailChanged(email: String) = viewModel.onInviteEmailChanged(email)
 
     override fun onInviteRoleChanged(role: FamilyRole) = viewModel.onInviteRoleChanged(role)

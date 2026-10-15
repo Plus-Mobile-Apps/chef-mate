@@ -533,4 +533,55 @@ class FamilyDetailViewModelTest {
             vm.state.value.isWorking shouldBe false
             toastService.shown.size shouldBe 1
         }
+
+    @Test
+    fun the_invite_dialog_opens_fresh_and_closes_after_a_successful_invite() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+            vm.onInviteEmailChanged("stale@example.com")
+            vm.onInviteRoleChanged(FamilyRole.ADMIN)
+
+            vm.onInviteSomeoneClicked()
+
+            vm.state.value.dialog shouldBe Dialog.Invite
+            vm.state.value.inviteEmail shouldBe ""
+            vm.state.value.inviteRole shouldBe FamilyRole.MEMBER
+
+            vm.onInviteEmailChanged("new@example.com")
+            vm.onDialogConfirmed()
+
+            vm.state.value.dialog shouldBe null
+            vm.state.value.invites.map { it.member.email } shouldBe
+                listOf("new@example.com", "pending@example.com")
+        }
+
+    @Test
+    fun a_rejected_invite_keeps_the_dialog_open_with_the_error() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onInviteSomeoneClicked()
+            vm.onInviteEmailChanged("pending@example.com")
+            vm.onInviteClicked()
+
+            vm.state.value.dialog shouldBe Dialog.Invite
+            vm.state.value.inviteError shouldNotBe null
+
+            vm.onDialogDismissed()
+            vm.state.value.dialog shouldBe null
+            vm.state.value.inviteError shouldBe null
+        }
+
+    @Test
+    fun a_member_cannot_open_the_invite_dialog() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = memberFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onInviteSomeoneClicked()
+
+            vm.state.value.dialog shouldBe null
+        }
 }

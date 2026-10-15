@@ -47,6 +47,8 @@ private fun familyDetailBloc(model: FamilyDetailBloc.Model): FamilyDetailBloc =
 
         override fun onRetryClicked() = Unit
 
+        override fun onInviteSomeoneClicked() = Unit
+
         override fun onInviteEmailChanged(email: String) = Unit
 
         override fun onInviteRoleChanged(role: FamilyRole) = Unit

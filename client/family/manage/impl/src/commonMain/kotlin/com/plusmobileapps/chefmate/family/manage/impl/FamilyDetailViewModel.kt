@@ -92,6 +92,20 @@ class FamilyDetailViewModel(
         }
     }
 
+    fun onInviteSomeoneClicked() {
+        val current = _state.value
+        if (!current.canInvite || current.dialog != null) return
+        // Start every invite fresh, defaulting to the first role the user may invite as.
+        _state.update {
+            it.copy(
+                dialog = Dialog.Invite,
+                inviteEmail = "",
+                inviteError = null,
+                inviteRole = it.invitableRoles.first(),
+            )
+        }
+    }
+
     fun onInviteEmailChanged(email: String) {
         _state.update { it.copy(inviteEmail = email, inviteError = null) }
     }
@@ -114,7 +128,13 @@ class FamilyDetailViewModel(
         scope.launch {
             try {
                 repository.invite(familyId, email, current.inviteRole)
-                _state.update { it.copy(inviteEmail = "", isInviting = false) }
+                _state.update {
+                    it.copy(
+                        inviteEmail = "",
+                        isInviting = false,
+                        dialog = it.dialog.takeUnless { dialog -> dialog == Dialog.Invite },
+                    )
+                }
                 toastService.show(
                     PhraseModel(Res.string.family_detail_invite_sent, "email" to FixedString(email))
                 )
@@ -191,12 +211,14 @@ class FamilyDetailViewModel(
     }
 
     fun onDialogDismissed() {
-        _state.update { it.copy(dialog = null) }
+        _state.update { it.copy(dialog = null, inviteError = null) }
     }
 
     fun onDialogConfirmed() {
         val current = _state.value
         val dialog = current.dialog ?: return
+        // The invite dialog stays open while sending so a rejected invite can show inline.
+        if (dialog == Dialog.Invite) return onInviteClicked()
         if (current.isWorking) return
         val canConfirm =
             when (dialog) {
@@ -222,6 +244,8 @@ class FamilyDetailViewModel(
                     is Dialog.RenameGroceryList ->
                         groceryListRepository.renameList(dialog.list.id, dialog.name.trim())
                     is Dialog.DeleteGroceryList -> groceryListRepository.deleteList(dialog.list.id)
+                    // Handled by onInviteClicked above.
+                    Dialog.Invite -> Unit
                 }
                 _state.update { it.copy(isWorking = false) }
                 if (closesScreen) {
@@ -295,6 +319,9 @@ class FamilyDetailViewModel(
         val groceryListsError: TextData? = null,
         val canManageGroceryLists: Boolean = false,
     ) {
+        val canInvite: Boolean
+            get() = invitableRoles.isNotEmpty()
+
         fun rowFor(memberId: String): FamilyMember? =
             (members + invites).firstOrNull { it.member.id == memberId }?.member
 

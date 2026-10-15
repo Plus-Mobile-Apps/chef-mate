@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -94,6 +96,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusAvatar
 import com.plusmobileapps.chefmate.ui.components.PlusButton
 import com.plusmobileapps.chefmate.ui.components.PlusButtonVariant
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
+import com.plusmobileapps.chefmate.ui.components.PlusDialogScaffold
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderContainer
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
@@ -129,7 +132,7 @@ fun FamilyDetailScreen(bloc: FamilyDetailBloc, modifier: Modifier = Modifier) {
             model.isLoading -> CenteredLoading()
             loadError != null -> LoadError(message = loadError, onRetry = bloc::onRetryClicked)
             else -> {
-                SectionTitle(Res.string.family_detail_members.asTextData())
+                MembersHeader(model = model, bloc = bloc)
                 model.members.forEach { item -> MemberRow(item = item, bloc = bloc) }
 
                 if (model.invites.isNotEmpty()) {
@@ -142,10 +145,6 @@ fun FamilyDetailScreen(bloc: FamilyDetailBloc, modifier: Modifier = Modifier) {
 
                 if (model.showGroceryLists) {
                     GroceryListsSection(model = model, bloc = bloc)
-                }
-
-                if (model.canInvite) {
-                    InviteSection(model = model, bloc = bloc)
                 }
 
                 if (model.canLeave || model.canDelete) {
@@ -384,76 +383,100 @@ private fun GroceryListActionsMenu(list: FamilyGroceryList, bloc: FamilyDetailBl
     }
 }
 
+/** The Members title, with the invite button trailing it for users who may invite. */
 @Composable
-private fun InviteSection(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
-    val focusManager = LocalFocusManager.current
-    Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .padding(
-                    horizontal = ChefMateTheme.dimens.paddingNormal,
-                    vertical = ChefMateTheme.dimens.paddingSmall,
-                ),
-        verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall),
+private fun MembersHeader(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(end = ChefMateTheme.dimens.paddingExtraSmall),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        HorizontalDivider()
         SectionTitle(
-            Res.string.family_detail_invite_section.asTextData(),
-            modifier = Modifier.padding(top = ChefMateTheme.dimens.paddingSmall),
+            Res.string.family_detail_members.asTextData(),
+            modifier = Modifier.weight(1f),
         )
-        PlusTextField(
-            value = model.inviteEmail,
-            onValueChange = bloc::onInviteEmailChanged,
-            modifier = Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD),
-            label = { Text(stringResource(Res.string.family_detail_invite_email_label)) },
-            singleLine = true,
-            error = model.inviteError,
-            keyboardOptions =
-                KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    capitalization = KeyboardCapitalization.None,
-                    autoCorrectEnabled = false,
-                    imeAction = ImeAction.Send,
-                ),
-            keyboardActions =
-                KeyboardActions(
-                    onSend = {
-                        bloc.onInviteClicked()
-                        focusManager.clearFocus()
-                    }
-                ),
-        )
-        // Only the owner can invite admins, so admins get no role choice at all.
-        if (model.invitableRoles.size > 1) {
-            Text(
-                text = stringResource(Res.string.family_detail_invite_as),
-                style = ChefMateTheme.typography.labelLarge,
-                color = ChefMateTheme.colorScheme.onSurfaceVariant,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)
+        if (model.canInvite) {
+            IconButton(
+                onClick = bloc::onInviteSomeoneClicked,
+                modifier = Modifier.testTag(FamilyDetailTestTags.INVITE_OPEN_BUTTON),
             ) {
-                model.invitableRoles.forEach { role ->
-                    FilterChip(
-                        selected = model.inviteRole == role,
-                        onClick = { bloc.onInviteRoleChanged(role) },
-                        label = { Text(role.label().localized()) },
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.PersonAdd,
+                    contentDescription = stringResource(Res.string.family_detail_invite_section),
+                    tint = ChefMateTheme.colorScheme.primary,
+                )
             }
         }
-        PlusButton(
-            text = Res.string.family_detail_invite_button.asTextData(),
-            variant = PlusButtonVariant.SECONDARY,
-            isLoading = model.isInviting,
-            enabled = model.inviteEmail.isNotBlank(),
-            onClick = {
-                bloc.onInviteClicked()
-                focusManager.clearFocus()
-            },
-            modifier = Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_BUTTON),
-        )
     }
+}
+
+@Composable
+private fun InviteDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val canSend = model.inviteEmail.isNotBlank() && !model.isInviting
+    PlusDialogScaffold(
+        onDismissRequest = bloc::onDialogDismissed,
+        header = { Text(stringResource(Res.string.family_detail_invite_section)) },
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)) {
+                PlusTextField(
+                    value = model.inviteEmail,
+                    onValueChange = bloc::onInviteEmailChanged,
+                    modifier =
+                        Modifier.fillMaxWidth().testTag(FamilyDetailTestTags.INVITE_EMAIL_FIELD),
+                    label = { Text(stringResource(Res.string.family_detail_invite_email_label)) },
+                    singleLine = true,
+                    error = model.inviteError,
+                    focusRequester = focusRequester,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Send,
+                        ),
+                    keyboardActions =
+                        KeyboardActions(onSend = { if (canSend) bloc.onInviteClicked() }),
+                )
+                // Only the owner can invite admins, so admins get no role choice at all.
+                if (model.invitableRoles.size > 1) {
+                    Text(
+                        text = stringResource(Res.string.family_detail_invite_as),
+                        style = ChefMateTheme.typography.labelLarge,
+                        color = ChefMateTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement =
+                            Arrangement.spacedBy(ChefMateTheme.dimens.paddingSmall)
+                    ) {
+                        model.invitableRoles.forEach { role ->
+                            FilterChip(
+                                selected = model.inviteRole == role,
+                                onClick = { bloc.onInviteRoleChanged(role) },
+                                label = { Text(role.label().localized()) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        footer = {
+            Row(horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingNormal)) {
+                PlusButton(
+                    text = Res.string.family_cancel.asTextData(),
+                    variant = PlusButtonVariant.SECONDARY,
+                    onClick = bloc::onDialogDismissed,
+                )
+                PlusButton(
+                    text = Res.string.family_detail_invite_button.asTextData(),
+                    isLoading = model.isInviting,
+                    enabled = canSend,
+                    onClick = bloc::onInviteClicked,
+                    modifier = Modifier.testTag(FamilyDetailTestTags.INVITE_BUTTON),
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -494,6 +517,7 @@ private fun FamilyDetailDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetail
     val familyName = "name" to FixedString(model.name)
     when (val dialog = model.dialog) {
         null -> Unit
+        Dialog.Invite -> InviteDialog(model = model, bloc = bloc)
         is Dialog.Rename ->
             FamilyNameDialog(
                 title = Res.string.family_detail_rename_title.asTextData(),

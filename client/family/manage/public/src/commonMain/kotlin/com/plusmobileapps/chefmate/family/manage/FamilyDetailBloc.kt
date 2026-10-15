@@ -27,10 +27,14 @@ interface FamilyDetailBloc : ComposeScreen {
 
     fun onRetryClicked()
 
+    /** Opens the invite dialog. */
+    fun onInviteSomeoneClicked()
+
     fun onInviteEmailChanged(email: String)
 
     fun onInviteRoleChanged(role: FamilyRole)
 
+    /** Sends the invite from the invite dialog. */
     fun onInviteClicked()
 
     /** Asks to confirm removing the member (or cancelling the invite) with [memberId]. */
@@ -75,7 +79,7 @@ interface FamilyDetailBloc : ComposeScreen {
         val members: List<MemberItem> = emptyList(),
         /** Pending and declined invites. */
         val invites: List<MemberItem> = emptyList(),
-        /** Roles the user may invite as; empty hides the invite section. */
+        /** Roles the user may invite as; empty hides the invite button. */
         val invitableRoles: List<FamilyRole> = emptyList(),
         val canRename: Boolean = false,
         val canLeave: Boolean = false,
@@ -117,6 +121,9 @@ interface FamilyDetailBloc : ComposeScreen {
         }
 
         data class RemoveMember(val member: FamilyMember) : Dialog()
+
+        /** The invite form; its fields live on [Model] (inviteEmail, inviteRole, ...). */
+        data object Invite : Dialog()
 
         data object Leave : Dialog()
 
