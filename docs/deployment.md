@@ -59,6 +59,8 @@ The following repository secrets must be configured in **Settings > Secrets and 
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_KEY` | Supabase anon/public key |
 | `BUGSNAG_API_KEY` | Bugsnag API key for crash reporting |
+| `REVENUECAT_ANDROID_API_KEY` | RevenueCat public SDK key for the Play Store app (`goog_…`). Blank disables purchases. |
+| `REVENUECAT_IOS_API_KEY` | RevenueCat public SDK key for the App Store app (`appl_…`). Blank disables purchases. |
 
 These are read by BuildKonfig at build time. See [buildconfig-setup.md](buildconfig-setup.md) for details.
 
