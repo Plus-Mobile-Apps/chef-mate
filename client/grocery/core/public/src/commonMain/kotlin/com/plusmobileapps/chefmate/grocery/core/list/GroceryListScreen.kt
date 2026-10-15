@@ -412,6 +412,11 @@ fun GroceryListScreen(
                                 state = listState,
                                 showHeaders = state.sort == GroceryListBloc.GrocerySort.AISLE,
                                 highlightedKey = highlightedItemKey,
+                                onHighlightFinished = { key ->
+                                    // Only clear our own key: a superseded highlight finishes
+                                    // (cancelled) after the next add has already set a new one.
+                                    if (highlightedItemKey == key) highlightedItemKey = null
+                                },
                                 trailingContent = { displayItem ->
                                     val item = itemLookup[displayItem.key as Long]
                                     if (item != null) {
