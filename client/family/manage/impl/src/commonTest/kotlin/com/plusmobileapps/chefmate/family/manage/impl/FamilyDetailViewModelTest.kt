@@ -7,6 +7,10 @@ import com.plusmobileapps.chefmate.family.data.FamilyMemberStatus
 import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.family.data.testing.FakeFamilyRepository
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
+import com.plusmobileapps.chefmate.featureflag.FeatureFlagRegistry
+import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
+import com.plusmobileapps.chefmate.grocery.data.testing.FakeFamilyGroceryListRepository
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -19,6 +23,9 @@ class FamilyDetailViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val toastService = FakeToastService()
+    private val groceryLists = FakeFamilyGroceryListRepository()
+    private val featureFlags =
+        FakeFeatureFlags(mapOf(FeatureFlagRegistry.FamilyGroceryLists to true))
 
     private fun viewModel(
         repository: FakeFamilyRepository,
@@ -30,7 +37,9 @@ class FamilyDetailViewModelTest {
             onClosed = onClosed,
             mainContext = testDispatcher,
             repository = repository,
+            groceryListRepository = groceryLists,
             toastService = toastService,
+            featureFlags = featureFlags,
         )
 
     private fun ownedFamily(): Pair<FakeFamilyRepository, String> {
@@ -327,6 +336,7 @@ class FamilyDetailViewModelTest {
 
             closed shouldBe true
             repository.getFamilies() shouldBe emptyList()
+            groceryLists.refreshCount shouldBe 1
         }
 
     @Test
@@ -369,5 +379,158 @@ class FamilyDetailViewModelTest {
 
             vm.state.value.loadError shouldBe null
             vm.state.value.name shouldBe "Smiths"
+        }
+
+    private fun memberFamily(): Pair<FakeFamilyRepository, String> {
+        val repository = FakeFamilyRepository()
+        val familyId =
+            repository.seedFamily(
+                name = "Smiths",
+                myRole = FamilyRole.MEMBER,
+                others =
+                    listOf(
+                        FakeFamilyRepository.SeedMember(
+                            email = "owner@example.com",
+                            role = FamilyRole.OWNER,
+                        )
+                    ),
+            )
+        return repository to familyId
+    }
+
+    @Test
+    fun the_family_grocery_lists_load_with_the_family() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            groceryLists.lists[familyId] = mutableListOf(FamilyGroceryList("g1", "Weekly"))
+
+            val vm = viewModel(repository, familyId)
+
+            val state = vm.state.value
+            state.showGroceryLists shouldBe true
+            state.groceryLists.map { it.name } shouldBe listOf("Weekly")
+            state.canManageGroceryLists shouldBe true
+        }
+
+    @Test
+    fun the_grocery_lists_section_is_hidden_when_the_flag_is_off() =
+        runTest(testDispatcher) {
+            featureFlags.set(FeatureFlagRegistry.FamilyGroceryLists, false)
+            val (repository, familyId) = ownedFamily()
+            groceryLists.lists[familyId] = mutableListOf(FamilyGroceryList("g1", "Weekly"))
+
+            val vm = viewModel(repository, familyId)
+
+            vm.state.value.showGroceryLists shouldBe false
+            vm.state.value.groceryLists shouldBe emptyList()
+        }
+
+    @Test
+    fun a_grocery_list_failure_only_errors_the_section() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            groceryLists.error = IllegalStateException("offline")
+
+            val vm = viewModel(repository, familyId)
+
+            val state = vm.state.value
+            state.loadError shouldBe null
+            state.members.size shouldBe 3
+            state.showGroceryLists shouldBe true
+            state.groceryListsError shouldNotBe null
+        }
+
+    @Test
+    fun a_member_sees_the_lists_but_cannot_manage_them() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = memberFamily()
+            groceryLists.lists[familyId] = mutableListOf(FamilyGroceryList("g1", "Weekly"))
+            val vm = viewModel(repository, familyId)
+
+            vm.state.value.groceryLists.size shouldBe 1
+            vm.state.value.canManageGroceryLists shouldBe false
+
+            vm.onCreateGroceryListClicked()
+            vm.onRenameGroceryListClicked("g1")
+            vm.onDeleteGroceryListClicked("g1")
+
+            vm.state.value.dialog shouldBe null
+        }
+
+    @Test
+    fun creating_a_grocery_list_adds_it_to_the_family() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onCreateGroceryListClicked()
+            vm.state.value.dialog shouldBe Dialog.CreateGroceryList()
+            vm.onGroceryListNameChanged("  Costco run ")
+            vm.onDialogConfirmed()
+
+            vm.state.value.dialog shouldBe null
+            vm.state.value.groceryLists.map { it.name } shouldBe listOf("Costco run")
+        }
+
+    @Test
+    fun a_blank_grocery_list_name_is_refused() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            vm.onCreateGroceryListClicked()
+            vm.onGroceryListNameChanged("   ")
+            vm.onDialogConfirmed()
+
+            vm.state.value.dialog shouldNotBe null
+            groceryLists.getLists(familyId) shouldBe emptyList()
+        }
+
+    @Test
+    fun renaming_a_grocery_list_starts_from_its_current_name() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            groceryLists.lists[familyId] = mutableListOf(FamilyGroceryList("g1", "Weekly"))
+            val vm = viewModel(repository, familyId)
+
+            vm.onRenameGroceryListClicked("g1")
+            val dialog = vm.state.value.dialog as Dialog.RenameGroceryList
+            dialog.name shouldBe "Weekly"
+            dialog.canConfirm shouldBe false
+
+            vm.onGroceryListNameChanged("Weekly shop")
+            vm.onDialogConfirmed()
+
+            vm.state.value.groceryLists.map { it.name } shouldBe listOf("Weekly shop")
+        }
+
+    @Test
+    fun deleting_a_grocery_list_asks_first_and_then_drops_it() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            groceryLists.lists[familyId] =
+                mutableListOf(FamilyGroceryList("g1", "Weekly"), FamilyGroceryList("g2", "Party"))
+            val vm = viewModel(repository, familyId)
+
+            vm.onDeleteGroceryListClicked("g1")
+            (vm.state.value.dialog as Dialog.DeleteGroceryList).list.id shouldBe "g1"
+            vm.onDialogConfirmed()
+
+            vm.state.value.groceryLists.map { it.id } shouldBe listOf("g2")
+        }
+
+    @Test
+    fun a_failed_grocery_list_action_toasts() =
+        runTest(testDispatcher) {
+            val (repository, familyId) = ownedFamily()
+            val vm = viewModel(repository, familyId)
+
+            groceryLists.error = IllegalStateException("forbidden")
+            vm.onCreateGroceryListClicked()
+            vm.onGroceryListNameChanged("Weekly")
+            vm.onDialogConfirmed()
+
+            vm.state.value.isWorking shouldBe false
+            toastService.shown.size shouldBe 1
         }
 }

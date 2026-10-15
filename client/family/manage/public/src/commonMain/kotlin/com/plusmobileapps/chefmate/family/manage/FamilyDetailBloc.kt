@@ -6,6 +6,7 @@ import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.family.data.FamilyMember
 import com.plusmobileapps.chefmate.family.data.FamilyRole
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.ui.ComposeScreen
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,17 @@ interface FamilyDetailBloc : ComposeScreen {
 
     fun onDeleteClicked()
 
+    /** Opens the "New grocery list" dialog. */
+    fun onCreateGroceryListClicked()
+
+    fun onRenameGroceryListClicked(listId: String)
+
+    /** Asks to confirm deleting the family grocery list with [listId]. */
+    fun onDeleteGroceryListClicked(listId: String)
+
+    /** Edits the name in the create / rename grocery list dialog. */
+    fun onGroceryListNameChanged(name: String)
+
     /** Confirms whichever [Model.dialog] is showing. */
     fun onDialogConfirmed()
 
@@ -75,6 +87,13 @@ interface FamilyDetailBloc : ComposeScreen {
         /** True while a remove/role change/rename/leave/delete is in flight. */
         val isWorking: Boolean = false,
         val dialog: Dialog? = null,
+        /** Whether the family's grocery lists section is shown at all. */
+        val showGroceryLists: Boolean = false,
+        val groceryLists: List<FamilyGroceryList> = emptyList(),
+        /** Set when the lists couldn't load; the rest of the screen still works. */
+        val groceryListsError: TextData? = null,
+        /** Whether the user may create, rename and delete the family's grocery lists. */
+        val canManageGroceryLists: Boolean = false,
     ) {
         val canInvite: Boolean
             get() = invitableRoles.isNotEmpty()
@@ -102,6 +121,18 @@ interface FamilyDetailBloc : ComposeScreen {
         data object Leave : Dialog()
 
         data object Delete : Dialog()
+
+        data class CreateGroceryList(val name: String = "") : Dialog() {
+            val canConfirm: Boolean
+                get() = name.isNotBlank()
+        }
+
+        data class RenameGroceryList(val list: FamilyGroceryList, val name: String) : Dialog() {
+            val canConfirm: Boolean
+                get() = name.isNotBlank() && name.trim() != list.name
+        }
+
+        data class DeleteGroceryList(val list: FamilyGroceryList) : Dialog()
     }
 
     sealed class Output {

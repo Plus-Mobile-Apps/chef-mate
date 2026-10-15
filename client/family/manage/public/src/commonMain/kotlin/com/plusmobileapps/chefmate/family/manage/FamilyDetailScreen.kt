@@ -46,6 +46,19 @@ import chefmate.client.family.manage.public.generated.resources.family_detail_de
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_confirm
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_message
 import chefmate.client.family.manage.public.generated.resources.family_detail_delete_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_create_confirm
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_create_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete_message
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_delete_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_items
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_name_label
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_new
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_rename
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_list_rename_title
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_empty
+import chefmate.client.family.manage.public.generated.resources.family_detail_grocery_lists_hint
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_as
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_button
 import chefmate.client.family.manage.public.generated.resources.family_detail_invite_email_label
@@ -72,8 +85,10 @@ import chefmate.client.family.manage.public.generated.resources.family_list_titl
 import com.plusmobileapps.chefmate.family.data.FamilyMemberStatus
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.Dialog
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailBloc.MemberItem
+import com.plusmobileapps.chefmate.grocery.data.FamilyGroceryList
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
+import com.plusmobileapps.chefmate.text.PluralResourceString
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusAvatar
 import com.plusmobileapps.chefmate.ui.components.PlusButton
@@ -123,6 +138,10 @@ fun FamilyDetailScreen(bloc: FamilyDetailBloc, modifier: Modifier = Modifier) {
                         modifier = Modifier.padding(top = ChefMateTheme.dimens.paddingSmall),
                     )
                     model.invites.forEach { item -> MemberRow(item = item, bloc = bloc) }
+                }
+
+                if (model.showGroceryLists) {
+                    GroceryListsSection(model = model, bloc = bloc)
                 }
 
                 if (model.canInvite) {
@@ -249,6 +268,118 @@ private fun MemberActionsMenu(item: MemberItem, bloc: FamilyDetailBloc) {
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun GroceryListsSection(model: FamilyDetailBloc.Model, bloc: FamilyDetailBloc) {
+    val dimens = ChefMateTheme.dimens
+    HorizontalDivider(modifier = Modifier.padding(horizontal = dimens.paddingNormal))
+    SectionTitle(
+        Res.string.family_detail_grocery_lists.asTextData(),
+        modifier = Modifier.padding(top = dimens.paddingSmall),
+    )
+    val error = model.groceryListsError
+    val hint =
+        when {
+            error != null -> error.localized()
+            model.groceryLists.isEmpty() ->
+                stringResource(Res.string.family_detail_grocery_lists_empty)
+            else -> stringResource(Res.string.family_detail_grocery_lists_hint)
+        }
+    Text(
+        text = hint,
+        style = ChefMateTheme.typography.bodySmall,
+        color =
+            if (error != null) ChefMateTheme.colorScheme.error
+            else ChefMateTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = dimens.paddingNormal),
+    )
+    model.groceryLists.forEach { list ->
+        GroceryListRow(list = list, canManage = model.canManageGroceryLists, bloc = bloc)
+    }
+    if (model.canManageGroceryLists) {
+        PlusButton(
+            text = Res.string.family_detail_grocery_list_new.asTextData(),
+            variant = PlusButtonVariant.SECONDARY,
+            enabled = !model.isWorking,
+            onClick = bloc::onCreateGroceryListClicked,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = dimens.paddingNormal, vertical = dimens.paddingSmall)
+                    .testTag(FamilyDetailTestTags.NEW_GROCERY_LIST_BUTTON),
+        )
+    }
+}
+
+@Composable
+private fun GroceryListRow(list: FamilyGroceryList, canManage: Boolean, bloc: FamilyDetailBloc) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = ChefMateTheme.dimens.rowHeight)
+                .padding(start = ChefMateTheme.dimens.paddingNormal)
+                .testTag(FamilyDetailTestTags.GROCERY_LIST_ROW),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = list.name, style = ChefMateTheme.typography.bodyLarge)
+            Text(
+                text =
+                    PluralResourceString(
+                            Res.plurals.family_detail_grocery_list_items,
+                            list.itemCount,
+                            mapOf("quantity" to FixedString(list.itemCount.toString())),
+                        )
+                        .localized(),
+                style = ChefMateTheme.typography.bodySmall,
+                color = ChefMateTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (canManage) {
+            GroceryListActionsMenu(list = list, bloc = bloc)
+        } else {
+            Box(modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingNormal))
+        }
+    }
+}
+
+@Composable
+private fun GroceryListActionsMenu(list: FamilyGroceryList, bloc: FamilyDetailBloc) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription =
+                    PhraseModel(
+                            Res.string.family_detail_member_actions_a11y,
+                            "name" to FixedString(list.name),
+                        )
+                        .localized(),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.family_detail_grocery_list_rename)) },
+                onClick = {
+                    expanded = false
+                    bloc.onRenameGroceryListClicked(list.id)
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.family_detail_grocery_list_delete),
+                        color = ChefMateTheme.colorScheme.error,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    bloc.onDeleteGroceryListClicked(list.id)
+                },
+            )
         }
     }
 }
@@ -400,6 +531,45 @@ private fun FamilyDetailDialog(model: FamilyDetailBloc.Model, bloc: FamilyDetail
             PlusDialog(
                 title = Res.string.family_detail_delete_title.asTextData(),
                 message = PhraseModel(Res.string.family_detail_delete_message, familyName),
+                confirmButtonText = Res.string.family_detail_delete_confirm.asTextData(),
+                dismissButtonText = Res.string.family_cancel.asTextData(),
+                onConfirmClick = bloc::onDialogConfirmed,
+                onDismissRequest = bloc::onDialogDismissed,
+            )
+        is Dialog.CreateGroceryList ->
+            FamilyNameDialog(
+                title = Res.string.family_detail_grocery_list_create_title.asTextData(),
+                confirmText = Res.string.family_detail_grocery_list_create_confirm.asTextData(),
+                name = dialog.name,
+                canConfirm = dialog.canConfirm && !model.isWorking,
+                isSaving = model.isWorking,
+                onNameChange = bloc::onGroceryListNameChanged,
+                onConfirm = bloc::onDialogConfirmed,
+                onDismiss = bloc::onDialogDismissed,
+                label = Res.string.family_detail_grocery_list_name_label.asTextData(),
+                fieldTestTag = FamilyDetailTestTags.GROCERY_LIST_NAME_FIELD,
+            )
+        is Dialog.RenameGroceryList ->
+            FamilyNameDialog(
+                title = Res.string.family_detail_grocery_list_rename_title.asTextData(),
+                confirmText = Res.string.family_detail_rename_confirm.asTextData(),
+                name = dialog.name,
+                canConfirm = dialog.canConfirm && !model.isWorking,
+                isSaving = model.isWorking,
+                onNameChange = bloc::onGroceryListNameChanged,
+                onConfirm = bloc::onDialogConfirmed,
+                onDismiss = bloc::onDialogDismissed,
+                label = Res.string.family_detail_grocery_list_name_label.asTextData(),
+                fieldTestTag = FamilyDetailTestTags.GROCERY_LIST_NAME_FIELD,
+            )
+        is Dialog.DeleteGroceryList ->
+            PlusDialog(
+                title = Res.string.family_detail_grocery_list_delete_title.asTextData(),
+                message =
+                    PhraseModel(
+                        Res.string.family_detail_grocery_list_delete_message,
+                        "name" to FixedString(dialog.list.name),
+                    ),
                 confirmButtonText = Res.string.family_detail_delete_confirm.asTextData(),
                 dismissButtonText = Res.string.family_cancel.asTextData(),
                 onConfirmClick = bloc::onDialogConfirmed,

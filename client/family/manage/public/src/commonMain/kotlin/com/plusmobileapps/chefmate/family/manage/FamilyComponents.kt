@@ -28,7 +28,6 @@ import com.plusmobileapps.chefmate.ui.components.PlusButtonVariant
 import com.plusmobileapps.chefmate.ui.components.PlusDialogScaffold
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
-import org.jetbrains.compose.resources.stringResource
 
 /** The localized label for a family role. */
 fun FamilyRole.label(): TextData =
@@ -41,8 +40,8 @@ fun FamilyRole.label(): TextData =
     )
 
 /**
- * A dialog with a single family-name field, shared by "New family" and "Rename family". The name is
- * hoisted into the BLoC so it survives configuration changes.
+ * A dialog with a single name field, shared by "New family", "Rename family" and the family grocery
+ * list dialogs. The name is hoisted into the BLoC so it survives configuration changes.
  */
 @Composable
 internal fun FamilyNameDialog(
@@ -55,6 +54,8 @@ internal fun FamilyNameDialog(
     onDismiss: () -> Unit,
     isSaving: Boolean = false,
     error: TextData? = null,
+    label: TextData = ResourceString(Res.string.family_name_label),
+    fieldTestTag: String = FamilyListTestTags.CREATE_NAME_FIELD,
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -65,7 +66,7 @@ internal fun FamilyNameDialog(
             PlusTextField(
                 value = name,
                 onValueChange = onNameChange,
-                label = { Text(stringResource(Res.string.family_name_label)) },
+                label = { Text(label.localized()) },
                 singleLine = true,
                 error = error,
                 keyboardOptions =
@@ -75,7 +76,7 @@ internal fun FamilyNameDialog(
                     ),
                 keyboardActions = KeyboardActions(onDone = { if (canConfirm) onConfirm() }),
                 focusRequester = focusRequester,
-                modifier = Modifier.fillMaxWidth().testTag(FamilyListTestTags.CREATE_NAME_FIELD),
+                modifier = Modifier.fillMaxWidth().testTag(fieldTestTag),
             )
         },
         footer = {

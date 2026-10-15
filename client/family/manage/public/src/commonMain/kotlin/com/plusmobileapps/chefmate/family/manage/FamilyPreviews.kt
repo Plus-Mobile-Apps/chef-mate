@@ -65,6 +65,14 @@ private fun familyDetailBloc(model: FamilyDetailBloc.Model): FamilyDetailBloc =
 
         override fun onDeleteClicked() = Unit
 
+        override fun onCreateGroceryListClicked() = Unit
+
+        override fun onRenameGroceryListClicked(listId: String) = Unit
+
+        override fun onDeleteGroceryListClicked(listId: String) = Unit
+
+        override fun onGroceryListNameChanged(name: String) = Unit
+
         override fun onDialogConfirmed() = Unit
 
         override fun onDialogDismissed() = Unit

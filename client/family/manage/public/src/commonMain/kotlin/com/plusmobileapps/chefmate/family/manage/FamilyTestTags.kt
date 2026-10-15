@@ -15,4 +15,7 @@ object FamilyDetailTestTags {
     const val RENAME_BUTTON = "family_detail_rename_button"
     const val LEAVE_BUTTON = "family_detail_leave_button"
     const val DELETE_BUTTON = "family_detail_delete_button"
+    const val GROCERY_LIST_ROW = "family_detail_grocery_list_row"
+    const val NEW_GROCERY_LIST_BUTTON = "family_detail_new_grocery_list_button"
+    const val GROCERY_LIST_NAME_FIELD = "family_detail_grocery_list_name_field"
 }
