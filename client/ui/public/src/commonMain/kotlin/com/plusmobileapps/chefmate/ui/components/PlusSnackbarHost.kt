@@ -10,10 +10,15 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -62,6 +67,56 @@ fun Modifier.reportBottomNavInset(): Modifier {
     val density = LocalDensity.current
     DisposableEffect(holder) { onDispose { holder.value = 0.dp } }
     return onSizeChanged { holder.value = with(density) { it.height.toDp() } }
+}
+
+/**
+ * The bottom-anchored screen elements the global snackbar host must float above — e.g. the grocery
+ * list's add-item field — each tracked as its distance from the top of the element to the bottom of
+ * the screen. Provided by the app-root toast scaffold, which lifts its snackbars to [inset].
+ *
+ * Elements register through [snackbarAnchor]; nothing else should write to this.
+ */
+@Stable
+class SnackbarAnchors {
+    private val insets = mutableStateMapOf<Any, Dp>()
+
+    /** The highest registered anchor's distance from the bottom of the screen, or `0.dp`. */
+    val inset: Dp
+        get() = insets.values.maxOrNull() ?: 0.dp
+
+    internal fun update(key: Any, inset: Dp) {
+        if (insets[key] != inset) insets[key] = inset
+    }
+
+    internal fun remove(key: Any) {
+        insets.remove(key)
+    }
+}
+
+/** The [SnackbarAnchors] the app-root toast scaffold lifts its snackbars above. */
+val LocalSnackbarAnchors: ProvidableCompositionLocal<SnackbarAnchors> = compositionLocalOf {
+    SnackbarAnchors()
+}
+
+/**
+ * Keeps the global snackbar above this composable: reports the distance from its top edge to the
+ * bottom of the screen into [LocalSnackbarAnchors], and withdraws it when the composable leaves
+ * composition. Apply it to bottom-anchored inputs or toolbars that a snackbar must never cover.
+ * Because it tracks the element's on-screen position, an element riding up on the keyboard carries
+ * the snackbar with it.
+ */
+@Composable
+fun Modifier.snackbarAnchor(): Modifier {
+    val anchors = LocalSnackbarAnchors.current
+    val density = LocalDensity.current
+    val key = remember { Any() }
+    DisposableEffect(anchors) { onDispose { anchors.remove(key) } }
+    return onGloballyPositioned { coordinates ->
+        val root = coordinates.findRootCoordinates()
+        val top = root.localPositionOf(coordinates, Offset.Zero).y
+        val distance = (root.size.height - top).coerceAtLeast(0f)
+        anchors.update(key, with(density) { distance.toDp() })
+    }
 }
 
 /**

@@ -167,6 +167,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
+import com.plusmobileapps.chefmate.ui.components.snackbarAnchor
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
@@ -938,9 +939,11 @@ private fun GroceryListInput(
         }
         Row(
             // Only this row is measured: the suggestions above it open over the list, and feeding
-            // them into the list's padding would make it jump with every keystroke.
+            // them into the list's padding would make it jump with every keystroke. Snackbars float
+            // above this row so they never cover the field.
             modifier =
-                Modifier.onSizeChanged { onFieldRowHeightChanged(it.height) }
+                Modifier.snackbarAnchor()
+                    .onSizeChanged { onFieldRowHeightChanged(it.height) }
                     .padding(horizontal = ChefMateTheme.dimens.paddingSmall),
             verticalAlignment = Alignment.CenterVertically,
         ) {
