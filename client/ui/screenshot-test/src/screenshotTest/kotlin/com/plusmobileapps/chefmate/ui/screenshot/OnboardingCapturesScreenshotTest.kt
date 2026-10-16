@@ -19,18 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.browser.previewBrowserLandingBloc
-import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocSplit
 import com.plusmobileapps.chefmate.family.manage.FamilyDetailScreen
 import com.plusmobileapps.chefmate.family.manage.previewFamilyDetailOnboardingBloc
-import com.plusmobileapps.chefmate.grocery.core.impl.list.ui.previewGroceryListBlocFamily
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListSelectorContent
-import com.plusmobileapps.chefmate.meal.core.impl.ui.previewMealPlanBlocFamilyPlan
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBarPreview
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc
-import com.plusmobileapps.chefmate.recipe.core.detail.RecipeDetailScreen
-import com.plusmobileapps.chefmate.recipe.core.detail.previewRecipeDetailBloc
 import com.plusmobileapps.chefmate.recipe.list.RecipeBookPickerContent
-import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBloc
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.toast.LocalToastService
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
@@ -39,7 +33,8 @@ import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 // Source captures for the onboarding feature previews
 // (client/onboarding/public/.../drawable/onboarding_preview_*.png). Each one renders the real
-// feature screen with sample data, framed like a phone and dressed the way the app shows it (the
+// feature screen with real recipes from the ChefMate account (see OnboardingCaptureData.kt), framed
+// like a phone and dressed the way the app shows it (the
 // floating bottom nav on top-level tabs, an open picker sheet). Re-record these after a design
 // change, then run scripts/update-onboarding-previews.sh to copy them into the onboarding module.
 //
@@ -49,12 +44,14 @@ import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 @Composable
 private fun Capture(darkTheme: Boolean, content: @Composable BoxScope.() -> Unit) {
     CompositionLocalProvider(LocalToastService provides FakeToastService()) {
-        ChefMateTheme(darkTheme = darkTheme) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), content = content)
+        ProvideCaptureImages {
+            ChefMateTheme(darkTheme = darkTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), content = content)
+                }
             }
         }
     }
@@ -92,7 +89,7 @@ private fun BoxScope.OpenSheet(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun AddToGroceryCapture(darkTheme: Boolean) {
-    Capture(darkTheme) { RecipeDetailScreen(bloc = previewRecipeDetailBloc) }
+    Capture(darkTheme) { captureRecipeDetailBloc.Content() }
 }
 
 @PreviewTest
@@ -119,7 +116,7 @@ fun OnboardingCaptureAddToGroceryDark() {
 @Composable
 private fun MealPlanningCapture(darkTheme: Boolean) {
     Capture(darkTheme) {
-        previewMealPlanBlocFamilyPlan.Content()
+        captureMealPlanBloc.Content()
         BottomNav(BottomNavBloc.Tab.MEALS)
     }
 }
@@ -147,7 +144,7 @@ fun OnboardingCaptureMealPlanningDark() {
 
 @Composable
 private fun CookModeCapture(darkTheme: Boolean) {
-    Capture(darkTheme) { previewCookBlocSplit.Content() }
+    Capture(darkTheme) { captureCookModeBloc.Content() }
 }
 
 @PreviewTest
@@ -197,7 +194,7 @@ private val onboardingRecipeBooks =
 @Composable
 private fun RecipeBooksCapture(darkTheme: Boolean) {
     Capture(darkTheme) {
-        previewRecipeListBloc.Content()
+        captureRecipeListBloc.Content()
         OpenSheet {
             RecipeBookPickerContent(
                 books = onboardingRecipeBooks,
@@ -235,7 +232,7 @@ fun OnboardingCaptureRecipeBooksDark() {
 
 @Composable
 private fun GroceryListsCapture(darkTheme: Boolean) {
-    val bloc = previewGroceryListBlocFamily
+    val bloc = captureGroceryListBloc
     Capture(darkTheme) {
         bloc.Content()
         OpenSheet {
