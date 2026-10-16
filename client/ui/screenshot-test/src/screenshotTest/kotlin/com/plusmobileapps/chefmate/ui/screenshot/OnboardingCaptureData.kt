@@ -15,6 +15,7 @@ import coil3.compose.LocalAsyncImagePreviewHandler
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocSplit
 import com.plusmobileapps.chefmate.cook.ui.CookModeScreen
+import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.grocery.core.impl.list.ui.previewGroceryListBlocFamily
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc.GroceryGroup
@@ -175,6 +176,7 @@ internal val captureRecipeDetailBloc: RecipeDetailBloc =
                     recipe = guacamole,
                     createdAt = FixedString("July 18, 2026"),
                     updatedAt = FixedString("July 22, 2026"),
+                    activeCoachMark = CoachMarkId.RECIPE_DETAIL_ADD_TO_GROCERY,
                 )
             )
 
