@@ -49,7 +49,9 @@ Membership is checked through a `SECURITY DEFINER` `public.is_admin()` function.
 
 The Supabase URL + anon key come from the same build inputs as the app (`supabase.url` / `supabase.key` Gradle properties or `SUPABASE_URL` / `SUPABASE_KEY` env vars), wired via buildkonfig in `admin/build.gradle.kts`.
 
-To deploy for phone access, drop the `productionExecutable/` folder onto any static **HTTPS** host (Cloudflare Pages / Netlify / Vercel). HTTPS is required for Supabase auth.
+The `Admin Pages` workflow (`.github/workflows/admin-pages.yml`) builds this bundle with the `SUPABASE_URL` / `SUPABASE_KEY` repo secrets and deploys it to this repo's GitHub Pages (https://plus-mobile-apps.github.io/chef-mate/) on every push to `main` touching `admin/**`, or on manual dispatch. One-time setup: **Settings → Pages → Source = GitHub Actions**. For a custom domain (e.g. `admin.chefmate.plusmobileapps.com`), add a CNAME DNS record to `plus-mobile-apps.github.io` and set the domain under Settings → Pages.
+
+The bundle is plain static files, so any other **HTTPS** host works too (HTTPS is required for Supabase auth).
 
 ## Signing in
 
