@@ -365,11 +365,26 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                         stringResource(Res.string.recipe_list_search),
                                 )
                             }
+                            val onSortFilterClicked = {
+                                bloc.onCoachMarkDismissed(CoachMarkId.RECIPE_LIST_FILTER)
+                                showSortFilterSheet = true
+                            }
                             if (windowSizeClass == WindowSizeClass.COMPACT) {
-                                // Phone widths only have room for search beside the book selector
-                                // and
-                                // recipe count, so the rest of the actions fold into the overflow
-                                // menu.
+                                // Phone widths only have room for search and sort & filter beside
+                                // the book selector and recipe count, so the rest of the actions
+                                // fold into the overflow menu.
+                                RecipeListCoachMark(
+                                    id = CoachMarkId.RECIPE_LIST_FILTER,
+                                    text = Res.string.recipe_list_filter_onboarding.asTextData(),
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
+                                ) {
+                                    SortFilterButton(
+                                        sortOnly = false,
+                                        activeFilterCount = state.totalActiveFilterCount,
+                                        onClick = onSortFilterClicked,
+                                    )
+                                }
                                 CompactOverflowCoachMark(
                                     activeCoachMark = state.activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
@@ -383,16 +398,9 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                             CompactHeaderActions(
                                                 scanEnabled = state.isScanFromPhotoEnabled,
                                                 isGridView = state.isGridView,
-                                                activeFilterCount = state.totalActiveFilterCount,
                                                 onCreateClicked = bloc::onAddRecipeClicked,
                                                 onScanPicked = bloc::onScanRecipePhotoPicked,
                                                 onToggleViewMode = bloc::onToggleViewMode,
-                                                onSortFilterClicked = {
-                                                    bloc.onCoachMarkDismissed(
-                                                        CoachMarkId.RECIPE_LIST_FILTER
-                                                    )
-                                                    showSortFilterSheet = true
-                                                },
                                             ),
                                     )
                                 }
@@ -426,40 +434,13 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                     activeCoachMark = state.activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            bloc.onCoachMarkDismissed(
-                                                CoachMarkId.RECIPE_LIST_FILTER
-                                            )
-                                            showSortFilterSheet = true
-                                        }
-                                    ) {
-                                        // With the rail visible the filters live there, so this
-                                        // action
-                                        // narrows to sort-only and drops the active-filter badge.
-                                        val icon =
-                                            if (showFilterSidebar) Icons.AutoMirrored.Filled.Sort
-                                            else Icons.Default.FilterList
-                                        val label =
-                                            stringResource(
-                                                if (showFilterSidebar) Res.string.recipe_list_sort
-                                                else Res.string.recipe_list_filter
-                                            )
-                                        val filterCount =
-                                            if (showFilterSidebar) 0
-                                            else state.totalActiveFilterCount
-                                        if (filterCount > 0) {
-                                            BadgedBox(badge = { Badge { Text("$filterCount") } }) {
-                                                Icon(
-                                                    imageVector = icon,
-                                                    contentDescription = label,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                        } else {
-                                            Icon(imageVector = icon, contentDescription = label)
-                                        }
-                                    }
+                                    // With the rail visible the filters live there, so this action
+                                    // narrows to sort-only.
+                                    SortFilterButton(
+                                        sortOnly = showFilterSidebar,
+                                        activeFilterCount = state.totalActiveFilterCount,
+                                        onClick = onSortFilterClicked,
+                                    )
                                 }
                                 RecipeListCoachMark(
                                     id = CoachMarkId.RECIPE_LIST_ADD,
@@ -897,23 +878,53 @@ private fun DoneCookingDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 }
 
 /**
+ * Opens the sort & filter sheet, badged with the active-filter count. [sortOnly] is for when the
+ * filter rail is showing: the filters live there, so the button narrows to sort and drops the
+ * badge.
+ */
+@Composable
+private fun SortFilterButton(sortOnly: Boolean, activeFilterCount: Int, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        val icon = if (sortOnly) Icons.AutoMirrored.Filled.Sort else Icons.Default.FilterList
+        val label =
+            stringResource(
+                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter
+            )
+        val filterCount = if (sortOnly) 0 else activeFilterCount
+        if (filterCount > 0) {
+            BadgedBox(badge = { Badge { Text("$filterCount") } }) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            Icon(imageVector = icon, contentDescription = label)
+        }
+    }
+}
+
+/**
  * The header actions that only get their own icons on tablet/desktop widths. On a compact window
  * they're handed to [OverflowMenu] instead, which lists them above its usual items.
  */
 private class CompactHeaderActions(
     val scanEnabled: Boolean,
     val isGridView: Boolean,
-    val activeFilterCount: Int,
     val onCreateClicked: () -> Unit,
     val onScanPicked: (ByteArray, String) -> Unit,
     val onToggleViewMode: () -> Unit,
-    val onSortFilterClicked: () -> Unit,
 )
 
+/** The coach marks whose buttons fold into the overflow menu on compact windows. */
+private val compactOverflowCoachMarks =
+    listOf(CoachMarkId.RECIPE_LIST_ADD, CoachMarkId.RECIPE_LIST_VIEW_MODE)
+
 /**
- * Stands in for the add, view-mode and filter coach marks on compact windows, where those buttons
- * live inside the overflow menu. One bubble points at the menu while any of them is up next, and
- * dismissing it retires all three so the user isn't walked through the same button three times.
+ * Stands in for the add and view-mode coach marks on compact windows, where those buttons live
+ * inside the overflow menu. One bubble points at the menu while either is up next, and dismissing
+ * it retires both so the user isn't walked through the same button twice.
  */
 @Composable
 private fun CompactOverflowCoachMark(
@@ -923,8 +934,8 @@ private fun CompactOverflowCoachMark(
 ) {
     PlusOnboardingTooltip(
         text = Res.string.recipe_list_overflow_onboarding.asTextData(),
-        visible = activeCoachMark in CoachMarkId.recipeListSequence,
-        onDismiss = { CoachMarkId.recipeListSequence.forEach(onDismiss) },
+        visible = activeCoachMark in compactOverflowCoachMarks,
+        onDismiss = { compactOverflowCoachMarks.forEach(onDismiss) },
         placement = PlusTooltipPlacement.BELOW,
         anchor = anchor,
     )
@@ -948,21 +959,15 @@ private fun OverflowMenu(
         } else {
             null
         }
-    val filterCount = compactActions?.activeFilterCount ?: 0
     Box {
         IconButton(
             onClick = { expanded = true },
             modifier = Modifier.testTag(RecipeListTestTags.OVERFLOW_BUTTON),
         ) {
-            val label = stringResource(Res.string.recipe_list_more_actions)
-            // With the filter button folded in here, the menu carries its active-filter badge.
-            if (filterCount > 0) {
-                BadgedBox(badge = { Badge { Text("$filterCount") } }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = label)
-                }
-            } else {
-                Icon(imageVector = Icons.Default.MoreVert, contentDescription = label)
-            }
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.recipe_list_more_actions),
+            )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             if (compactActions != null) {
@@ -1008,16 +1013,6 @@ private fun OverflowMenu(
                     onClick = {
                         expanded = false
                         compactActions.onToggleViewMode()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.recipe_list_sort_and_filter)) },
-                    leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
-                    trailingIcon =
-                        letIfTrue(filterCount > 0) { { Badge { Text("$filterCount") } } },
-                    onClick = {
-                        expanded = false
-                        compactActions.onSortFilterClicked()
                     },
                 )
                 HorizontalDivider()
