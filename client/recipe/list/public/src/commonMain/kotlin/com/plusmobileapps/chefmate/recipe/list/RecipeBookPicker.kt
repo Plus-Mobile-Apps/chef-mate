@@ -51,10 +51,6 @@ fun RecipeBookPickerContent(
     onCreateBook: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val myBooks = books.filter { it.isOwnedByCurrentUser }
-    val sharedBooks = books.filter { !it.isOwnedByCurrentUser && !it.isFamily }
-    val familyBooks = books.filter { it.isFamily }.groupBy { it.familyId }
-
     Column(modifier = modifier.testTag(RecipeListTestTags.BOOK_PICKER)) {
         ListItem(
             headlineContent = {
@@ -76,15 +72,64 @@ fun RecipeBookPickerContent(
             },
         )
         HorizontalDivider()
-        SectionHeader(text = stringResource(Res.string.recipe_list_book_my_books))
-        myBooks.forEach { book ->
-            RecipeBookPickerItem(
-                book = book,
-                isSelected = book.id == activeBookId,
-                onBookSelected = onBookSelected,
-                onEditBook = onEditBook,
-            )
-        }
+        RecipeBookSections(
+            books = books,
+            activeBookId = activeBookId,
+            onBookSelected = onBookSelected,
+            onEditBook = onEditBook,
+            onCreateBook = onCreateBook,
+        )
+    }
+}
+
+/**
+ * Body of the "Add to book" sheet shown when filing a multi-selection under a book. Groups books
+ * the same way as [RecipeBookPickerContent] — "My books", "Shared with you", then one section per
+ * family — but without the "All recipes" entry, edit actions, or the create row.
+ */
+@Composable
+fun RecipeBookTargetPickerContent(
+    books: List<RecipeBook>,
+    onBookSelected: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        RecipeBookSections(
+            books = books,
+            activeBookId = null,
+            onBookSelected = onBookSelected,
+            onEditBook = null,
+            onCreateBook = null,
+        )
+    }
+}
+
+/**
+ * The grouped book sections shared by both pickers. Null [onEditBook] hides the edit actions and
+ * null [onCreateBook] hides the create row.
+ */
+@Composable
+private fun RecipeBookSections(
+    books: List<RecipeBook>,
+    activeBookId: Long?,
+    onBookSelected: (Long) -> Unit,
+    onEditBook: ((Long) -> Unit)?,
+    onCreateBook: (() -> Unit)?,
+) {
+    val myBooks = books.filter { it.isOwnedByCurrentUser }
+    val sharedBooks = books.filter { !it.isOwnedByCurrentUser && !it.isFamily }
+    val familyBooks = books.filter { it.isFamily }.groupBy { it.familyId }
+
+    SectionHeader(text = stringResource(Res.string.recipe_list_book_my_books))
+    myBooks.forEach { book ->
+        RecipeBookPickerItem(
+            book = book,
+            isSelected = book.id == activeBookId,
+            onBookSelected = onBookSelected,
+            onEditBook = onEditBook,
+        )
+    }
+    if (onCreateBook != null) {
         HorizontalDivider()
         ListItem(
             headlineContent = { Text(stringResource(Res.string.recipe_list_book_create)) },
@@ -99,39 +144,39 @@ fun RecipeBookPickerContent(
                 )
             },
         )
-        if (sharedBooks.isNotEmpty()) {
-            HorizontalDivider()
-            SectionHeader(
-                text = stringResource(Res.string.recipe_list_book_shared_with_you),
-                modifier = Modifier.testTag(RecipeListTestTags.BOOK_PICKER_SHARED_HEADER),
+    }
+    if (sharedBooks.isNotEmpty()) {
+        HorizontalDivider()
+        SectionHeader(
+            text = stringResource(Res.string.recipe_list_book_shared_with_you),
+            modifier = Modifier.testTag(RecipeListTestTags.BOOK_PICKER_SHARED_HEADER),
+        )
+        sharedBooks.forEach { book ->
+            RecipeBookPickerItem(
+                book = book,
+                isSelected = book.id == activeBookId,
+                onBookSelected = onBookSelected,
+                onEditBook = onEditBook,
             )
-            sharedBooks.forEach { book ->
-                RecipeBookPickerItem(
-                    book = book,
-                    isSelected = book.id == activeBookId,
-                    onBookSelected = onBookSelected,
-                    onEditBook = onEditBook,
-                )
-            }
         }
-        // One section per family, titled with the family's name. Family books are managed from
-        // Manage Family, so they offer no edit action here.
-        familyBooks.values.forEach { familyBookList ->
-            HorizontalDivider()
-            SectionHeader(
-                text =
-                    familyBookList.first().familyName
-                        ?: stringResource(Res.string.recipe_list_book_family_fallback),
-                modifier = Modifier.testTag(RecipeListTestTags.BOOK_PICKER_FAMILY_HEADER),
+    }
+    // One section per family, titled with the family's name. Family books are managed from
+    // Manage Family, so they offer no edit action here.
+    familyBooks.values.forEach { familyBookList ->
+        HorizontalDivider()
+        SectionHeader(
+            text =
+                familyBookList.first().familyName
+                    ?: stringResource(Res.string.recipe_list_book_family_fallback),
+            modifier = Modifier.testTag(RecipeListTestTags.BOOK_PICKER_FAMILY_HEADER),
+        )
+        familyBookList.forEach { book ->
+            RecipeBookPickerItem(
+                book = book,
+                isSelected = book.id == activeBookId,
+                onBookSelected = onBookSelected,
+                onEditBook = null,
             )
-            familyBookList.forEach { book ->
-                RecipeBookPickerItem(
-                    book = book,
-                    isSelected = book.id == activeBookId,
-                    onBookSelected = onBookSelected,
-                    onEditBook = null,
-                )
-            }
         }
     }
 }

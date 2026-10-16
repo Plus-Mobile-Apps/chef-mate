@@ -5,7 +5,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +30,8 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -74,7 +75,6 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -1101,7 +1101,10 @@ private fun SelectionOverflowMenu(
     }
 }
 
-/** Bottom sheet listing the user's recipe books so the current selection can be filed under one. */
+/**
+ * Bottom sheet listing the user's recipe books, grouped like the book selector, so the current
+ * selection can be filed under one.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BulkAddToBookSheet(
@@ -1124,19 +1127,11 @@ private fun BulkAddToBookSheet(
                     ),
             )
             HorizontalDivider()
-            books.forEach { book ->
-                ListItem(
-                    headlineContent = { Text(book.name) },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.MenuBook,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().clickable { onBookSelected(book.id) },
-                )
-            }
+            RecipeBookTargetPickerContent(
+                books = books,
+                onBookSelected = onBookSelected,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            )
         }
     }
 }
