@@ -32,6 +32,9 @@ object OnboardingTestTags {
     const val GROCERY_LISTS_SCREEN = "onboarding_grocery_lists_screen"
     const val GROCERY_LISTS_NEXT_BUTTON = "onboarding_grocery_lists_next_button"
 
+    const val FAMILY_SHARING_SCREEN = "onboarding_family_sharing_screen"
+    const val FAMILY_SHARING_NEXT_BUTTON = "onboarding_family_sharing_next_button"
+
     const val START_COOKING_SCREEN = "onboarding_start_cooking_screen"
     const val START_COOKING_BUTTON = "onboarding_start_cooking_button"
     const val START_COOKING_SIGN_UP_BUTTON = "onboarding_start_cooking_sign_up_button"

@@ -14,8 +14,9 @@ import com.plusmobileapps.chefmate.ui.ComposeScreen
  * Navigation BLoC that drives the first-run onboarding flow. It owns a Decompose router that walks
  * the user from the [WelcomeBloc] through a series of feature tours ([ShareRecipesBloc],
  * [SaveRecipesBloc], [AddToGroceryBloc], [MealPlanningBloc], [CookModeBloc], [RecipeBooksBloc],
- * [GroceryListsBloc]) to the final [StartCookingBloc]. When the user finishes (or skips), it marks
- * onboarding as completed and emits [Output.Finished] so the root can load the rest of the app.
+ * [GroceryListsBloc], [FamilySharingBloc]) to the final [StartCookingBloc]. When the user finishes
+ * (or skips), it marks onboarding as completed and emits [Output.Finished] so the root can load the
+ * rest of the app.
  *
  * From the welcome screen the user can also choose to sign in; that is surfaced as [Output.SignIn]
  * so the root can open the authentication flow. From the final [StartCookingBloc] step, the user
@@ -71,6 +72,8 @@ interface OnboardingRootBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
         data class RecipeBooks(override val bloc: RecipeBooksBloc) : Child()
 
         data class GroceryLists(override val bloc: GroceryListsBloc) : Child()
+
+        data class FamilySharing(override val bloc: FamilySharingBloc) : Child()
 
         data class StartCooking(override val bloc: StartCookingBloc) : Child()
     }

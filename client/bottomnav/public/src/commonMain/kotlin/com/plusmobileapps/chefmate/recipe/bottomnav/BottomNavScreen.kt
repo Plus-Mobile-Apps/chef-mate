@@ -827,9 +827,13 @@ private fun SelectionLens(modifier: Modifier = Modifier) {
  * goldens still catch layout regressions.
  */
 @Composable
-fun BottomNavBarPreview(notificationCount: Int) {
+fun BottomNavBarPreview(
+    notificationCount: Int,
+    selectedTab: BottomNavBloc.Tab = BottomNavBloc.Tab.RECIPES,
+) {
     PlusBottomBar(
-        state = BottomNavBloc.Model(notificationCount = notificationCount),
+        state =
+            BottomNavBloc.Model(selectedTab = selectedTab, notificationCount = notificationCount),
         backdrop = null,
         onClick = {},
     )

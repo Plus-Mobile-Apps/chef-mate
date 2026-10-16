@@ -68,6 +68,12 @@ class OnboardingRobot(private val test: ComposeUiTest) {
     fun clickGroceryListsNext(): OnboardingRobot =
         click(OnboardingTestTags.GROCERY_LISTS_NEXT_BUTTON)
 
+    fun assertFamilySharingDisplayed(): OnboardingRobot =
+        assertDisplayed(OnboardingTestTags.FAMILY_SHARING_SCREEN)
+
+    fun clickFamilySharingNext(): OnboardingRobot =
+        click(OnboardingTestTags.FAMILY_SHARING_NEXT_BUTTON)
+
     fun assertStartCookingDisplayed(): OnboardingRobot =
         assertDisplayed(OnboardingTestTags.START_COOKING_SCREEN)
 

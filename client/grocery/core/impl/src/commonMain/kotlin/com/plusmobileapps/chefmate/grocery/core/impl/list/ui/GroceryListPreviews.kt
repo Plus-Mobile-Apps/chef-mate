@@ -137,6 +137,39 @@ val previewGroceryListBloc: GroceryListBloc =
         )
     )
 
+private val sampleFamilyList =
+    GroceryListModel(
+        id = 2L,
+        name = "Weekly shop",
+        syncStatus = SyncStatus.SYNCED,
+        familyId = "family-1",
+        familyName = "The Smiths",
+    )
+
+/**
+ * A family list is selected and the list picker holds personal, family, and shared lists — the
+ * family lists group under the family's name.
+ */
+val previewGroceryListBlocFamily: GroceryListBloc =
+    groceryListBloc(
+        GroceryListBloc.Model(
+            groupedItems = sampleGroups,
+            lists =
+                persistentListOf(
+                    sampleList,
+                    sampleFamilyList,
+                    sampleFamilyList.copy(id = 3L, name = "Costco run"),
+                    GroceryListModel(
+                        id = 4L,
+                        name = "Roommates",
+                        syncStatus = SyncStatus.SYNCED,
+                        isShared = true,
+                    ),
+                ),
+            selectedList = sampleFamilyList,
+        )
+    )
+
 /**
  * Empty grocery list — exercises the empty state CTA introduced alongside the "Browse my recipes"
  * jump-to-recipes flow. Should NOT appear when filters are active (see `previewGroceryListBloc`).
