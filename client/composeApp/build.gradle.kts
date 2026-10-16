@@ -1,3 +1,4 @@
+import com.plusmobileapps.chefmate.convention.linkSwiftCompatibilityLibsIntoIosTests
 import java.util.Properties
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
@@ -69,6 +70,7 @@ kotlin {
             linkerOpts.add("-lsqlite3")
         }
     }
+    project.linkSwiftCompatibilityLibsIntoIosTests()
 
     jvm()
 
@@ -186,6 +188,7 @@ kotlin {
             implementation(projects.client.browser.implRobots)
             implementation(projects.client.featureflag.testing)
             implementation(projects.client.subscription.testing)
+            implementation(projects.client.subscription.implRobots)
             implementation(projects.client.recipe.categories.implRobots)
             implementation(projects.client.grocery.autocomplete.implRobots)
             implementation(projects.client.grocery.categoryRules.implRobots)
