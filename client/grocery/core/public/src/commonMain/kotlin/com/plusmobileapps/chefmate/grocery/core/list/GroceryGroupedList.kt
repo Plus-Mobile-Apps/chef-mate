@@ -32,7 +32,9 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
@@ -85,6 +87,10 @@ fun GroceryGroupedList(
     state: LazyListState = rememberLazyListState(),
     showHeaders: Boolean = true,
     highlightedKey: Any? = null,
+    // Called with the highlighted key once its highlight has played (or its row left the screen
+    // part-way through), so the caller can clear it and the row doesn't flash again when it next
+    // comes into view.
+    onHighlightFinished: (Any) -> Unit = {},
     trailingContent: (@Composable (GroceryDisplayItem) -> Unit)? = null,
     onSwipeToDelete: ((GroceryDisplayItem) -> Unit)? = null,
     swipeToDeleteEnabled: Boolean = supportsSwipeToDelete,
@@ -121,6 +127,7 @@ fun GroceryGroupedList(
                     onClick = { onItemClick(item.key) },
                     trailingContent = trailingContent,
                     highlighted = item.key == highlightedKey,
+                    onHighlightFinished = { onHighlightFinished(item.key) },
                     onSwipeToDelete =
                         onSwipeToDelete
                             ?.takeIf { swipeToDeleteEnabled }
@@ -188,6 +195,7 @@ private fun GroceryDisplayListItem(
     trailingContent: (@Composable (GroceryDisplayItem) -> Unit)?,
     modifier: Modifier = Modifier,
     highlighted: Boolean = false,
+    onHighlightFinished: () -> Unit = {},
     onSwipeToDelete: (() -> Unit)? = null,
 ) {
     if (onSwipeToDelete != null) {
@@ -215,6 +223,7 @@ private fun GroceryDisplayListItem(
                 onClick = onClick,
                 trailingContent = trailingContent,
                 highlighted = highlighted,
+                onHighlightFinished = onHighlightFinished,
                 // The row is normally transparent over the screen background; it needs to be
                 // opaque here so the red delete background stays hidden until it's swiped aside.
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
@@ -227,6 +236,7 @@ private fun GroceryDisplayListItem(
             onClick = onClick,
             trailingContent = trailingContent,
             highlighted = highlighted,
+            onHighlightFinished = onHighlightFinished,
             modifier = modifier,
         )
     }
@@ -258,18 +268,26 @@ private fun GroceryItemRow(
     trailingContent: (@Composable (GroceryDisplayItem) -> Unit)?,
     modifier: Modifier = Modifier,
     highlighted: Boolean = false,
+    onHighlightFinished: () -> Unit = {},
 ) {
     // Briefly tint the row when it's the freshly added item, then fade back to transparent so the
     // user can see where it landed in the list.
     val highlightColor = MaterialTheme.colorScheme.primaryContainer
     val highlightAlpha = remember { Animatable(0f) }
+    val currentOnHighlightFinished by rememberUpdatedState(onHighlightFinished)
     LaunchedEffect(highlighted) {
         if (highlighted) {
-            highlightAlpha.snapTo(HIGHLIGHT_PEAK_ALPHA)
-            highlightAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 1200, delayMillis = 400),
-            )
+            try {
+                highlightAlpha.snapTo(HIGHLIGHT_PEAK_ALPHA)
+                highlightAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 1200, delayMillis = 400),
+                )
+            } finally {
+                // Also on cancellation: a row scrolled away mid-highlight has still been shown, and
+                // must not replay the highlight when it's recomposed on scrolling back.
+                currentOnHighlightFinished()
+            }
         }
     }
     Row(
