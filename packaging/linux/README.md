@@ -11,6 +11,9 @@ version-bumped alongside the code they package.
 | `com.plusmobileapps.chefmate.desktop`     | Desktop entry exported by the sandbox             |
 | `chef-mate.sh`                            | Launcher shim placed at `/app/bin/chef-mate`      |
 
+`stage-tarball.sh` is not submitted: it builds the tarball the manifest consumes, and both the
+`Desktop Release` workflow and local test builds run it.
+
 The app id is `com.plusmobileapps.chefmate`, which Flathub allows because `plusmobileapps.com` is
 under our control and serves the app's site at `https://chefmate.plusmobileapps.com`.
 
@@ -56,17 +59,33 @@ SDK extension.
 - `database/DriverFactory.jvm.kt` — the Linux data directory honors `XDG_DATA_HOME`, which Flatpak
   points at `~/.var/app/com.plusmobileapps.chefmate/data`. The hardcoded `~/.local/share` is not
   writable inside the sandbox.
-- `main.kt` — sets `sun.awt.X11.XToolkit.awtAppClassName` so `WM_CLASS` matches the `.desktop`
-  file's `StartupWMClass` and the window binds to the right dock icon.
+- `--persist=.java` in the manifest — app settings and the Supabase session are stored with
+  `java.util.prefs` under `~/.java`, which the sandbox would otherwise discard on exit.
+- The `.desktop` file's `StartupWMClass` is `com-plusmobileapps-chefmate-MainKt`, the `WM_CLASS`
+  AWT derives from the main class, so the window binds to the right dock icon on X11/XWayland.
+  Renaming `main.kt`'s package or file changes it.
 
 ## Build and test locally (needs a Linux machine)
 
 ```bash
-flatpak install -y flathub org.flatpak.Builder org.gnome.Platform//50 org.gnome.Sdk//50
+flatpak install -y flathub org.flatpak.Builder org.gnome.Platform//51 org.gnome.Sdk//51
 ```
 
 ```bash
 flatpak run --command=flathub-build org.flatpak.Builder --install packaging/linux/com.plusmobileapps.chefmate.yml
+```
+
+That builds the published release tarball. To test an unreleased build, stage the tarball yourself
+and swap the archive source's `url`/`sha256` for `path: chef-mate-<version>-linux-x86_64.tar.gz`
+in a scratch copy of the manifest kept next to the other files. The builder runs sandboxed, so keep
+that scratch directory under `$HOME`, not `/tmp`.
+
+```bash
+./gradlew :client:composeApp:createReleaseDistributable
+```
+
+```bash
+packaging/linux/stage-tarball.sh 1.9.53 /path/to/scratch
 ```
 
 ```bash
@@ -91,8 +110,9 @@ Both linters must pass clean before submitting.
    one is required, and the first is the hero image on the store page.
 2. **Tarball on the release.** Cut a release so
    `chef-mate-<version>-linux-x86_64.tar.gz` exists as a GitHub Release asset, then put its real
-   `sha256sum` in the manifest — the checked-in value is a placeholder.
-3. **Verify the runtime branch.** The manifest pins GNOME 50; confirm it is still current with
+   `sha256sum` in the manifest — the checked-in value is a placeholder. Point the manifest `url`
+   and the metainfo `<release>` at that same version.
+3. **Verify the runtime branch.** The manifest pins GNOME 51; confirm it is still current with
    `flatpak remote-ls flathub --runtime | grep org.gnome.Platform`.
 4. **Read the Flathub requirements**, in particular the generative AI policy at
    <https://docs.flathub.org/docs/for-app-authors/requirements> — it applies to the app, the
