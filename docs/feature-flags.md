@@ -26,7 +26,7 @@ create policy "feature_flags read" on public.feature_flags
     for select to anon, authenticated using (true);
 ```
 
-Writes go through the service role / Studio UI — clients only ever read. For a UI instead of raw SQL, use the [feature-flag admin dashboard](./feature-flag-admin.md) (the `:admin` module), which also manages archiving and per-user targeting.
+Writes go through the service role / Studio UI — clients only ever read. For a UI instead of raw SQL, use the [feature-flag admin dashboard](./feature-flag-admin.md) (the `:admin` module), which also manages archiving and per-user targeting. Apply its migration (`supabase/migrations/20260604_feature_flags_admin.sql`) too: it adds the `archived` column, and the client read filters on `archived = false`, so the fetch fails without it.
 
 ### Columns
 
@@ -73,15 +73,15 @@ The bucket id is the authenticated Supabase user id when signed in, otherwise a 
 
 `FeatureFlagOverrides` lets a developer force any flag ON / OFF / Default. Overrides are persisted in `multiplatform-settings` under `flags.override.<key>.{present,value}`. Resolution order is **override → remote+rollout → in-code default**.
 
-The override mechanism works in any build, but the UI for setting overrides is wired into the developer-settings menu (see PR #157), which is itself gated by `isDebugBuild`. To open it manually for a one-off test, call `FeatureFlagOverrides.setOverride(flag, Override.ForceValue(true))` from anywhere with DI access.
+The override mechanism works in any build, but the UI for setting overrides is the Feature Flags screen (`FeatureFlagsBloc`) opened from the [developer-settings](./developer-settings.md) menu, which is itself gated by `isDebugBuild`. To open it manually for a one-off test, call `FeatureFlagOverrides.setOverride(flag, Override.ForceValue(true))` from anywhere with DI access.
 
 ## Files of interest
 
 | Concern | Path |
 |---|---|
-| Public API + flag registry | `client/featureflag/public/` |
+| Public API + flag registry + overrides screen | `client/featureflag/public/` |
 | Repo, evaluator, cache, overrides | `client/featureflag/impl/` |
 | Fake for other modules' tests | `client/featureflag/testing/` |
 | Stable cross-platform hash | `client/featureflag/impl/.../Fnv1a.kt` |
 | App-start refresh hook | `client/root/impl/.../RootBlocImpl.kt` (init block) |
-| `BuildConfig.VERSION_NAME` source | `client/shared/build.gradle.kts` |
+| `BuildConfig.VERSION_NAME` source | `client/shared/build.gradle.kts` (mirrors `versionName` from `client/composeApp/build.gradle.kts`) |

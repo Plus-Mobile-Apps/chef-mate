@@ -10,7 +10,7 @@ The `kmpLibrary` convention plugin hardcodes Android + iOS + JVM, and no shared 
 
 ## Backend setup (one time)
 
-1. **Apply the migration** `supabase/migrations/20260604_feature_flags_admin.sql` (Supabase Studio SQL editor or `supabase db push`). It versions the `feature_flags` table, adds the admin-only columns (`archived`, `description`, `created_at`, `updated_at` + trigger), creates the `admins` allow-list table, and installs RLS.
+1. **Apply the migrations** `supabase/migrations/20260604_feature_flags_admin.sql` and `supabase/migrations/20260605_add_feature_flag_user_ids.sql` (Supabase Studio SQL editor or `supabase db push`). The first versions the `feature_flags` table, adds the admin-only columns (`archived`, `description`, `created_at`, `updated_at` + trigger), creates the `admins` allow-list table, and installs RLS; the second adds the `user_ids` allowlist column.
 
 2. **Seed yourself as an admin.** Sign in to the dashboard once (this creates your `auth.users` row), then run in the SQL editor:
 
@@ -70,7 +70,7 @@ The flag list shows each flag's state (`enabled`/`disabled`, `type=value`, rollo
 | Value | `value` | A switch for booleans (`true`/`false`), a text field for strings. |
 | Enabled | `enabled` | Global kill switch. Off ⇒ everyone gets the in-code default. |
 | Rollout | `rollout_percent` | 0–100% of users (stable per key+identity). |
-| Platforms | `platforms` | None selected = all. Otherwise android/ios/desktop/web. |
+| Platforms | `platforms` | None selected = all. Otherwise android/ios/desktop/web. The client matches against its `Platform` enum (`ANDROID`/`IOS`/`JVM`, case-insensitive), so `desktop` and `web` currently match no client. |
 | Min / Max version | `min_version` / `max_version` | Optional semver bounds. |
 | User allowlist | `user_ids` | Supabase user ids (one per line / comma-separated) who get the flag **on top of** the rollout. |
 | Description | `description` | Admin note; not read by the client. |
@@ -111,3 +111,4 @@ Caveats: targeting matches the **signed-in** Supabase user id (logged-out client
 | Editor + validation | `admin/src/commonMain/.../FlagEditorScreen.kt` + `FlagDraft.kt` |
 | CRUD repository | `admin/src/commonMain/.../FeatureFlagAdminRepository.kt` |
 | Schema + RLS migration | `supabase/migrations/20260604_feature_flags_admin.sql` |
+| `user_ids` allowlist migration | `supabase/migrations/20260605_add_feature_flag_user_ids.sql` |
