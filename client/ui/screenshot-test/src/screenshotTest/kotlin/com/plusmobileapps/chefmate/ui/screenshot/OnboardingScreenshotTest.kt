@@ -13,6 +13,7 @@ import com.plusmobileapps.chefmate.onboarding.OnboardingNavBar
 import com.plusmobileapps.chefmate.onboarding.ShareRecipesScreen
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewAddToGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewCookModeBloc
+import com.plusmobileapps.chefmate.onboarding.impl.ui.previewFamilySharingBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewGroceryListsBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewMealPlanningBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewRecipeBooksBloc
@@ -257,6 +258,22 @@ fun OnboardingGroceryListsLightScreenshot() {
 @Composable
 fun OnboardingGroceryListsDarkScreenshot() {
     OnboardingScreenshot(content = { previewGroceryListsBloc.Content() }, darkTheme = true)
+}
+
+// ── Family sharing ───────────────────────────────────────────────────────────
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+fun OnboardingFamilySharingLightScreenshot() {
+    OnboardingScreenshot(content = { previewFamilySharingBloc.Content() })
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun OnboardingFamilySharingDarkScreenshot() {
+    OnboardingScreenshot(content = { previewFamilySharingBloc.Content() }, darkTheme = true)
 }
 
 // ── You're all set ───────────────────────────────────────────────────────────

@@ -34,6 +34,7 @@ class AiChatNavigationUiTest {
     fun add_recipe_pill_opens_edit_form_pre_filled_with_extracted_recipe() =
         runRootBlocTest { component ->
             component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+            component.testSubscriptionRepository.setSubscribed(true)
             component.fakeGeminiClient.deltas = listOf("Try lemon-roasted chicken thighs!")
             component.fakeGeminiRecipeExtractor.response = extractedRecipe
 

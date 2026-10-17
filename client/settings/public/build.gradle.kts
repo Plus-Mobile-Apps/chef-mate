@@ -12,6 +12,7 @@ kotlin {
             api(projects.client.browser.public)
             implementation(projects.client.ui.public)
             implementation(projects.client.util.public)
+            implementation(projects.client.subscription.public)
             implementation(compose.components.resources)
         }
     }

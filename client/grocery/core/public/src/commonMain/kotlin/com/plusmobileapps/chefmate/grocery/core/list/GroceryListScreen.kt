@@ -43,11 +43,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,11 +56,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,10 +78,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -90,7 +96,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import chefmate.client.grocery.core.public.generated.resources.Res
 import chefmate.client.grocery.core.public.generated.resources.grocery_accept
-import chefmate.client.grocery.core.public.generated.resources.grocery_add_item
 import chefmate.client.grocery.core.public.generated.resources.grocery_add_item_hint
 import chefmate.client.grocery.core.public.generated.resources.grocery_apply
 import chefmate.client.grocery.core.public.generated.resources.grocery_cancel
@@ -109,6 +114,7 @@ import chefmate.client.grocery.core.public.generated.resources.grocery_delete_pu
 import chefmate.client.grocery.core.public.generated.resources.grocery_detail
 import chefmate.client.grocery.core.public.generated.resources.grocery_done
 import chefmate.client.grocery.core.public.generated.resources.grocery_edit_list
+import chefmate.client.grocery.core.public.generated.resources.grocery_family_lists_fallback
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter_all
 import chefmate.client.grocery.core.public.generated.resources.grocery_filter_by
@@ -149,6 +155,9 @@ import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
+import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
@@ -156,8 +165,9 @@ import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
+import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
-import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
+import com.plusmobileapps.chefmate.ui.components.snackbarAnchor
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
@@ -214,44 +224,46 @@ fun GroceryListScreen(
         knownItemIds = currentIds
     }
 
+    val density = LocalDensity.current
+    // Height of the add row's field (not its upward-opening suggestions): the list pads its bottom
+    // by this so the last item can scroll clear of the row floating over it. It is measured after
+    // layout, so it starts at the field's spec height — which is what it measures at normal font
+    // scale — rather than 0, so the first frame is already laid out right and nothing re-centres
+    // a frame later.
+    var inputRowHeight by remember { mutableStateOf(OutlinedTextFieldDefaults.MinHeight) }
+
     PlusResponsiveContainer(
         modifier = modifier.testTag(GroceryListTestTags.SCREEN).fillMaxSize()
     ) { windowSizeClass ->
-        val useDropdownSelector = windowSizeClass == WindowSizeClass.EXPANDED
         PlusNavContainer(
             modifier = Modifier.fillMaxSize(),
             data = PlusHeaderData.None,
             scrollEnabled = false,
-            content = {
+            // The list scrolls up behind the app bar and invite banners, which frost over it as one
+            // panel.
+            drawContentBehindHeader = true,
+            headerContent = {
                 TopAppBar(
                     windowInsets = WindowInsets(0.dp),
+                    // Transparent so the container's frosted panel shows through.
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     title = {
-                        Box {
-                            Row(
-                                modifier =
-                                    Modifier.testTag(GroceryListTestTags.LIST_SELECTOR)
-                                        .clickable(onClick = bloc::onListSelectorClicked),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text =
-                                        state.selectedList?.name
-                                            ?: stringResource(Res.string.grocery_list)
-                                )
-                                ExposedDropdownMenuDefaults.TrailingIcon(
-                                    expanded = state.showListSelector
-                                )
-                            }
-                            if (useDropdownSelector) {
-                                GroceryListSelectorDropdown(
-                                    expanded = state.showListSelector,
-                                    state = state,
-                                    onDismiss = bloc::onListSelectorDismissed,
-                                    onListSelected = bloc::onListSelected,
-                                    onCreateListClicked = bloc::onCreateListClicked,
-                                    onEditListClicked = bloc::onEditListClicked,
-                                )
-                            }
+                        PlusDropdownSelector(
+                            text =
+                                state.selectedList?.name ?: stringResource(Res.string.grocery_list),
+                            expanded = state.showListSelector,
+                            windowSizeClass = windowSizeClass,
+                            onClick = bloc::onListSelectorClicked,
+                            onDismiss = bloc::onListSelectorDismissed,
+                            modifier = Modifier.testTag(GroceryListTestTags.LIST_SELECTOR),
+                        ) {
+                            GroceryListSelectorContent(
+                                state = state,
+                                onDismiss = bloc::onListSelectorDismissed,
+                                onListSelected = bloc::onListSelected,
+                                onCreateListClicked = bloc::onCreateListClicked,
+                                onEditListClicked = bloc::onEditListClicked,
+                            )
                         }
                     },
                     actions = {
@@ -309,92 +321,154 @@ fun GroceryListScreen(
                         onReject = { bloc.onRejectInvitation(invite) },
                     )
                 }
+            },
+            content = {
+                val headerOverlap = LocalPlusHeaderOverlap.current
                 val itemLookup =
                     remember(state.groupedItems) {
                         state.groupedItems.flatMap { it.items }.associateBy { it.id }
                     }
-                PullToRefreshBox(
-                    isRefreshing = state.isSyncing,
-                    onRefresh = bloc::onSyncClicked,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    val hasNoItems = state.groupedItems.isEmpty()
-                    val filtersApplied =
-                        state.filter != GroceryListBloc.GroceryFilter.ALL ||
-                            state.recipeFilter != null
-                    val showEmptyState = hasNoItems && !filtersApplied && !state.isSyncing
-                    val showFilteredEmptyState = hasNoItems && filtersApplied && !state.isSyncing
-                    if (showEmptyState) {
-                        EmptyGroceryListState(
-                            onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else if (showFilteredEmptyState) {
-                        FilteredEmptyGroceryListState(
-                            onClearFiltersClicked = bloc::onClearFiltersClicked,
-                            onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        GroceryGroupedList(
-                            groups =
-                                state.groupedItems.map { group ->
-                                    GroceryDisplayGroup(
-                                        category = group.category,
-                                        items =
-                                            group.items.map { item ->
-                                                GroceryDisplayItem(
-                                                    key = item.id,
-                                                    displayName = item.displayName,
-                                                    quantity = item.quantity,
-                                                    isChecked = item.isChecked,
-                                                    recipeName = item.recipeName,
-                                                )
-                                            },
+                // The list runs to the bottom of the screen and scrolls behind both the add row and
+                // the floating glass nav bar beneath it, so it can be seen through the glass. Its
+                // bottom padding is what keeps the last item reachable above them.
+                val showInput = state.currentUserRole != ListRole.VIEWER
+                val navBarInset = LocalBottomNavBarInset.current
+                val listBottomPadding = (if (showInput) inputRowHeight else 0.dp) + navBarInset
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val pullToRefreshState = rememberPullToRefreshState()
+                    PullToRefreshBox(
+                        isRefreshing = state.isSyncing,
+                        onRefresh = bloc::onSyncClicked,
+                        modifier = Modifier.fillMaxSize(),
+                        state = pullToRefreshState,
+                        // Drops below the frosted header rather than spinning behind it.
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = state.isSyncing,
+                                modifier =
+                                    Modifier.align(Alignment.TopCenter)
+                                        .padding(headerOverlap.contentPadding()),
+                            )
+                        },
+                    ) {
+                        val hasNoItems = state.groupedItems.isEmpty()
+                        val filtersApplied =
+                            state.filter != GroceryListBloc.GroceryFilter.ALL ||
+                                state.recipeFilter != null
+                        val showEmptyState = hasNoItems && !filtersApplied && !state.isSyncing
+                        val showFilteredEmptyState =
+                            hasNoItems && filtersApplied && !state.isSyncing
+                        if (showEmptyState) {
+                            EmptyGroceryListState(
+                                onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            headerOverlap.contentPadding(bottom = listBottomPadding)
+                                        ),
+                            )
+                        } else if (showFilteredEmptyState) {
+                            FilteredEmptyGroceryListState(
+                                onClearFiltersClicked = bloc::onClearFiltersClicked,
+                                onBrowseRecipesClicked = bloc::onBrowseRecipesClicked,
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            headerOverlap.contentPadding(bottom = listBottomPadding)
+                                        ),
+                            )
+                        } else {
+                            GroceryGroupedList(
+                                groups =
+                                    state.groupedItems.map { group ->
+                                        GroceryDisplayGroup(
+                                            category = group.category,
+                                            items =
+                                                group.items.map { item ->
+                                                    GroceryDisplayItem(
+                                                        key = item.id,
+                                                        displayName = item.displayName,
+                                                        quantity = item.quantity,
+                                                        isChecked = item.isChecked,
+                                                        recipeName = item.recipeName,
+                                                    )
+                                                },
+                                        )
+                                    },
+                                onItemClick = { key ->
+                                    itemLookup[key as Long]?.let { bloc.onGroceryItemClicked(it) }
+                                },
+                                onCheckedChange = { key ->
+                                    itemLookup[key as Long]?.let {
+                                        bloc.onGroceryItemCheckedChange(it, !it.isChecked)
+                                    }
+                                },
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .nestedScroll(dismissKeyboardOnScroll)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(onTap = { focusManager.clearFocus() })
+                                        },
+                                state = listState,
+                                showHeaders = state.sort == GroceryListBloc.GrocerySort.AISLE,
+                                highlightedKey = highlightedItemKey,
+                                onHighlightFinished = { key ->
+                                    // Only clear our own key: a superseded highlight finishes
+                                    // (cancelled) after the next add has already set a new one.
+                                    if (highlightedItemKey == key) highlightedItemKey = null
+                                },
+                                trailingContent = { displayItem ->
+                                    val item = itemLookup[displayItem.key as Long]
+                                    if (item != null) {
+                                        GroceryItemTrailingContent(
+                                            item = item,
+                                            onDeleteClick = { bloc.onGroceryItemDelete(item) },
+                                            // Where the row can be swiped away, the always-visible
+                                            // delete button sits right under a thumb and is too
+                                            // easy
+                                            // to hit by accident; the swipe is the deliberate
+                                            // gesture.
+                                            showDeleteButton = !supportsSwipeToDelete,
+                                        )
+                                    }
+                                },
+                                swipeToDeleteEnabled = supportsSwipeToDelete,
+                                onSwipeToDelete = { displayItem ->
+                                    itemLookup[displayItem.key as Long]?.let(
+                                        bloc::onGroceryItemDelete
                                     )
                                 },
-                            onItemClick = { key ->
-                                itemLookup[key as Long]?.let { bloc.onGroceryItemClicked(it) }
+                                contentPadding =
+                                    headerOverlap.contentPadding(bottom = listBottomPadding),
+                                // Aisle headers pin below the frosted header, not behind it.
+                                pinHeadersBelowTopPadding = true,
+                            )
+                        }
+                    }
+                    if (showInput) {
+                        GroceryListInput(
+                            name = bloc.newGroceryItemName,
+                            suggestions = state.autocompleteSuggestions,
+                            queryMatchesSavedAutocomplete = state.queryMatchesSavedAutocomplete,
+                            onNameChange = bloc::onNewGroceryItemNameChange,
+                            onAddClick = {
+                                awaitingAddedItem = true
+                                bloc.saveGroceryItem()
                             },
-                            onCheckedChange = { key ->
-                                itemLookup[key as Long]?.let {
-                                    bloc.onGroceryItemCheckedChange(it, !it.isChecked)
-                                }
+                            onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
+                            forceShowSuggestions = forceShowAutocompleteSuggestions,
+                            onFieldRowHeightChanged = {
+                                inputRowHeight = with(density) { it.toDp() }
                             },
+                            // Floats over the list, directly on top of the nav pill. The inset
+                            // shrinks as the keyboard covers the pill, so the row stays at
+                            // max(keyboard, pill) and lands directly on the keyboard.
                             modifier =
-                                Modifier.fillMaxSize()
-                                    .nestedScroll(dismissKeyboardOnScroll)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onTap = { focusManager.clearFocus() })
-                                    },
-                            state = listState,
-                            showHeaders = state.sort == GroceryListBloc.GrocerySort.AISLE,
-                            highlightedKey = highlightedItemKey,
-                            trailingContent = { displayItem ->
-                                val item = itemLookup[displayItem.key as Long]
-                                if (item != null) {
-                                    GroceryItemTrailingContent(
-                                        item = item,
-                                        onDeleteClick = { bloc.onGroceryItemDelete(item) },
-                                    )
-                                }
-                            },
+                                Modifier.align(Alignment.BottomCenter)
+                                    .padding(bottom = navBarInset),
                         )
                     }
-                }
-                if (state.currentUserRole != ListRole.VIEWER) {
-                    GroceryListInput(
-                        name = bloc.newGroceryItemName,
-                        suggestions = state.autocompleteSuggestions,
-                        queryMatchesSavedAutocomplete = state.queryMatchesSavedAutocomplete,
-                        onNameChange = bloc::onNewGroceryItemNameChange,
-                        onAddClick = {
-                            awaitingAddedItem = true
-                            bloc.saveGroceryItem()
-                        },
-                        onSaveAutocompleteItem = bloc::onSaveAutocompleteItem,
-                        forceShowSuggestions = forceShowAutocompleteSuggestions,
-                    )
                 }
             },
         )
@@ -411,16 +485,6 @@ fun GroceryListScreen(
                     showSortFilterSheet = false
                 },
                 onDismiss = { showSortFilterSheet = false },
-            )
-        }
-
-        if (!useDropdownSelector && state.showListSelector) {
-            GroceryListSelectorSheet(
-                state = state,
-                onDismiss = bloc::onListSelectorDismissed,
-                onListSelected = bloc::onListSelected,
-                onCreateListClicked = bloc::onCreateListClicked,
-                onEditListClicked = bloc::onEditListClicked,
             )
         }
 
@@ -686,61 +750,22 @@ private fun GrocerySortFilterBottomSheet(
     }
 }
 
-/** Phone/medium presentation of the list selector: a modal bottom sheet. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Rows of the list picker (My Lists / family lists / Shared with me + create), shown by
+ * [PlusDropdownSelector] as a dropdown on tablet/desktop and a bottom sheet on phones. Public so
+ * screenshot tests can render it directly, since neither presentation snapshots under the plugin.
+ */
 @Composable
-private fun GroceryListSelectorSheet(
+fun ColumnScope.GroceryListSelectorContent(
     state: GroceryListBloc.Model,
     onDismiss: () -> Unit,
     onListSelected: (GroceryListModel) -> Unit,
     onCreateListClicked: () -> Unit,
     onEditListClicked: (GroceryListModel) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        GroceryListSelectorContent(
-            state = state,
-            onDismiss = onDismiss,
-            onListSelected = onListSelected,
-            onCreateListClicked = onCreateListClicked,
-            onEditListClicked = onEditListClicked,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-/** Tablet/desktop presentation: a dropdown anchored to the title in the top bar. */
-@Composable
-private fun GroceryListSelectorDropdown(
-    expanded: Boolean,
-    state: GroceryListBloc.Model,
-    onDismiss: () -> Unit,
-    onListSelected: (GroceryListModel) -> Unit,
-    onCreateListClicked: () -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
-) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        GroceryListSelectorContent(
-            state = state,
-            onDismiss = onDismiss,
-            onListSelected = onListSelected,
-            onCreateListClicked = onCreateListClicked,
-            onEditListClicked = onEditListClicked,
-        )
-    }
-}
-
-/** Shared rows for both selector presentations (My Lists / Shared with me + create). */
-@Composable
-private fun ColumnScope.GroceryListSelectorContent(
-    state: GroceryListBloc.Model,
-    onDismiss: () -> Unit,
-    onListSelected: (GroceryListModel) -> Unit,
-    onCreateListClicked: () -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
-) {
-    val myLists = state.lists.filter { !it.isShared }
+    val myLists = state.lists.filter { !it.isShared && !it.isFamily }
     val sharedLists = state.lists.filter { it.isShared }
+    val familyLists = state.lists.filter { it.isFamily }.groupBy { it.familyId }
 
     Text(
         text = stringResource(Res.string.grocery_my_lists),
@@ -770,6 +795,26 @@ private fun ColumnScope.GroceryListSelectorContent(
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         },
     )
+    // One section per family, titled with the family's name. Family lists are managed from Manage
+    // Family, so they offer no edit action here.
+    familyLists.values.forEach { lists ->
+        HorizontalDivider()
+        Text(
+            text =
+                lists.first().familyName
+                    ?: stringResource(Res.string.grocery_family_lists_fallback),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        lists.forEach { list ->
+            GroceryListSelectorItem(
+                list = list,
+                isSelected = list.id == state.selectedList?.id,
+                onListSelected = onListSelected,
+                onEditListClicked = null,
+            )
+        }
+    }
     if (sharedLists.isNotEmpty()) {
         HorizontalDivider()
         Text(
@@ -855,6 +900,7 @@ private fun GroceryListInput(
     onSaveAutocompleteItem: (String) -> Unit,
     modifier: Modifier = Modifier,
     forceShowSuggestions: Boolean = false,
+    onFieldRowHeightChanged: (Int) -> Unit = {},
 ) {
     val state = name.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -880,6 +926,9 @@ private fun GroceryListInput(
         keyboardController?.hide()
     }
 
+    // List rows scroll underneath. Only the field and the Done button are filled — each clipped to
+    // its own pill — so the list stays visible around their perimeter instead of being cut off by
+    // a hard-edged rectangle. The suggestions above are an opaque surface of their own.
     Column(modifier = modifier) {
         // Suggestions render directly above the field rather than as a downward dropdown: the input
         // is anchored at the bottom of the screen, so a dropdown would open behind the keyboard
@@ -894,7 +943,16 @@ private fun GroceryListInput(
                 onSaveClick = { saveQuery?.let(onSaveAutocompleteItem) },
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            // Only this row is measured: the suggestions above it open over the list, and feeding
+            // them into the list's padding would make it jump with every keystroke. Snackbars float
+            // above this row so they never cover the field.
+            modifier =
+                Modifier.snackbarAnchor()
+                    .onSizeChanged { onFieldRowHeightChanged(it.height) }
+                    .padding(horizontal = ChefMateTheme.dimens.paddingSmall),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             GroceryItemNameTextField(
                 value = state.value,
                 onValueChange = onNameChange,
@@ -908,7 +966,22 @@ private fun GroceryListInput(
                 enter = fadeIn() + expandHorizontally(),
                 exit = fadeOut() + shrinkHorizontally(),
             ) {
-                TextButton(onClick = dismissKeyboard) {
+                // Done finishes what the user was typing: anything left in the field is added
+                // before the keyboard goes away, so half-typed text isn't silently abandoned. It
+                // reads the name as it stands at the tap, not `trimmedQuery` from the last
+                // composition — a tap landing before the recomposition that carries the latest
+                // keystrokes would otherwise see stale text and drop the item.
+                TextButton(
+                    onClick = {
+                        if (name.value.isNotBlank()) onAddClick()
+                        dismissKeyboard()
+                    },
+                    modifier = Modifier.testTag(GroceryListTestTags.DONE_BUTTON),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                ) {
                     Text(stringResource(Res.string.grocery_done))
                 }
             }
@@ -976,19 +1049,23 @@ private fun GroceryItemNameTextField(
     modifier: Modifier = Modifier,
 ) {
     var fieldValue by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
-    // The name is owned externally (the BLoC). When it changes from outside the field — a
-    // suggestion tap or the clear after adding — sync it in and move the cursor to the end. Normal
-    // typing keeps text and value equal, so this leaves the user's cursor alone.
-    LaunchedEffect(value) {
-        if (value != fieldValue.text) {
-            fieldValue = TextFieldValue(value, TextRange(value.length))
-        }
-    }
+    // The name is owned externally (the BLoC); this only keeps the cursor and composition. When the
+    // name changes from outside the field — a suggestion tap, or the clear after adding — show it
+    // straight away with the cursor at the end. This is derived during composition rather than
+    // synced in a LaunchedEffect a frame later: that lag left a window where the field still held
+    // text the BLoC had already moved past. Normal typing keeps the two equal, so the user's cursor
+    // is left alone.
+    val shownValue =
+        if (fieldValue.text == value) fieldValue else TextFieldValue(value, TextRange(value.length))
     OutlinedTextField(
-        value = fieldValue,
+        value = shownValue,
         onValueChange = {
             fieldValue = it
-            onValueChange(it.text)
+            // Only forward real edits. On blur the field re-reports its input session's buffer
+            // (composition cleared) whether or not anything changed — and when Done has just added
+            // the item and cleared the name, that buffer can still hold the old text. Forwarding it
+            // put the item's name straight back into the field.
+            if (it.text != value) onValueChange(it.text)
         },
         modifier =
             modifier
@@ -996,13 +1073,23 @@ private fun GroceryItemNameTextField(
                 .onFocusChanged { onFocusChanged(it.isFocused) }
                 .testTag(GroceryListTestTags.ITEM_INPUT),
         singleLine = true,
+        shape = PlusTextFieldDefaults.RoundedShape,
+        // Opaque inside the pill so list rows scrolling underneath don't show through the text.
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                errorContainerColor = MaterialTheme.colorScheme.surface,
+            ),
         placeholder = { Text(stringResource(Res.string.grocery_add_item_hint)) },
         keyboardOptions =
             KeyboardOptions(
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Send,
             ),
-        // Submits the item and keeps the keyboard open so the user can keep entering items. On an
+        // The IME action (or Enter on desktop) is the only way to submit — there is no in-field add
+        // button. Submitting keeps the keyboard open so the user can keep entering items. On an
         // empty field the action instead dismisses the keyboard, matching the Done button and
         // scroll-to-dismiss gestures.
         keyboardActions =
@@ -1011,45 +1098,54 @@ private fun GroceryItemNameTextField(
                     if (fieldValue.text.isNotBlank()) onAddClick() else onDismissKeyboard()
                 }
             ),
-        trailingIcon = {
-            IconButton(onClick = onAddClick, enabled = fieldValue.text.isNotBlank()) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.grocery_add_item),
-                )
-            }
-        },
     )
 }
 
 @Composable
-private fun GroceryItemTrailingContent(item: GroceryItem, onDeleteClick: () -> Unit) {
+private fun GroceryItemTrailingContent(
+    item: GroceryItem,
+    onDeleteClick: () -> Unit,
+    showDeleteButton: Boolean,
+) {
     val syncingDescription = stringResource(Res.string.grocery_sync_syncing)
-    when (item.syncStatus) {
-        SyncStatus.NOT_SYNCED ->
-            Icon(
-                imageVector = Icons.Outlined.CloudOff,
-                contentDescription = stringResource(Res.string.grocery_sync_not_synced),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        SyncStatus.SYNCING ->
-            PlusLoadingIndicator(
-                modifier = Modifier.size(16.dp),
-                contentDescription = syncingDescription,
-                strokeWidth = 2.dp,
-            )
-        SyncStatus.SYNCED ->
-            Icon(
-                imageVector = Icons.Outlined.CloudDone,
-                contentDescription = stringResource(Res.string.grocery_sync_synced),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+    // Without the delete button the sync icon is last in the row, and it carries none of the
+    // padding an IconButton builds in — so it needs its own inset off the trailing edge.
+    Box(
+        modifier =
+            if (showDeleteButton) {
+                Modifier
+            } else {
+                Modifier.padding(end = ChefMateTheme.dimens.paddingNormal)
+            }
+    ) {
+        when (item.syncStatus) {
+            SyncStatus.NOT_SYNCED ->
+                Icon(
+                    imageVector = Icons.Outlined.CloudOff,
+                    contentDescription = stringResource(Res.string.grocery_sync_not_synced),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            SyncStatus.SYNCING ->
+                PlusLoadingIndicator(
+                    modifier = Modifier.size(16.dp),
+                    contentDescription = syncingDescription,
+                    strokeWidth = 2.dp,
+                )
+            SyncStatus.SYNCED ->
+                Icon(
+                    imageVector = Icons.Outlined.CloudDone,
+                    contentDescription = stringResource(Res.string.grocery_sync_synced),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+        }
     }
 
-    IconButton(onClick = onDeleteClick) {
-        Icon(Icons.Default.Delete, stringResource(Res.string.grocery_delete_item))
+    if (showDeleteButton) {
+        IconButton(onClick = onDeleteClick) {
+            Icon(Icons.Default.Delete, stringResource(Res.string.grocery_delete_item))
+        }
     }
 }
 
@@ -1168,7 +1264,8 @@ private fun GroceryListSelectorItem(
     list: GroceryListModel,
     isSelected: Boolean,
     onListSelected: (GroceryListModel) -> Unit,
-    onEditListClicked: (GroceryListModel) -> Unit,
+    /** Null hides the edit action. */
+    onEditListClicked: ((GroceryListModel) -> Unit)?,
 ) {
     ListItem(
         headlineContent = {
@@ -1193,14 +1290,17 @@ private fun GroceryListSelectorItem(
             }
         },
         modifier = Modifier.clickable { onListSelected(list) },
-        trailingContent = {
-            IconButton(onClick = { onEditListClicked(list) }) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(Res.string.grocery_edit_list),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        },
+        trailingContent =
+            onEditListClicked?.let { onEdit ->
+                {
+                    IconButton(onClick = { onEdit(list) }) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = stringResource(Res.string.grocery_edit_list),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            },
     )
 }

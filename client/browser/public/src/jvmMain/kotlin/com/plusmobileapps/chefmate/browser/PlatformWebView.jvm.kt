@@ -26,13 +26,22 @@ actual fun PlatformWebView(
     onCanNavigateChanged: (canGoBack: Boolean, canGoForward: Boolean) -> Unit,
     goBackTrigger: Int,
     goForwardTrigger: Int,
+    captureHtmlTrigger: Int,
+    onHtmlCaptured: (String?) -> Unit,
+    onTitleChanged: (String?) -> Unit,
     instanceKeeper: InstanceKeeper,
     modifier: Modifier,
 ) {
     val holder = remember { instanceKeeper.getOrCreate { WebViewHolder() } }
 
     DisposableEffect(Unit) {
-        holder.ensureInitialized(onUrlLoaded, onLoadingChanged, onCanNavigateChanged, url)
+        holder.ensureInitialized(
+            onUrlLoaded,
+            onLoadingChanged,
+            onCanNavigateChanged,
+            onTitleChanged,
+            url,
+        )
         onDispose {}
     }
 
@@ -46,6 +55,10 @@ actual fun PlatformWebView(
     LaunchedEffect(goBackTrigger) { if (goBackTrigger > 0) holder.goBack() }
 
     LaunchedEffect(goForwardTrigger) { if (goForwardTrigger > 0) holder.goForward() }
+
+    LaunchedEffect(captureHtmlTrigger) {
+        if (captureHtmlTrigger > 0) holder.captureHtml(onHtmlCaptured)
+    }
 
     SwingPanel(
         modifier = modifier,
@@ -63,6 +76,8 @@ private class WebViewHolder : InstanceKeeper.Instance {
     @Volatile var lastCommandedUrl: String = ""
 
     @Volatile private var onCanNavigateChanged: ((Boolean, Boolean) -> Unit)? = null
+
+    @Volatile private var onTitleChanged: ((String?) -> Unit)? = null
 
     private var initialized = false
 
@@ -82,19 +97,39 @@ private class WebViewHolder : InstanceKeeper.Instance {
         }
     }
 
+    /**
+     * Reads the loaded page's markup off the JavaFX application thread, where the engine requires
+     * every call to happen. [onCaptured] therefore runs on that thread, not the caller's.
+     */
+    fun captureHtml(onCaptured: (String?) -> Unit) {
+        Platform.runLater {
+            onCaptured(
+                runCatching { webView?.engine?.executeScript(CAPTURE_HTML_SCRIPT) as? String }
+                    .getOrNull()
+            )
+        }
+    }
+
     fun ensureInitialized(
         onUrlLoaded: (String) -> Unit,
         onLoadingChanged: (Boolean) -> Unit,
         onCanNavigateChanged: (Boolean, Boolean) -> Unit,
+        onTitleChanged: (String?) -> Unit,
         initialUrl: String,
     ) {
         this.onCanNavigateChanged = onCanNavigateChanged
+        this.onTitleChanged = onTitleChanged
         if (initialized) return
         initialized = true
 
         Platform.runLater {
             val wv = WebView()
             webView = wv
+            // JavaFX identifies itself with a `JavaFX/<n>` token where a browser puts its version,
+            // which Google answers with a stream of CAPTCHAs. Present as the Safari build the
+            // engine's WebKit corresponds to instead.
+            wv.engine.userAgent =
+                wv.engine.userAgent.replace(Regex("""JavaFX/\S+"""), "Version/18.0")
 
             wv.engine.loadWorker.stateProperty().addListener { _, _, newState ->
                 when (newState) {
@@ -105,6 +140,7 @@ private class WebViewHolder : InstanceKeeper.Instance {
                             lastCommandedUrl = it
                             onUrlLoaded(it)
                         }
+                        this.onTitleChanged?.invoke(wv.engine.title)
                         val history = wv.engine.history
                         this.onCanNavigateChanged?.invoke(
                             history.currentIndex > 0,

@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.meal.data.testing
 
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,16 +13,25 @@ class FakeMealPlanRepository : MealPlanRepository {
     private val _meals = MutableStateFlow<List<MealPlanItem>>(emptyList())
     private var nextId = 1L
 
-    override fun getMealsByDate(date: String): Flow<List<MealPlanItem>> = _meals.map { items ->
-        items.filter { it.date == date }
-    }
-
-    override fun getMealsByDateRange(startDate: String, endDate: String): Flow<List<MealPlanItem>> =
+    override fun getMealsByDate(date: String, scope: MealPlanScope): Flow<List<MealPlanItem>> =
         _meals.map { items ->
-            items.filter { it.date in startDate..endDate }
+            items.filter { it.date == date && it.familyId == scope.familyId }
         }
 
-    override suspend fun addMeal(recipeId: Long, date: String, mealType: MealType) {
+    override fun getMealsByDateRange(
+        startDate: String,
+        endDate: String,
+        scope: MealPlanScope,
+    ): Flow<List<MealPlanItem>> = _meals.map { items ->
+        items.filter { it.date in startDate..endDate && it.familyId == scope.familyId }
+    }
+
+    override suspend fun addMeal(
+        recipeId: Long,
+        date: String,
+        mealType: MealType,
+        scope: MealPlanScope,
+    ) {
         val item =
             MealPlanItem(
                 id = nextId++,
@@ -30,6 +40,7 @@ class FakeMealPlanRepository : MealPlanRepository {
                 recipeImageUrl = null,
                 date = date,
                 mealType = mealType,
+                familyId = scope.familyId,
             )
         _meals.update { it + item }
     }

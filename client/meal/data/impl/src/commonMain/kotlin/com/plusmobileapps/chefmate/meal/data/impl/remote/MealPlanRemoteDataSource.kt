@@ -5,5 +5,8 @@ interface MealPlanRemoteDataSource {
 
     suspend fun deleteMealPlan(remoteId: String)
 
-    suspend fun fetchAllMealPlans(ownerId: String): List<RemoteMealPlan>
+    /**
+     * Every meal the current user can see — their own plus those on their families' shared plans.
+     */
+    suspend fun fetchAccessibleMealPlans(): List<RemoteMealPlan>
 }

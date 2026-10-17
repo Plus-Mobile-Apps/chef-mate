@@ -14,6 +14,7 @@ import com.plusmobileapps.chefmate.recipe.data.IngredientScaler
 import com.plusmobileapps.chefmate.recipe.data.IngredientSection
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
+import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
 import com.russhwolf.settings.Settings
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -145,7 +146,7 @@ class AddRecipeToGroceryListViewModel(
                         return@launch
                     }
             val lines =
-                recipe.ingredients.split("\n").filter {
+                recipe.ingredients.withoutLineBreakTags().split("\n").filter {
                     it.isNotBlank() && !IngredientSection.isHeader(it)
                 }
             _state.update { it.copy(isLoading = false, recipe = recipe, ingredientLines = lines) }

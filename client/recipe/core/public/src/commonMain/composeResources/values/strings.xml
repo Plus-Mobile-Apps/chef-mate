@@ -11,6 +11,7 @@
     <string name="recipe_detail_back">Back</string>
     <string name="recipe_detail_cook_mode">Cook this recipe</string>
     <string name="recipe_detail_ai_chat">Ask AI about this recipe</string>
+    <string name="recipe_detail_ai_chat_premium">Ask AI about this recipe (ChefMate Premium)</string>
     <string name="recipe_detail_cook_mode_onboarding">Tap here to cook hands-free in Cook Mode</string>
     <string name="recipe_detail_add_to_grocery_onboarding">Add this recipe’s ingredients to your grocery list</string>
     <string name="recipe_detail_favorite_onboarding">Save this recipe to your favorites for quick access</string>
@@ -76,7 +77,13 @@
     <!-- Add to Meal Plan -->
     <string name="recipe_detail_add_to_meal_plan">Add to meal plan</string>
     <string name="add_meal_plan_choose_date">Choose Date</string>
+    <string name="meal_plan_picker_personal_plan">My meals</string>
+    <string name="meal_plan_picker_family_plans">Family plans</string>
+    <string name="meal_plan_picker_selector">Choose meal plan</string>
+    <string name="meal_plan_picker_add_to">Add to</string>
     <string name="add_meal_plan_choose_meal_type">Choose Meal Type</string>
+    <string name="add_meal_plan_choose_date_and_meal_type">Choose Date &amp; Meal Type</string>
+    <string name="add_meal_plan_meal_type">Meal type</string>
     <string name="add_meal_plan_save">Save</string>
     <string name="add_meal_plan_breakfast">Breakfast</string>
     <string name="add_meal_plan_lunch">Lunch</string>

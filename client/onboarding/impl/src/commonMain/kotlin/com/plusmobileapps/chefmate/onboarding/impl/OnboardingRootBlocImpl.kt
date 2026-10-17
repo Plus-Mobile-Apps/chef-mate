@@ -15,6 +15,7 @@ import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.OnboardingRepository
 import com.plusmobileapps.chefmate.onboarding.AddToGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.CookModeBloc
+import com.plusmobileapps.chefmate.onboarding.FamilySharingBloc
 import com.plusmobileapps.chefmate.onboarding.GroceryListsBloc
 import com.plusmobileapps.chefmate.onboarding.MealPlanningBloc
 import com.plusmobileapps.chefmate.onboarding.OnboardingRootBloc
@@ -47,6 +48,7 @@ class OnboardingRootBlocImpl(
     private val cookMode: CookModeBloc.Factory,
     private val recipeBooks: RecipeBooksBloc.Factory,
     private val groceryLists: GroceryListsBloc.Factory,
+    private val familySharing: FamilySharingBloc.Factory,
     private val startCooking: StartCookingBloc.Factory,
 ) : OnboardingRootBloc, BlocContext by context {
 
@@ -132,6 +134,15 @@ class OnboardingRootBlocImpl(
                         groceryLists.create(context = context, output = ::handleGroceryListsOutput)
                 )
 
+            Configuration.FamilySharing ->
+                OnboardingRootBloc.Child.FamilySharing(
+                    bloc =
+                        familySharing.create(
+                            context = context,
+                            output = ::handleFamilySharingOutput,
+                        )
+                )
+
             Configuration.StartCooking ->
                 OnboardingRootBloc.Child.StartCooking(
                     bloc =
@@ -194,7 +205,13 @@ class OnboardingRootBlocImpl(
 
     private fun handleGroceryListsOutput(output: GroceryListsBloc.Output) {
         when (output) {
-            GroceryListsBloc.Output.Next -> advanceTo(Configuration.StartCooking)
+            GroceryListsBloc.Output.Next -> advanceTo(Configuration.FamilySharing)
+        }
+    }
+
+    private fun handleFamilySharingOutput(output: FamilySharingBloc.Output) {
+        when (output) {
+            FamilySharingBloc.Output.Next -> advanceTo(Configuration.StartCooking)
         }
     }
 
@@ -215,9 +232,9 @@ class OnboardingRootBlocImpl(
     private companion object {
         /**
          * Welcome, Share recipes, Save recipes, Add to grocery, Meal planning, Cook mode, Recipe
-         * books, Grocery lists, Start cooking.
+         * books, Grocery lists, Family sharing, Start cooking.
          */
-        const val STEP_COUNT = 9
+        const val STEP_COUNT = 10
     }
 
     @Serializable
@@ -237,6 +254,8 @@ class OnboardingRootBlocImpl(
         @Serializable data object RecipeBooks : Configuration()
 
         @Serializable data object GroceryLists : Configuration()
+
+        @Serializable data object FamilySharing : Configuration()
 
         @Serializable data object StartCooking : Configuration()
     }

@@ -1,0 +1,68 @@
+import kotlin.Boolean;
+
+-- Sites the user starred from the in-app browser, shown as a grid on the browser landing screen.
+--
+-- `url` is stored normalized (trimmed, fragment dropped) and is unique so starring the same page
+-- twice is a no-op and the browser can look up "is this page bookmarked" by URL.
+--
+-- `remoteId`, `clientId`, `isDirty`, and `ownerId` mirror the GroceryAutocompleteItem sync
+-- scaffolding. Bookmarks are add/delete only (never edited), so `isDirty` is unused but kept for
+-- symmetry and to avoid a migration should renaming be added.
+CREATE TABLE BrowserBookmark (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    remoteId TEXT UNIQUE,
+    clientId TEXT,
+    isDirty INTEGER AS Boolean NOT NULL DEFAULT 0,
+    ownerId TEXT
+);
+
+CREATE UNIQUE INDEX idx_browser_bookmark_url ON BrowserBookmark(url);
+
+getAll:
+SELECT * FROM BrowserBookmark ORDER BY createdAt ASC, id ASC;
+
+getById:
+SELECT * FROM BrowserBookmark WHERE id = ?;
+
+getByUrl:
+SELECT * FROM BrowserBookmark WHERE url = ?;
+
+getByRemoteId:
+SELECT * FROM BrowserBookmark WHERE remoteId = ?;
+
+getByClientId:
+SELECT * FROM BrowserBookmark WHERE clientId = ?;
+
+insertOrIgnore:
+INSERT OR IGNORE INTO BrowserBookmark (url, title, createdAt, clientId, ownerId)
+VALUES (?, ?, ?, ?, ?);
+
+createWithRemoteId:
+INSERT INTO BrowserBookmark (url, title, createdAt, remoteId, clientId, ownerId)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(remoteId) DO UPDATE SET
+    url = excluded.url,
+    title = excluded.title,
+    clientId = excluded.clientId,
+    ownerId = excluded.ownerId;
+
+getUnsynced:
+SELECT * FROM BrowserBookmark WHERE remoteId IS NULL;
+
+getSyncedRemoteIds:
+SELECT id, remoteId FROM BrowserBookmark WHERE remoteId IS NOT NULL;
+
+updateRemoteId:
+UPDATE BrowserBookmark SET remoteId = ?, isDirty = 0 WHERE id = ?;
+
+updateClientId:
+UPDATE BrowserBookmark SET clientId = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM BrowserBookmark WHERE id = ?;
+
+deleteAll:
+DELETE FROM BrowserBookmark;

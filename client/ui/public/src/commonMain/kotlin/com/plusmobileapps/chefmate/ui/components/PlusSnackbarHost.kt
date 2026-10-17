@@ -10,10 +10,15 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -33,13 +38,14 @@ import com.plusmobileapps.chefmate.text.TextData
 val LocalSnackbarInset: ProvidableCompositionLocal<Dp> = compositionLocalOf { 0.dp }
 
 /**
- * A holder for the live height of the app's bottom navigation bar (its content plus the system
- * navigation-bar inset it absorbs), or `0.dp` when no bottom bar is showing. Provided by the
- * app-root toast scaffold so the global snackbar host can float its snackbars *above* the bar
- * instead of rendering on top of it.
+ * A holder for the live height of the block the app's bottom navigation occupies — the floating
+ * pill plus the margin between it and the bottom of the screen — or `0.dp` when no bottom bar is
+ * showing. Provided by the app-root toast scaffold so the global snackbar host can float its
+ * snackbars *above* the bar instead of rendering on top of it.
  *
  * The bottom bar reports its measured height by applying [reportBottomNavInset] to itself; nothing
- * else should write to this. Read it only inside the toast scaffold.
+ * else should write to this. Read it only inside the toast scaffold. For clearing screen content of
+ * the floating bar, read [LocalBottomNavBarInset] instead.
  */
 val LocalBottomNavInset: ProvidableCompositionLocal<MutableState<Dp>> = compositionLocalOf {
     mutableStateOf(0.dp)
@@ -50,6 +56,10 @@ val LocalBottomNavInset: ProvidableCompositionLocal<MutableState<Dp>> = composit
  * above it, and resets the reported height to `0.dp` when the composable leaves composition (e.g.
  * navigating away from a screen that shows a bottom bar). Apply it to the app's bottom navigation
  * bar.
+ *
+ * Place it *before* the bar's outer margins in the modifier chain: `onSizeChanged` measures the
+ * node as it stands at that point, and the toast host needs the distance from the bottom of the
+ * screen, not the bare height of the pill.
  */
 @Composable
 fun Modifier.reportBottomNavInset(): Modifier {
@@ -60,11 +70,63 @@ fun Modifier.reportBottomNavInset(): Modifier {
 }
 
 /**
+ * The bottom-anchored screen elements the global snackbar host must float above — e.g. the grocery
+ * list's add-item field — each tracked as its distance from the top of the element to the bottom of
+ * the screen. Provided by the app-root toast scaffold, which lifts its snackbars to [inset].
+ *
+ * Elements register through [snackbarAnchor]; nothing else should write to this.
+ */
+@Stable
+class SnackbarAnchors {
+    private val insets = mutableStateMapOf<Any, Dp>()
+
+    /** The highest registered anchor's distance from the bottom of the screen, or `0.dp`. */
+    val inset: Dp
+        get() = insets.values.maxOrNull() ?: 0.dp
+
+    internal fun update(key: Any, inset: Dp) {
+        if (insets[key] != inset) insets[key] = inset
+    }
+
+    internal fun remove(key: Any) {
+        insets.remove(key)
+    }
+}
+
+/** The [SnackbarAnchors] the app-root toast scaffold lifts its snackbars above. */
+val LocalSnackbarAnchors: ProvidableCompositionLocal<SnackbarAnchors> = compositionLocalOf {
+    SnackbarAnchors()
+}
+
+/**
+ * Keeps the global snackbar above this composable: reports the distance from its top edge to the
+ * bottom of the screen into [LocalSnackbarAnchors], and withdraws it when the composable leaves
+ * composition. Apply it to bottom-anchored inputs or toolbars that a snackbar must never cover.
+ * Because it tracks the element's on-screen position, an element riding up on the keyboard carries
+ * the snackbar with it.
+ */
+@Composable
+fun Modifier.snackbarAnchor(): Modifier {
+    val anchors = LocalSnackbarAnchors.current
+    val density = LocalDensity.current
+    val key = remember { Any() }
+    DisposableEffect(anchors) { onDispose { anchors.remove(key) } }
+    return onGloballyPositioned { coordinates ->
+        val root = coordinates.findRootCoordinates()
+        val top = root.localPositionOf(coordinates, Offset.Zero).y
+        val distance = (root.size.height - top).coerceAtLeast(0f)
+        anchors.update(key, with(density) { distance.toDp() })
+    }
+}
+
+/**
  * A single queued snackbar. [id] is stable so the UI can dequeue exactly what it showed.
  *
  * Optionally carries an action: when [actionLabel] is non-null the snackbar shows a button, and
- * tapping it invokes [onAction]. [onAction] runs only on tap, never on plain dismissal. The lambda
- * is held for the message's lifetime only (until shown + dequeued), so keep what it captures cheap.
+ * tapping it invokes [onAction]. [onAction] runs only on tap, never on plain dismissal. [onDismiss]
+ * is the complement: it runs on every other outcome (timeout, swipe, or the host leaving
+ * composition), never after the action. The lambdas are held for the message's lifetime only (until
+ * shown + dequeued), so keep what they capture cheap.
  */
 @Immutable
 data class SnackbarMessage(
@@ -73,6 +135,7 @@ data class SnackbarMessage(
     val actionLabel: TextData? = null,
     val duration: SnackbarDuration = SnackbarDuration.Short,
     val onAction: (() -> Unit)? = null,
+    val onDismiss: (() -> Unit)? = null,
 )
 
 /**
@@ -103,9 +166,12 @@ data class SnackbarQueue(
         actionLabel: TextData? = null,
         duration: SnackbarDuration = SnackbarDuration.Short,
         onAction: (() -> Unit)? = null,
+        onDismiss: (() -> Unit)? = null,
     ): SnackbarQueue =
         copy(
-            messages = messages + SnackbarMessage(nextId, text, actionLabel, duration, onAction),
+            messages =
+                messages +
+                    SnackbarMessage(nextId, text, actionLabel, duration, onAction, onDismiss),
             nextId = nextId + 1,
         )
 
@@ -118,7 +184,8 @@ data class SnackbarQueue(
  * [onSnackbarShown] so the BLoC can dequeue and the next message plays. No messages are dropped.
  *
  * If the head carries an [SnackbarMessage.actionLabel], its button is shown and tapping it runs
- * [SnackbarMessage.onAction] before the message is dequeued.
+ * [SnackbarMessage.onAction] before the message is dequeued. Any other outcome — timeout, swipe, or
+ * this host leaving composition mid-display — runs [SnackbarMessage.onDismiss] instead.
  *
  * @param queue the queue from BLoC state.
  * @param onSnackbarShown called with the shown message's id once it is dismissed.
@@ -137,6 +204,7 @@ fun PlusSnackbarHost(
 
     LaunchedEffect(head?.id) {
         if (head != null && text != null) {
+            var actionPerformed = false
             try {
                 val result =
                     hostState.showSnackbar(
@@ -144,8 +212,12 @@ fun PlusSnackbarHost(
                         actionLabel = actionLabel,
                         duration = head.duration,
                     )
-                if (result == SnackbarResult.ActionPerformed) head.onAction?.invoke()
+                if (result == SnackbarResult.ActionPerformed) {
+                    actionPerformed = true
+                    head.onAction?.invoke()
+                }
             } finally {
+                if (!actionPerformed) head.onDismiss?.invoke()
                 onSnackbarShown(head.id)
             }
         }

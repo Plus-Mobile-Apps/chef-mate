@@ -5,17 +5,17 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,13 +30,14 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -75,7 +75,6 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -83,6 +82,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -151,6 +152,9 @@ import chefmate.client.recipe.list.public.generated.resources.recipe_list_menu_s
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_menu_sync
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_more_actions
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_open_in_new_window
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_overflow_onboarding
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_recipe_count
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_recipe_count_one
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scan_failed_title
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scan_from_photo
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scanning_message
@@ -169,6 +173,7 @@ import chefmate.client.recipe.list.public.generated.resources.recipe_list_select
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_export
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_more
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_select_all
+import chefmate.client.recipe.list.public.generated.resources.recipe_list_sort
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_sort_a_to_z
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_sort_and_filter
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_sort_by
@@ -195,15 +200,20 @@ import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.LocalRecipeWindowOpener
+import com.plusmobileapps.chefmate.ui.components.LocalBottomNavBarInset
+import com.plusmobileapps.chefmate.ui.components.LocalPlusHeaderOverlap
+import com.plusmobileapps.chefmate.ui.components.LocalSnackbarInset
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuArea
 import com.plusmobileapps.chefmate.ui.components.PlusContextMenuItem
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
 import com.plusmobileapps.chefmate.ui.components.PlusDialogScaffold
+import com.plusmobileapps.chefmate.ui.components.PlusDropdownSelector
 import com.plusmobileapps.chefmate.ui.components.PlusHeaderData
 import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
+import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
 import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
@@ -238,6 +248,11 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
     }
 
     PlusResponsiveContainer { windowSizeClass ->
+        // Wide windows get a permanent filter rail down the left edge; the same options are then
+        // dropped from the sort & filter sheet so they only live in one place. Pointless before the
+        // user has any recipes, so it waits for the library to be non-empty.
+        val showFilterSidebar =
+            windowSizeClass == WindowSizeClass.EXPANDED && state.totalRecipeCount > 0
         // The selector stands in for the title once any book exists — it names the active book, or
         // "All recipes" when the cross-book view is active.
         val showBookSelector = state.recipeBooks.isNotEmpty()
@@ -302,29 +317,37 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     title =
                         if (showBookSelector) FixedString("")
                         else Res.string.recipe_list_title.asTextData(),
+                    // With a book selector the count rides inside it ("Dinners 12"); the standalone
+                    // label is only for the no-books case.
+                    center =
+                        letIfTrue(!showBookSelector && state.recipes.isNotEmpty()) {
+                            {
+                                RecipeCountLabel(
+                                    count = state.recipes.size,
+                                    compact = windowSizeClass == WindowSizeClass.COMPACT,
+                                )
+                            }
+                        },
                     leading =
                         letIfTrue(showBookSelector) {
                             {
                                 BookSelector(
                                     activeBookName = bookSelectorLabel,
+                                    recipeCount = state.recipes.size,
                                     isPickerOpen = state.isBookPickerOpen,
+                                    windowSizeClass = windowSizeClass,
                                     onClick = bloc::onBookSelectorClicked,
+                                    onDismiss = bloc::onBookPickerDismissed,
                                 ) {
-                                    // The dropdown is anchored to the selector on tablet/desktop
-                                    // widths.
-                                    if (windowSizeClass != WindowSizeClass.COMPACT) {
-                                        RecipeBookPickerDropdown(
-                                            expanded = state.isBookPickerOpen,
-                                            books = state.recipeBooks,
-                                            activeBookId = state.activeBook?.id,
-                                            isAllRecipesSelected = state.isAllRecipesSelected,
-                                            onDismiss = bloc::onBookPickerDismissed,
-                                            onBookSelected = bloc::onBookSelected,
-                                            onAllRecipesSelected = bloc::onAllRecipesSelected,
-                                            onEditBook = bloc::onEditBookClicked,
-                                            onCreateBook = bloc::onCreateBookClicked,
-                                        )
-                                    }
+                                    RecipeBookPickerContent(
+                                        books = state.recipeBooks,
+                                        activeBookId = state.activeBook?.id,
+                                        isAllRecipesSelected = state.isAllRecipesSelected,
+                                        onBookSelected = bloc::onBookSelected,
+                                        onAllRecipesSelected = bloc::onAllRecipesSelected,
+                                        onEditBook = bloc::onEditBookClicked,
+                                        onCreateBook = bloc::onCreateBookClicked,
+                                    )
                                 }
                             }
                         },
@@ -342,77 +365,102 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                         stringResource(Res.string.recipe_list_search),
                                 )
                             }
-                            RecipeListCoachMark(
-                                id = CoachMarkId.RECIPE_LIST_VIEW_MODE,
-                                text = Res.string.recipe_list_view_mode_onboarding.asTextData(),
-                                activeCoachMark = state.activeCoachMark,
-                                onDismiss = bloc::onCoachMarkDismissed,
-                            ) {
-                                IconButton(onClick = bloc::onToggleViewMode) {
-                                    Icon(
-                                        imageVector =
-                                            if (state.isGridView) Icons.AutoMirrored.Filled.ViewList
-                                            else Icons.Default.GridView,
-                                        contentDescription =
-                                            stringResource(
-                                                if (state.isGridView) {
-                                                    Res.string.recipe_list_view_list
-                                                } else {
-                                                    Res.string.recipe_list_view_grid
-                                                }
+                            val onSortFilterClicked = {
+                                bloc.onCoachMarkDismissed(CoachMarkId.RECIPE_LIST_FILTER)
+                                showSortFilterSheet = true
+                            }
+                            if (windowSizeClass == WindowSizeClass.COMPACT) {
+                                // Phone widths only have room for search and sort & filter beside
+                                // the book selector and recipe count, so the rest of the actions
+                                // fold into the overflow menu.
+                                RecipeListCoachMark(
+                                    id = CoachMarkId.RECIPE_LIST_FILTER,
+                                    text = Res.string.recipe_list_filter_onboarding.asTextData(),
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
+                                ) {
+                                    SortFilterButton(
+                                        sortOnly = false,
+                                        activeFilterCount = state.totalActiveFilterCount,
+                                        onClick = onSortFilterClicked,
+                                    )
+                                }
+                                CompactOverflowCoachMark(
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
+                                ) {
+                                    OverflowMenu(
+                                        onSelectClicked = bloc::onEnterSelectionMode,
+                                        onExportAllClicked = bloc::onExportClicked,
+                                        onCollaborateClicked = bloc::onCollaborateClicked,
+                                        onSyncClicked = bloc::onSyncClicked,
+                                        compactActions =
+                                            CompactHeaderActions(
+                                                scanEnabled = state.isScanFromPhotoEnabled,
+                                                isGridView = state.isGridView,
+                                                onCreateClicked = bloc::onAddRecipeClicked,
+                                                onScanPicked = bloc::onScanRecipePhotoPicked,
+                                                onToggleViewMode = bloc::onToggleViewMode,
                                             ),
                                     )
                                 }
-                            }
-                            RecipeListCoachMark(
-                                id = CoachMarkId.RECIPE_LIST_FILTER,
-                                text = Res.string.recipe_list_filter_onboarding.asTextData(),
-                                activeCoachMark = state.activeCoachMark,
-                                onDismiss = bloc::onCoachMarkDismissed,
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        bloc.onCoachMarkDismissed(CoachMarkId.RECIPE_LIST_FILTER)
-                                        showSortFilterSheet = true
-                                    }
+                            } else {
+                                RecipeListCoachMark(
+                                    id = CoachMarkId.RECIPE_LIST_VIEW_MODE,
+                                    text = Res.string.recipe_list_view_mode_onboarding.asTextData(),
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
-                                    val filterCount = state.totalActiveFilterCount
-                                    if (filterCount > 0) {
-                                        BadgedBox(badge = { Badge { Text("$filterCount") } }) {
-                                            Icon(
-                                                imageVector = Icons.Default.FilterList,
-                                                contentDescription =
-                                                    stringResource(Res.string.recipe_list_filter),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                        }
-                                    } else {
+                                    IconButton(onClick = bloc::onToggleViewMode) {
                                         Icon(
-                                            imageVector = Icons.Default.FilterList,
+                                            imageVector =
+                                                if (state.isGridView)
+                                                    Icons.AutoMirrored.Filled.ViewList
+                                                else Icons.Default.GridView,
                                             contentDescription =
-                                                stringResource(Res.string.recipe_list_filter),
+                                                stringResource(
+                                                    if (state.isGridView) {
+                                                        Res.string.recipe_list_view_list
+                                                    } else {
+                                                        Res.string.recipe_list_view_grid
+                                                    }
+                                                ),
                                         )
                                     }
                                 }
-                            }
-                            RecipeListCoachMark(
-                                id = CoachMarkId.RECIPE_LIST_ADD,
-                                text = Res.string.recipe_list_add_onboarding.asTextData(),
-                                activeCoachMark = state.activeCoachMark,
-                                onDismiss = bloc::onCoachMarkDismissed,
-                            ) {
-                                AddRecipeMenu(
-                                    scanEnabled = state.isScanFromPhotoEnabled,
-                                    onCreateClicked = bloc::onAddRecipeClicked,
-                                    onScanPicked = bloc::onScanRecipePhotoPicked,
+                                RecipeListCoachMark(
+                                    id = CoachMarkId.RECIPE_LIST_FILTER,
+                                    text = Res.string.recipe_list_filter_onboarding.asTextData(),
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
+                                ) {
+                                    // With the rail visible the filters live there, so this action
+                                    // narrows to sort-only.
+                                    SortFilterButton(
+                                        sortOnly = showFilterSidebar,
+                                        activeFilterCount = state.totalActiveFilterCount,
+                                        onClick = onSortFilterClicked,
+                                    )
+                                }
+                                RecipeListCoachMark(
+                                    id = CoachMarkId.RECIPE_LIST_ADD,
+                                    text = Res.string.recipe_list_add_onboarding.asTextData(),
+                                    activeCoachMark = state.activeCoachMark,
+                                    onDismiss = bloc::onCoachMarkDismissed,
+                                ) {
+                                    AddRecipeMenu(
+                                        scanEnabled = state.isScanFromPhotoEnabled,
+                                        onCreateClicked = bloc::onAddRecipeClicked,
+                                        onScanPicked = bloc::onScanRecipePhotoPicked,
+                                    )
+                                }
+                                OverflowMenu(
+                                    onSelectClicked = bloc::onEnterSelectionMode,
+                                    onExportAllClicked = bloc::onExportClicked,
+                                    onCollaborateClicked = bloc::onCollaborateClicked,
+                                    onSyncClicked = bloc::onSyncClicked,
                                 )
                             }
-                            OverflowMenu(
-                                onSelectClicked = bloc::onEnterSelectionMode,
-                                onExportAllClicked = bloc::onExportClicked,
-                                onCollaborateClicked = bloc::onCollaborateClicked,
-                                onSyncClicked = bloc::onSyncClicked,
-                            )
                         },
                 )
             }
@@ -422,7 +470,10 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 modifier = modifier.fillMaxSize(),
                 data = headerData,
                 scrollEnabled = false,
-                content = {
+                // The list scrolls up behind the header, search bar and invite banners, which frost
+                // over it as one panel.
+                drawContentBehindHeader = true,
+                headerContent = {
                     AnimatedVisibility(
                         visible = showSearchBar,
                         enter = expandVertically(),
@@ -444,59 +495,112 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                             onDecline = { bloc.onDeclineInvite(invite.memberId) },
                         )
                     }
-                    PullToRefreshBox(
-                        isRefreshing = state.isSyncing,
-                        onRefresh = bloc::onSyncClicked,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        when {
-                            !state.isLoading && state.totalRecipeCount == 0 -> {
-                                NoRecipesEmptyState(
-                                    onBrowseClicked = bloc::onBrowseRecipesClicked,
-                                    onCreateClicked = bloc::onAddRecipeClicked,
-                                    modifier = Modifier.fillMaxSize(),
+                },
+                content = {
+                    val headerOverlap = LocalPlusHeaderOverlap.current
+                    Row(modifier = Modifier.weight(1f)) {
+                        if (showFilterSidebar) {
+                            RecipeFilterSidebar(
+                                modifier = Modifier.padding(headerOverlap.contentPadding()),
+                                activeFilters = state.activeFilters,
+                                activeCategories = state.activeCategories,
+                                activeUserCategoryIds = state.activeUserCategoryIds,
+                                availableUserCategories = state.availableUserCategories,
+                                onFilterToggled = bloc::onFilterToggled,
+                                onCategoryToggled = { category ->
+                                    bloc.onApplySortAndFilters(
+                                        sort = state.currentSort,
+                                        filters = state.activeFilters,
+                                        categories = state.activeCategories.toggle(category),
+                                        userCategoryIds = state.activeUserCategoryIds,
+                                    )
+                                },
+                                onUserCategoryToggled = { categoryId ->
+                                    bloc.onApplySortAndFilters(
+                                        sort = state.currentSort,
+                                        filters = state.activeFilters,
+                                        categories = state.activeCategories,
+                                        userCategoryIds =
+                                            state.activeUserCategoryIds.toggle(categoryId),
+                                    )
+                                },
+                                onClearFilters = bloc::onClearFilters,
+                            )
+                        }
+                        val pullToRefreshState = rememberPullToRefreshState()
+                        PullToRefreshBox(
+                            isRefreshing = state.isSyncing,
+                            onRefresh = bloc::onSyncClicked,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            state = pullToRefreshState,
+                            // Drops below the frosted header rather than spinning behind it.
+                            indicator = {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = state.isSyncing,
+                                    modifier =
+                                        Modifier.align(Alignment.TopCenter)
+                                            .padding(headerOverlap.contentPadding()),
                                 )
-                            }
-                            state.recipes.isEmpty() && state.isSearchActive -> {
-                                SearchEmptyState(
-                                    canSearchAllRecipes = !state.isAllRecipesSelected,
-                                    onSearchAllRecipes = bloc::onAllRecipesSelected,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                            state.recipes.isEmpty() && state.totalActiveFilterCount > 0 -> {
-                                FilterEmptyState(
-                                    activeFilters = state.activeFilters,
-                                    activeCategories = state.activeCategories,
-                                    onClearFilters = bloc::onClearFilters,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                            state.isGridView -> {
-                                RecipeGrid(
-                                    modifier = Modifier.fillMaxSize(),
-                                    recipes = state.recipes,
-                                    onRecipeClicked = bloc::onRecipeClicked,
-                                    onRecipeLongClicked = bloc::onRecipeLongClicked,
-                                    state = gridState,
-                                    bottomContentPadding =
-                                        if (state.cookingRecipeCount > 0) FabStackReserve else 0.dp,
-                                    isSelectionMode = state.isSelectionMode,
-                                    selectedRecipeIds = state.selectedRecipeIds,
-                                )
-                            }
-                            else -> {
-                                RecipeList(
-                                    modifier = Modifier.fillMaxSize(),
-                                    recipes = state.recipes,
-                                    onRecipeClicked = bloc::onRecipeClicked,
-                                    onRecipeLongClicked = bloc::onRecipeLongClicked,
-                                    state = listState,
-                                    bottomContentPadding =
-                                        if (state.cookingRecipeCount > 0) FabStackReserve else 0.dp,
-                                    isSelectionMode = state.isSelectionMode,
-                                    selectedRecipeIds = state.selectedRecipeIds,
-                                )
+                            },
+                        ) {
+                            when {
+                                !state.isLoading && state.totalRecipeCount == 0 -> {
+                                    NoRecipesEmptyState(
+                                        onBrowseClicked = bloc::onBrowseRecipesClicked,
+                                        onCreateClicked = bloc::onAddRecipeClicked,
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
+                                    )
+                                }
+                                state.recipes.isEmpty() && state.isSearchActive -> {
+                                    SearchEmptyState(
+                                        canSearchAllRecipes = !state.isAllRecipesSelected,
+                                        onSearchAllRecipes = bloc::onAllRecipesSelected,
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
+                                    )
+                                }
+                                state.recipes.isEmpty() && state.totalActiveFilterCount > 0 -> {
+                                    FilterEmptyState(
+                                        activeFilters = state.activeFilters,
+                                        activeCategories = state.activeCategories,
+                                        onClearFilters = bloc::onClearFilters,
+                                        modifier =
+                                            Modifier.fillMaxSize()
+                                                .padding(headerOverlap.contentPadding()),
+                                    )
+                                }
+                                state.isGridView -> {
+                                    RecipeGrid(
+                                        modifier = Modifier.fillMaxSize(),
+                                        recipes = state.recipes,
+                                        onRecipeClicked = bloc::onRecipeClicked,
+                                        onRecipeLongClicked = bloc::onRecipeLongClicked,
+                                        state = gridState,
+                                        bottomContentPadding =
+                                            if (state.cookingRecipeCount > 0) FabStackReserve
+                                            else 0.dp,
+                                        isSelectionMode = state.isSelectionMode,
+                                        selectedRecipeIds = state.selectedRecipeIds,
+                                    )
+                                }
+                                else -> {
+                                    RecipeList(
+                                        modifier = Modifier.fillMaxSize(),
+                                        recipes = state.recipes,
+                                        onRecipeClicked = bloc::onRecipeClicked,
+                                        onRecipeLongClicked = bloc::onRecipeLongClicked,
+                                        state = listState,
+                                        bottomContentPadding =
+                                            if (state.cookingRecipeCount > 0) FabStackReserve
+                                            else 0.dp,
+                                        isSelectionMode = state.isSelectionMode,
+                                        selectedRecipeIds = state.selectedRecipeIds,
+                                    )
+                                }
                             }
                         }
                     }
@@ -504,7 +608,8 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
             )
 
             if (showSortFilterSheet) {
-                SortFilterBottomSheet(
+                SortFilterModal(
+                    showFilters = !showFilterSidebar,
                     currentSort = state.currentSort,
                     activeFilters = state.activeFilters,
                     activeCategories = state.activeCategories,
@@ -522,7 +627,13 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 CookingSessionFabStack(
                     onContinueClicked = bloc::onContinueCookingClicked,
                     onDoneCookingClicked = bloc::onDoneCookingClicked,
-                    modifier = Modifier.align(Alignment.BottomEnd),
+                    // Clear the floating nav pill, and ride up further so the app-wide cook-mode
+                    // toast never covers the FAB stack (matching MealPlanScreen).
+                    modifier =
+                        Modifier.align(Alignment.BottomEnd)
+                            .padding(
+                                bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                            ),
                 )
             }
 
@@ -543,20 +654,6 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     message = error,
                     onConfirmClick = bloc::onScanErrorDismissed,
                     onDismissRequest = bloc::onScanErrorDismissed,
-                )
-            }
-
-            // On phone widths the book picker is a bottom sheet rather than an anchored dropdown.
-            if (state.isBookPickerOpen && windowSizeClass == WindowSizeClass.COMPACT) {
-                RecipeBookPickerSheet(
-                    books = state.recipeBooks,
-                    activeBookId = state.activeBook?.id,
-                    isAllRecipesSelected = state.isAllRecipesSelected,
-                    onDismiss = bloc::onBookPickerDismissed,
-                    onBookSelected = bloc::onBookSelected,
-                    onAllRecipesSelected = bloc::onAllRecipesSelected,
-                    onEditBook = bloc::onEditBookClicked,
-                    onCreateBook = bloc::onCreateBookClicked,
                 )
             }
 
@@ -780,22 +877,146 @@ private fun DoneCookingDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     )
 }
 
+/**
+ * Opens the sort & filter sheet, badged with the active-filter count. [sortOnly] is for when the
+ * filter rail is showing: the filters live there, so the button narrows to sort and drops the
+ * badge.
+ */
+@Composable
+private fun SortFilterButton(sortOnly: Boolean, activeFilterCount: Int, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        val icon = if (sortOnly) Icons.AutoMirrored.Filled.Sort else Icons.Default.FilterList
+        val label =
+            stringResource(
+                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter
+            )
+        val filterCount = if (sortOnly) 0 else activeFilterCount
+        if (filterCount > 0) {
+            BadgedBox(badge = { Badge { Text("$filterCount") } }) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            Icon(imageVector = icon, contentDescription = label)
+        }
+    }
+}
+
+/**
+ * The header actions that only get their own icons on tablet/desktop widths. On a compact window
+ * they're handed to [OverflowMenu] instead, which lists them above its usual items.
+ */
+private class CompactHeaderActions(
+    val scanEnabled: Boolean,
+    val isGridView: Boolean,
+    val onCreateClicked: () -> Unit,
+    val onScanPicked: (ByteArray, String) -> Unit,
+    val onToggleViewMode: () -> Unit,
+)
+
+/** The coach marks whose buttons fold into the overflow menu on compact windows. */
+private val compactOverflowCoachMarks =
+    listOf(CoachMarkId.RECIPE_LIST_ADD, CoachMarkId.RECIPE_LIST_VIEW_MODE)
+
+/**
+ * Stands in for the add and view-mode coach marks on compact windows, where those buttons live
+ * inside the overflow menu. One bubble points at the menu while either is up next, and dismissing
+ * it retires both so the user isn't walked through the same button twice.
+ */
+@Composable
+private fun CompactOverflowCoachMark(
+    activeCoachMark: String?,
+    onDismiss: (String) -> Unit,
+    anchor: @Composable () -> Unit,
+) {
+    PlusOnboardingTooltip(
+        text = Res.string.recipe_list_overflow_onboarding.asTextData(),
+        visible = activeCoachMark in compactOverflowCoachMarks,
+        onDismiss = { compactOverflowCoachMarks.forEach(onDismiss) },
+        placement = PlusTooltipPlacement.BELOW,
+        anchor = anchor,
+    )
+}
+
 @Composable
 private fun OverflowMenu(
     onSelectClicked: () -> Unit,
     onExportAllClicked: () -> Unit,
     onCollaborateClicked: () -> Unit,
     onSyncClicked: () -> Unit,
+    compactActions: CompactHeaderActions? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    // Remembered outside the menu so the launcher outlives the menu closing when "Scan" is picked.
+    val scanPicker =
+        if (compactActions?.scanEnabled == true) {
+            rememberImagePickerLauncher { picked ->
+                picked?.let { compactActions.onScanPicked(it.bytes, it.fileExtension) }
+            }
+        } else {
+            null
+        }
     Box {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(RecipeListTestTags.OVERFLOW_BUTTON),
+        ) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = stringResource(Res.string.recipe_list_more_actions),
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (compactActions != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.recipe_list_create_recipe)) },
+                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    modifier = Modifier.testTag(RecipeListTestTags.ADD_MENU_CREATE),
+                    onClick = {
+                        expanded = false
+                        compactActions.onCreateClicked()
+                    },
+                )
+                if (scanPicker != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.recipe_list_scan_from_photo)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+                        },
+                        modifier = Modifier.testTag(RecipeListTestTags.ADD_MENU_SCAN),
+                        onClick = {
+                            expanded = false
+                            scanPicker()
+                        },
+                    )
+                }
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (compactActions.isGridView) Res.string.recipe_list_view_list
+                                else Res.string.recipe_list_view_grid
+                            )
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector =
+                                if (compactActions.isGridView) Icons.AutoMirrored.Filled.ViewList
+                                else Icons.Default.GridView,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        compactActions.onToggleViewMode()
+                    },
+                )
+                HorizontalDivider()
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(Res.string.recipe_list_menu_sync)) },
                 leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null) },
@@ -880,7 +1101,10 @@ private fun SelectionOverflowMenu(
     }
 }
 
-/** Bottom sheet listing the user's recipe books so the current selection can be filed under one. */
+/**
+ * Bottom sheet listing the user's recipe books, grouped like the book selector, so the current
+ * selection can be filed under one.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BulkAddToBookSheet(
@@ -903,19 +1127,11 @@ private fun BulkAddToBookSheet(
                     ),
             )
             HorizontalDivider()
-            books.forEach { book ->
-                ListItem(
-                    headlineContent = { Text(book.name) },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.MenuBook,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().clickable { onBookSelected(book.id) },
-                )
-            }
+            RecipeBookTargetPickerContent(
+                books = books,
+                onBookSelected = onBookSelected,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            )
         }
     }
 }
@@ -969,47 +1185,76 @@ private fun BulkAddToCategorySheet(
     }
 }
 
+/**
+ * The number of recipes currently on screen — after the active book, search and filters have been
+ * applied. Compact widths get the bare number: the app bar's middle slot is only the sliver left
+ * between the book selector and the five actions, which the spelled-out label doesn't fit.
+ */
+@Composable
+private fun RecipeCountLabel(count: Int, compact: Boolean) {
+    val label = recipeCountDescription(count)
+    Text(
+        text = if (compact) count.toString() else label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier =
+            Modifier.testTag(RecipeListTestTags.RECIPE_COUNT).semantics {
+                contentDescription = label
+            },
+    )
+}
+
+@Composable
+private fun recipeCountDescription(count: Int): String =
+    if (count == 1) {
+        stringResource(Res.string.recipe_list_recipe_count_one)
+    } else {
+        PhraseModel(Res.string.recipe_list_recipe_count, "count" to FixedString(count.toString()))
+            .localized()
+    }
+
+/**
+ * The active book's name followed by the number of recipes on screen ("Dinners (12)"), drawn as an
+ * outlined pill so it reads as a tappable dropdown rather than a plain title.
+ */
 @Composable
 private fun BookSelector(
     activeBookName: String?,
+    recipeCount: Int,
     isPickerOpen: Boolean,
+    windowSizeClass: WindowSizeClass,
     onClick: () -> Unit,
-    dropdown: @Composable () -> Unit,
+    onDismiss: () -> Unit,
+    pickerContent: @Composable ColumnScope.() -> Unit,
 ) {
-    Box {
-        Row(
-            modifier =
-                Modifier.clickable(onClick = onClick)
-                    .padding(
-                        horizontal = ChefMateTheme.dimens.paddingSmall,
-                        vertical = ChefMateTheme.dimens.paddingExtraSmall,
-                    )
-                    .testTag(RecipeListTestTags.BOOK_SELECTOR)
-                    .semantics { contentDescription = activeBookName ?: "" },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = activeBookName.orEmpty(),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 160.dp),
-            )
-            Icon(
-                imageVector =
-                    if (isPickerOpen) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                contentDescription = stringResource(Res.string.recipe_list_book_selector),
-            )
-        }
-        dropdown()
-    }
+    val countDescription = recipeCountDescription(recipeCount)
+    PlusDropdownSelector(
+        text = activeBookName.orEmpty(),
+        supportingText = "($recipeCount)",
+        expanded = isPickerOpen,
+        windowSizeClass = windowSizeClass,
+        onClick = onClick,
+        onDismiss = onDismiss,
+        iconContentDescription = stringResource(Res.string.recipe_list_book_selector),
+        modifier =
+            Modifier.testTag(RecipeListTestTags.BOOK_SELECTOR).semantics {
+                contentDescription = "${activeBookName.orEmpty()}, $countDescription"
+            },
+        menuContent = pickerContent,
+    )
 }
 
 // region Sort & Filter Bottom Sheet
 
+/**
+ * Sort & filter controls, presented as a bottom sheet on phone/tablet widths and as a centered
+ * dialog on expanded ones — [PlusResponsiveModal] picks the presentation.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun SortFilterBottomSheet(
+private fun SortFilterModal(
+    showFilters: Boolean,
     currentSort: RecipeSortOption,
     activeFilters: Set<RecipeFilterOption>,
     activeCategories: Set<BuiltinCategory>,
@@ -1024,9 +1269,11 @@ private fun SortFilterBottomSheet(
         ) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    // The content renders its own "Sort & Filter" heading, so the modal chrome stays bare — a
+    // second title/close row would only crowd it, and Apply already dismisses.
+    PlusResponsiveModal(onDismissRequest = onDismiss) {
         SortFilterSheetContent(
+            showFilters = showFilters,
             initialSort = currentSort,
             initialFilters = activeFilters,
             initialCategories = activeCategories,
@@ -1053,6 +1300,11 @@ fun SortFilterSheetContent(
             userCategoryIds: Set<Long>,
         ) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * When false the "Filter by" and "Category" sections are omitted and only sort remains — used
+     * at expanded widths where those filters live in [RecipeFilterSidebar] instead.
+     */
+    showFilters: Boolean = true,
 ) {
     var selectedSort by remember { mutableStateOf(initialSort) }
     var selectedFilters by remember { mutableStateOf(initialFilters) }
@@ -1065,7 +1317,11 @@ fun SortFilterSheetContent(
 
     Column(modifier = modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
         Text(
-            text = stringResource(Res.string.recipe_list_sort_and_filter),
+            text =
+                stringResource(
+                    if (showFilters) Res.string.recipe_list_sort_and_filter
+                    else Res.string.recipe_list_sort
+                ),
             style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.height(16.dp))
@@ -1088,83 +1344,87 @@ fun SortFilterSheetContent(
         }
         Spacer(Modifier.height(16.dp))
 
-        // Filter by
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (showFilters) {
+            // Filter by
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.recipe_list_filter_by),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (anyFilterActive) {
+                    TextButton(
+                        onClick = {
+                            selectedFilters = emptySet()
+                            selectedCategories = emptySet()
+                            selectedUserCategoryIds = emptySet()
+                        }
+                    ) {
+                        Text(stringResource(Res.string.recipe_list_clear_filters))
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RecipeFilterOption.entries.forEach { filter ->
+                    FilterChip(
+                        selected = filter in selectedFilters,
+                        onClick = {
+                            selectedFilters =
+                                if (filter in selectedFilters) selectedFilters - filter
+                                else selectedFilters + filter
+                        },
+                        label = { Text(stringResource(filter.labelRes())) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // Filter by Category — presets first (in enum order) followed by user-created
+            // categories.
             Text(
-                text = stringResource(Res.string.recipe_list_filter_by),
+                text = stringResource(Res.string.recipe_list_filter_by_category),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (anyFilterActive) {
-                TextButton(
-                    onClick = {
-                        selectedFilters = emptySet()
-                        selectedCategories = emptySet()
-                        selectedUserCategoryIds = emptySet()
-                    }
-                ) {
-                    Text(stringResource(Res.string.recipe_list_clear_filters))
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RecipeFilterOption.entries.forEach { filter ->
-                FilterChip(
-                    selected = filter in selectedFilters,
-                    onClick = {
-                        selectedFilters =
-                            if (filter in selectedFilters) selectedFilters - filter
-                            else selectedFilters + filter
-                    },
-                    label = { Text(stringResource(filter.labelRes())) },
-                )
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-
-        // Filter by Category — presets first (in enum order) followed by user-created categories.
-        Text(
-            text = stringResource(Res.string.recipe_list_filter_by_category),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            BuiltinCategory.entries.forEach { category ->
-                FilterChip(
-                    selected = category in selectedCategories,
-                    onClick = {
-                        selectedCategories =
-                            if (category in selectedCategories) {
-                                selectedCategories - category
-                            } else {
-                                selectedCategories + category
-                            }
-                    },
-                    label = { Text(stringResource(category.labelRes())) },
-                )
-            }
-            // User-created categories: filter out any that masquerade as a preset (by builtinId)
-            // so we don't render a duplicate chip when both representations are present.
-            availableUserCategories
-                .filter { it.builtinId == null }
-                .forEach { category ->
-                    val isSelected = category.id in selectedUserCategoryIds
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BuiltinCategory.entries.forEach { category ->
                     FilterChip(
-                        selected = isSelected,
+                        selected = category in selectedCategories,
                         onClick = {
-                            selectedUserCategoryIds =
-                                if (isSelected) selectedUserCategoryIds - category.id
-                                else selectedUserCategoryIds + category.id
+                            selectedCategories =
+                                if (category in selectedCategories) {
+                                    selectedCategories - category
+                                } else {
+                                    selectedCategories + category
+                                }
                         },
-                        label = { Text(category.name) },
+                        label = { Text(stringResource(category.labelRes())) },
                     )
                 }
+                // User-created categories: filter out any that masquerade as a preset (by
+                // builtinId)
+                // so we don't render a duplicate chip when both representations are present.
+                availableUserCategories
+                    .filter { it.builtinId == null }
+                    .forEach { category ->
+                        val isSelected = category.id in selectedUserCategoryIds
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedUserCategoryIds =
+                                    if (isSelected) selectedUserCategoryIds - category.id
+                                    else selectedUserCategoryIds + category.id
+                            },
+                            label = { Text(category.name) },
+                        )
+                    }
+            }
         }
         Spacer(Modifier.height(16.dp))
         Button(
@@ -1181,6 +1441,9 @@ fun SortFilterSheetContent(
 
 // endregion
 
+/** Adds [value] to the set when absent and removes it when present. */
+private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
+
 private fun RecipeSortOption.labelRes(): StringResource =
     when (this) {
         RecipeSortOption.RECENTLY_ADDED -> Res.string.recipe_list_sort_recently_added
@@ -1190,14 +1453,14 @@ private fun RecipeSortOption.labelRes(): StringResource =
         RecipeSortOption.TOP_RATED -> Res.string.recipe_list_sort_top_rated
     }
 
-private fun RecipeFilterOption.labelRes(): StringResource =
+internal fun RecipeFilterOption.labelRes(): StringResource =
     when (this) {
         RecipeFilterOption.FAVORITES -> Res.string.recipe_list_filter_favorites
         RecipeFilterOption.RATED -> Res.string.recipe_list_filter_rated
         RecipeFilterOption.QUICK_RECIPES -> Res.string.recipe_list_filter_quick_recipes
     }
 
-private fun BuiltinCategory.labelRes(): StringResource =
+internal fun BuiltinCategory.labelRes(): StringResource =
     when (this) {
         BuiltinCategory.BREAKFAST -> Res.string.recipe_list_category_breakfast
         BuiltinCategory.LUNCH -> Res.string.recipe_list_category_lunch
@@ -1437,12 +1700,13 @@ private fun RecipeGrid(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
         contentPadding =
-            PaddingValues(
+            LocalPlusHeaderOverlap.current.contentPadding(
                 start = 8.dp,
                 end = 8.dp,
                 top = 8.dp,
-                bottom = 8.dp + bottomContentPadding,
+                bottom = 8.dp + bottomContentPadding + LocalBottomNavBarInset.current,
             ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
@@ -1566,7 +1830,11 @@ private fun RecipeList(
     LazyColumn(
         state = state,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(bottom = bottomContentPadding),
+        // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
+        contentPadding =
+            LocalPlusHeaderOverlap.current.contentPadding(
+                bottom = bottomContentPadding + LocalBottomNavBarInset.current
+            ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
             val recipe = recipes[index]

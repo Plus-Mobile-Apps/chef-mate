@@ -1,0 +1,5 @@
+-- Family meal plans: a meal on a family's shared plan carries that family's remote id (Supabase
+-- meal_plans.family_id). NULL means the meal is on the user's personal plan.
+ALTER TABLE MealPlan ADD COLUMN familyId TEXT;
+
+CREATE INDEX idx_mealplan_family_date ON MealPlan(familyId, date);

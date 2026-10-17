@@ -32,6 +32,9 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
 
     fun onTabSelected(tab: Tab)
 
+    /** Collapses the expanded side rail to the compact one, or expands it back. Persisted. */
+    fun onRailCollapseToggled()
+
     fun handleSharedUrl(url: String)
 
     /**
@@ -47,6 +50,11 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
          * Pending in-app notifications; drives the count badge on the More ([Tab.SETTINGS]) tab.
          */
         val notificationCount: Int = 0,
+        /**
+         * Whether the user has collapsed the expanded side rail. Only wide windows show that rail;
+         * the bottom bar and compact rail ignore this.
+         */
+        val railCollapsed: Boolean = false,
     )
 
     enum class Tab {
@@ -90,6 +98,9 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
         data object OpenManageProfile : Output()
 
         data object OpenNotifications : Output()
+
+        /** Open the Manage Family flow (flagged); signed-out users go via sign-in first. */
+        data object OpenManageFamily : Output()
 
         data object OpenAppSettings : Output()
 

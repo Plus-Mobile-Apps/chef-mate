@@ -16,6 +16,8 @@
     <string name="dev_restart_required_message">Environment changed. Local data was wiped and you were signed out. Force-stop and reopen the app for the new environment to take effect.</string>
     <string name="dev_picker_dismiss">Cancel</string>
     <string name="dev_feature_flags">Feature flags</string>
+    <string name="dev_premium_subscription">ChefMate Premium</string>
+    <string name="dev_premium_subscription_subtitle">Fake an active subscription. Gates the AI chat everywhere.</string>
     <string name="dev_reset_coach_marks">Reset coach marks</string>
     <string name="dev_coach_marks_reset_title">Coach marks reset</string>
     <string name="dev_coach_marks_reset_message">All coach marks will show again next time you visit their screens.</string>

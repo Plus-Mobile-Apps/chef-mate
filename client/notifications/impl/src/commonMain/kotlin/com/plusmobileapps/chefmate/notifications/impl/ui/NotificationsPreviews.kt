@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.notifications.impl.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.plusmobileapps.chefmate.family.data.FamilyRole
 import com.plusmobileapps.chefmate.grocery.data.ListRole
 import com.plusmobileapps.chefmate.notifications.NotificationsBloc
 import com.plusmobileapps.chefmate.notifications.NotificationsBloc.Model
@@ -41,6 +42,11 @@ val previewNotificationsBloc: NotificationsBloc =
                         memberId = "b1",
                         bookName = "Holiday Baking",
                         role = RecipeBookRole.EDITOR,
+                    ),
+                    AppNotification.FamilyInvite(
+                        memberId = "f1",
+                        familyName = "The Smiths",
+                        role = FamilyRole.MEMBER,
                     ),
                 ),
             isLoading = false,

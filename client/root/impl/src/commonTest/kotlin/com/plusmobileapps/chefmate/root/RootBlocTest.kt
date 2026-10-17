@@ -12,6 +12,7 @@ import com.plusmobileapps.chefmate.auth.ui.otp.OtpBloc
 import com.plusmobileapps.chefmate.browser.BrowserRootBloc
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.di.OnboardingRepository
+import com.plusmobileapps.chefmate.family.manage.ManageFamilyRootBloc
 import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.notifications.NotificationsBloc
 import com.plusmobileapps.chefmate.onboarding.OnboardingRootBloc
@@ -46,6 +47,7 @@ class RootBlocTest {
     var notificationsOutput:
         Consumer<com.plusmobileapps.chefmate.notifications.NotificationsBloc.Output> =
         Consumer {}
+    var manageFamilyOutput: Consumer<ManageFamilyRootBloc.Output> = Consumer {}
     var developerSettingsOutput:
         Consumer<com.plusmobileapps.chefmate.devsettings.DeveloperSettingsBloc.Output> =
         Consumer {}
@@ -128,6 +130,10 @@ class RootBlocTest {
             },
             notifications = { _, output ->
                 notificationsOutput = output
+                mock()
+            },
+            manageFamilyRoot = { _, output ->
+                manageFamilyOutput = output
                 mock()
             },
             developerSettings = { _, output ->
@@ -321,6 +327,24 @@ class RootBlocTest {
     }
 
     @Test
+    fun When_recipe_root_outputs_open_grocery_list_Then_recipe_is_removed_from_the_stack() {
+        val bottomNavChild =
+            rootBloc.state.value.items
+                .map { it.instance }
+                .filterIsInstance<RootBloc.Child.BottomNavigation>()
+                .first()
+                .bloc
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenGroceryList)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+        rootBloc.state.value.backStack.size shouldBe 0
+        dev.mokkery.verify { bottomNavChild.onTabSelected(BottomNavBloc.Tab.GROCERIES) }
+    }
+
+    @Test
     fun When_bottom_nav_outputs_open_app_settings_Then_settings_root_is_shown() {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenAppSettings)
         rootBloc.instance() should instanceOf<RootBloc.Child.SettingsRoot>()
@@ -340,6 +364,76 @@ class RootBlocTest {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenNotifications)
         rootBloc.instance() should instanceOf<RootBloc.Child.Notifications>()
         notificationsOutput.onNext(NotificationsBloc.Output.Back)
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_signed_in_When_bottom_nav_opens_manage_family_Then_it_is_shown_directly() {
+        authRepository.setAuthenticated()
+
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+    }
+
+    @Test
+    fun Given_signed_out_When_bottom_nav_opens_manage_family_Then_sign_in_is_shown_first() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.Authentication>()
+        authProps shouldBe AuthenticationBloc.Props.SignIn
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_auth_succeeds_Then_manage_family_is_shown() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        authOutput.onNext(AuthenticationBloc.Output.AuthenticationSuccess)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+        // The auth screen it came from is gone, so back returns to the More tab.
+        rootBloc.state.value.backStack.size shouldBe 1
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_otp_verified_Then_manage_family_is_shown() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+        authOutput.onNext(AuthenticationBloc.Output.EmailVerificationRequired("a@b.com"))
+
+        otpOutput.onNext(OtpBloc.Output.Verified)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.ManageFamily>()
+    }
+
+    @Test
+    fun Given_sign_in_opened_for_manage_family_When_it_is_abandoned_Then_a_later_sign_in_stays_put() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+        authOutput.onNext(AuthenticationBloc.Output.Finished)
+
+        // An unrelated sign-in later must not strand the user on Manage Family.
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenSignIn)
+        authOutput.onNext(AuthenticationBloc.Output.AuthenticationSuccess)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_anonymous_user_When_bottom_nav_opens_manage_family_Then_sign_in_is_shown_first() {
+        // A guest has no account email, and family invites are addressed to one.
+        authRepository.setAnonymous()
+
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.Authentication>()
+    }
+
+    @Test
+    fun Given_manage_family_When_back_outputted_Then_bottom_nav_is_shown() {
+        authRepository.setAuthenticated()
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenManageFamily)
+
+        manageFamilyOutput.onNext(ManageFamilyRootBloc.Output.Back)
+
         rootBloc.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
     }
 
@@ -509,6 +603,39 @@ class RootBlocTest {
     }
 
     @Test
+    fun Given_public_recipe_preview_When_it_resolves_to_a_recipe_Then_it_is_swapped_for_detail() {
+        val uuid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+        rootBloc.handleDeepLink("https://chefmate.plusmobileapps.com/recipe/$uuid")
+
+        publicRecipeOutput.onNext(PublicRecipeBloc.Output.OpenRecipe(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        // The read-only preview is gone — back returns to the bottom nav, not to it.
+        rootBloc.state.value.backStack.size shouldBe 1
+        rootBloc.state.value.backStack.first().instance should
+            instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_recipe_already_open_When_its_share_link_is_opened_Then_detail_is_not_duplicated() {
+        // Opening a share link for a recipe already on the stack used to leave two identical
+        // RecipeRoot configurations behind, which Decompose rejects ("Configurations must be
+        // unique") — a crash on every tap of a deep link to the recipe already being viewed.
+        val uuid = "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+        val root = createRoot(DeepLink.RecipeDetail(recipeId = 18L))
+        root.handleDeepLink("https://chefmate.plusmobileapps.com/recipe/$uuid")
+
+        publicRecipeOutput.onNext(PublicRecipeBloc.Output.OpenRecipe(recipeId = 18L))
+
+        root.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 18L)
+        root.state.value.backStack.size shouldBe 1
+        root.state.value.backStack.first().instance should
+            instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
     fun Given_groceries_deeplink_When_initialized_Then_bottom_nav_uses_groceries_tab() {
         val root = createRoot(DeepLink.Groceries)
         root.instance() should instanceOf<RootBloc.Child.BottomNavigation>()
@@ -617,6 +744,48 @@ class RootBlocTest {
         cookModeOutput.onNext(CookModeBloc.Output.OpenAiChat(recipeId = 7L))
 
         rootBloc.instance() should instanceOf<RootBloc.Child.AiChat>()
+    }
+
+    @Test
+    fun Given_cook_mode_When_it_opens_recipe_detail_Then_detail_is_pushed_over_cook_mode() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenCookMode(7L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        // Cook Mode stays underneath, so back returns to it.
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
+    }
+
+    @Test
+    fun Given_cook_mode_opened_from_a_recipe_When_it_opens_that_recipe_Then_detail_is_brought_to_front() {
+        // The detail Cook Mode was launched from is already on the stack; pushing an identical
+        // RecipeRoot configuration would crash Decompose ("Configurations must be unique").
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenCookMode(recipeId = 123L))
+        rootBloc.instance() should instanceOf<RootBloc.Child.CookMode>()
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 123L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
+    }
+
+    @Test
+    fun Given_cook_mode_opened_from_a_recipe_When_it_opens_another_recipe_Then_detail_is_not_duplicated() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
+        recipeOutput.onNext(RecipeRootBloc.Output.OpenCookMode(recipeId = 123L))
+
+        cookModeOutput.onNext(CookModeBloc.Output.OpenRecipeDetail(recipeId = 7L))
+
+        rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
+        rootBloc.state.value.backStack.map { it.instance::class } shouldBe
+            listOf(RootBloc.Child.BottomNavigation::class, RootBloc.Child.CookMode::class)
     }
 
     @Test

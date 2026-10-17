@@ -11,6 +11,7 @@ import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocSections
 import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocSplit
 import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocStacked
 import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocWithAiChat
+import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocWithLockedAiChat
 import com.plusmobileapps.chefmate.ui.Content
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
@@ -36,6 +37,15 @@ fun CookModePhonePortraitDarkScreenshot() {
 @Composable
 fun CookModeAiChatButtonScreenshot() {
     ChefMateTheme { previewCookBlocWithAiChat.Content() }
+}
+
+// Non-subscriber: the AI Chat button is still present but dimmed, since tapping it opens the
+// ChefMate Premium upsell rather than the chat.
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1100)
+@Composable
+fun CookModeAiChatButtonLockedScreenshot() {
+    ChefMateTheme { previewCookBlocWithLockedAiChat.Content() }
 }
 
 @PreviewTest

@@ -12,6 +12,7 @@ import com.plusmobileapps.chefmate.recipe.list.RecipeListBloc
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBloc
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocAllRecipes
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocCooking
+import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocFilterSidebar
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocPendingInvite
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocScanError
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocScanning
@@ -94,6 +95,30 @@ fun RecipeListCookingPhonePortraitDarkScreenshot() {
 // uses Modifier.align(BottomEnd) + 16.dp padding regardless of canvas size — there's no
 // responsive-layout branching to cover, and the FAB shadow rendered slightly differently
 // across Mac arm64 / Linux x64 (1–2 px subpixel AA), causing CI flakiness.
+
+// ── Expanded width — permanent filter rail ────────────────────────────────
+// At >= 840 dp the quick filters and categories move out of the sort & filter sheet and into a
+// rail down the left edge, applied on tap with no Apply step. The app-bar action narrows to
+// sort-only, so the filter badge is gone here by design.
+
+@PreviewTest
+@Preview(showBackground = true, widthDp = 1000, heightDp = 900)
+@Composable
+fun RecipeListFilterSidebarLightScreenshot() {
+    RecipeListScreenshot(bloc = previewRecipeListBlocFilterSidebar)
+}
+
+@PreviewTest
+@Preview(
+    showBackground = true,
+    widthDp = 1000,
+    heightDp = 900,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun RecipeListFilterSidebarDarkScreenshot() {
+    RecipeListScreenshot(bloc = previewRecipeListBlocFilterSidebar, darkTheme = true)
+}
 
 // ── Multi-select mode ──────────────────────────────────────────────────────
 

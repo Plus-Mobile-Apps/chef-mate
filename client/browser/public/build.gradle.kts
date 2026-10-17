@@ -29,7 +29,10 @@ kotlin {
             implementation(projects.client.ui.public)
             implementation(compose.components.resources)
         }
-        getByName("androidMain").dependencies { implementation(libs.multiplatform.webview) }
+        getByName("androidMain").dependencies {
+            implementation(libs.multiplatform.webview)
+            implementation(libs.androidx.webkit)
+        }
         getByName("iosMain").dependencies { implementation(libs.multiplatform.webview) }
         getByName("jvmMain").dependencies {
             val fxClassifier = osClassifier()

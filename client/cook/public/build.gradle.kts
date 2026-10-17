@@ -13,6 +13,7 @@ kotlin {
             api(libs.kotlin.coroutines.core)
             api(projects.client.shared)
             api(projects.client.ui.public)
+            implementation(projects.client.subscription.public)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(libs.kotlinx.serialization.json)
             implementation(compose.components.resources)

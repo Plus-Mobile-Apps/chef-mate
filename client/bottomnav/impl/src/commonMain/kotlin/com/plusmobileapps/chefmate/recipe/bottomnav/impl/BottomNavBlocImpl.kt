@@ -32,7 +32,6 @@ import com.plusmobileapps.chefmate.settings.SettingsBloc
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
@@ -43,7 +42,7 @@ class BottomNavBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<BottomNavBloc.Output>,
     @Assisted initialTab: BottomNavBloc.Tab?,
-    viewModelFactory: Provider<BottomNavViewModel>,
+    viewModelFactory: () -> BottomNavViewModel,
     private val browser: BrowserRootBloc.Factory,
     private val groceryList: GroceryListBloc.Factory,
     private val mealPlan: MealPlanBloc.Factory,
@@ -91,6 +90,7 @@ class BottomNavBlocImpl(
                 selectedTab = it.selectedTab,
                 tabs = it.tabs.toImmutableList(),
                 notificationCount = it.notificationCount,
+                railCollapsed = it.railCollapsed,
             )
         }
 
@@ -120,6 +120,10 @@ class BottomNavBlocImpl(
             .firstOrNull()
             ?.bloc
             ?.onExportFinished()
+    }
+
+    override fun onRailCollapseToggled() {
+        viewModel.toggleRailCollapsed()
     }
 
     override fun onTabSelected(tab: BottomNavBloc.Tab) {
@@ -240,6 +244,7 @@ class BottomNavBlocImpl(
             SettingsBloc.Output.OpenSignUp -> OpenSignUp
             SettingsBloc.Output.OpenManageProfile -> OpenManageProfile
             SettingsBloc.Output.OpenNotifications -> BottomNavBloc.Output.OpenNotifications
+            SettingsBloc.Output.OpenManageFamily -> BottomNavBloc.Output.OpenManageFamily
             SettingsBloc.Output.OpenAppSettings -> OpenAppSettings
             SettingsBloc.Output.OpenAiChat -> BottomNavBloc.Output.OpenAiChat
             SettingsBloc.Output.OpenDeveloperSettings -> BottomNavBloc.Output.OpenDeveloperSettings

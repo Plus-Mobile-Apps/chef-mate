@@ -10,18 +10,29 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
-private fun groceryDetailBloc(item: GroceryItem): GroceryDetailBloc =
+private fun groceryDetailBloc(
+    item: GroceryItem,
+    alwaysFileHere: Boolean = false,
+): GroceryDetailBloc =
     object : GroceryDetailBloc {
         override val models =
-            MutableStateFlow<GroceryDetailBloc.Model>(GroceryDetailBloc.Model.Loaded(item))
+            MutableStateFlow<GroceryDetailBloc.Model>(
+                GroceryDetailBloc.Model.Loaded(item = item, alwaysFileHere = alwaysFileHere)
+            )
 
         override fun onGroceryNameChanged(name: String) = Unit
 
         override fun onGroceryQuantityChanged(quantity: String) = Unit
 
+        override fun onQuantityIncrementClicked() = Unit
+
+        override fun onQuantityDecrementClicked() = Unit
+
         override fun onGroceryCheckedChanged(isChecked: Boolean) = Unit
 
         override fun onAisleChanged(category: GroceryCategory) = Unit
+
+        override fun onAlwaysFileHereToggled(enabled: Boolean) = Unit
 
         override fun onSaveClicked() = Unit
 
@@ -54,6 +65,14 @@ val previewGroceryDetailBlocPurchased: GroceryDetailBloc =
 val previewGroceryDetailBlocFromRecipe: GroceryDetailBloc =
     groceryDetailBloc(sampleItem.copy(recipeName = "Pancakes"))
 
+/** "Always file here" rule active — exercises the checked category-rule row. */
+val previewGroceryDetailBlocAlwaysFileHere: GroceryDetailBloc =
+    groceryDetailBloc(sampleItem, alwaysFileHere = true)
+
+/** Free-form quantity the stepper can't read — exercises the disabled +/- buttons. */
+val previewGroceryDetailBlocUnsteppableQuantity: GroceryDetailBloc =
+    groceryDetailBloc(sampleItem.copy(name = "a pinch Saffron", quantity = "a pinch"))
+
 /** Loading state — exercises the spinner. */
 val previewGroceryDetailBlocLoading: GroceryDetailBloc =
     object : GroceryDetailBloc {
@@ -64,9 +83,15 @@ val previewGroceryDetailBlocLoading: GroceryDetailBloc =
 
         override fun onGroceryQuantityChanged(quantity: String) = Unit
 
+        override fun onQuantityIncrementClicked() = Unit
+
+        override fun onQuantityDecrementClicked() = Unit
+
         override fun onGroceryCheckedChanged(isChecked: Boolean) = Unit
 
         override fun onAisleChanged(category: GroceryCategory) = Unit
+
+        override fun onAlwaysFileHereToggled(enabled: Boolean) = Unit
 
         override fun onSaveClicked() = Unit
 
@@ -92,6 +117,12 @@ internal fun GroceryDetailSheetPurchasedPreview() {
 @Composable
 internal fun GroceryDetailSheetFromRecipePreview() {
     ChefMateTheme { GroceryDetailSheetContent(bloc = previewGroceryDetailBlocFromRecipe) }
+}
+
+@Preview(showBackground = true, heightDp = 500)
+@Composable
+internal fun GroceryDetailSheetUnsteppableQuantityPreview() {
+    ChefMateTheme { GroceryDetailSheetContent(bloc = previewGroceryDetailBlocUnsteppableQuantity) }
 }
 
 @Preview(showBackground = true, heightDp = 300)

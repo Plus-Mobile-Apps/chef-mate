@@ -15,6 +15,9 @@ import com.plusmobileapps.chefmate.recipe.data.DEFAULT_INGREDIENT_SCALE
 import com.plusmobileapps.chefmate.recipe.data.IngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
+import com.plusmobileapps.chefmate.review.InAppReviewService
+import com.plusmobileapps.chefmate.review.ReviewMilestone
+import com.plusmobileapps.chefmate.subscription.SubscriptionRepository
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.boolean
 import dev.zacsweers.metro.Assisted
@@ -43,9 +46,13 @@ class CookModeViewModel(
     private val keepScreenOnRepository: KeepScreenOnRepository,
     private val coachMarkController: CoachMarkController,
     featureFlags: FeatureFlags,
+    subscriptionRepository: SubscriptionRepository,
+    private val inAppReviewService: InAppReviewService,
 ) : ViewModel(mainContext) {
 
     private val showAiChat = featureFlags.isEnabled(FeatureFlagRegistry.AiChat)
+
+    private val isSubscribed = subscriptionRepository.isSubscribed
 
     // Split view is the default; users can toggle to the scrolling (Stacked) list, which persists.
     private var splitLayoutPref by settings.boolean(KEY_LAYOUT_SPLIT, defaultValue = true)
@@ -64,12 +71,18 @@ class CookModeViewModel(
     // mark at a time across the whole app.
     val state: StateFlow<State> =
         combineStates(
-            combineStates(_state, coachMarkController.activeCoachMark) { state, activeCoachMark ->
-                state.copy(activeCoachMark = activeCoachMark)
+            combineStates(
+                combineStates(_state, coachMarkController.activeCoachMark) { state, activeCoachMark
+                    ->
+                    state.copy(activeCoachMark = activeCoachMark)
+                },
+                showAiChat,
+            ) { state, showChat ->
+                state.copy(showAiChat = showChat)
             },
-            showAiChat,
-        ) { state, showChat ->
-            state.copy(showAiChat = showChat)
+            isSubscribed,
+        ) { state, subscribed ->
+            state.copy(isSubscribed = subscribed)
         }
 
     init {
@@ -134,6 +147,7 @@ class CookModeViewModel(
     fun finishCooking(onDone: () -> Unit) {
         scope.launch {
             sessionRepository.stopAll()
+            inAppReviewService.onMilestone(ReviewMilestone.CookingFinished)
             onDone()
         }
     }
@@ -163,6 +177,23 @@ class CookModeViewModel(
         }
     }
 
+    /**
+     * Gate for the AI chat button. Returns true when the caller should emit the open-chat output;
+     * otherwise it has raised the premium upsell and the caller should do nothing.
+     *
+     * Read from [state] rather than `_state` — the entitlement is folded in downstream by
+     * [combineStates], so `_state` never carries it.
+     */
+    fun requestAiChat(): Boolean {
+        if (state.value.isSubscribed) return true
+        _state.update { it.copy(showPremiumRequiredDialog = true) }
+        return false
+    }
+
+    fun dismissPremiumRequiredDialog() {
+        _state.update { it.copy(showPremiumRequiredDialog = false) }
+    }
+
     override fun onCleared() {
         super.onCleared()
         // Leaving the screen without dismissing frees the queue so other coach marks can show.
@@ -178,6 +209,8 @@ class CookModeViewModel(
         val keepScreenOn: Boolean = true,
         val activeCoachMark: String? = null,
         val showAiChat: Boolean = false,
+        val isSubscribed: Boolean = false,
+        val showPremiumRequiredDialog: Boolean = false,
     )
 
     @AssistedFactory

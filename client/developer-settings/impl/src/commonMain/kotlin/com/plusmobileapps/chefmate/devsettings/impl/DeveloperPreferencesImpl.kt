@@ -3,10 +3,12 @@ package com.plusmobileapps.chefmate.devsettings.impl
 import com.plusmobileapps.chefmate.Environment
 import com.plusmobileapps.chefmate.EnvironmentProvider
 import com.plusmobileapps.chefmate.devsettings.DEV_ENVIRONMENT_KEY
+import com.plusmobileapps.chefmate.devsettings.DEV_SUBSCRIBED_KEY
 import com.plusmobileapps.chefmate.devsettings.DEV_USER_INDEX_KEY
 import com.plusmobileapps.chefmate.devsettings.DeveloperPreferences
 import com.plusmobileapps.chefmate.di.AppScope
 import com.russhwolf.settings.Settings
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Provides
@@ -39,6 +41,11 @@ class DeveloperPreferencesImpl(private val settings: Settings) : DeveloperPrefer
 
     override val selectedUserIndex: StateFlow<Int?> = _selectedUserIndex.asStateFlow()
 
+    private val _isSubscribed =
+        MutableStateFlow(settings.getBoolean(DEV_SUBSCRIBED_KEY, defaultValue = false))
+
+    override val isSubscribed: StateFlow<Boolean> = _isSubscribed.asStateFlow()
+
     override fun setEnvironment(environment: Environment) {
         settings.putString(DEV_ENVIRONMENT_KEY, environment.name)
         _environment.value = environment
@@ -52,10 +59,16 @@ class DeveloperPreferencesImpl(private val settings: Settings) : DeveloperPrefer
         }
         _selectedUserIndex.value = index
     }
+
+    override fun setSubscribed(subscribed: Boolean) {
+        settings.putBoolean(DEV_SUBSCRIBED_KEY, subscribed)
+        _isSubscribed.value = subscribed
+    }
 }
 
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface DeveloperPreferencesBindingModule {
+object DeveloperPreferencesBindingModule {
     @Provides
     fun provideDeveloperPreferences(impl: DeveloperPreferencesImpl): DeveloperPreferences = impl
 

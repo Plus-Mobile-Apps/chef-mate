@@ -35,7 +35,10 @@ class GroceryDetailBlocImpl(
             if (it.isLoading) {
                 GroceryDetailBloc.Model.Loading
             } else {
-                GroceryDetailBloc.Model.Loaded(it.groceryItem)
+                GroceryDetailBloc.Model.Loaded(
+                    item = it.groceryItem,
+                    alwaysFileHere = it.alwaysFileHere,
+                )
             }
         }
 
@@ -57,12 +60,24 @@ class GroceryDetailBlocImpl(
         viewModel.onGroceryQuantityChanged(quantity)
     }
 
+    override fun onQuantityIncrementClicked() {
+        viewModel.onQuantityIncrement()
+    }
+
+    override fun onQuantityDecrementClicked() {
+        viewModel.onQuantityDecrement()
+    }
+
     override fun onGroceryCheckedChanged(isChecked: Boolean) {
         viewModel.onGroceryCheckedChanged(isChecked)
     }
 
     override fun onAisleChanged(category: GroceryCategory) {
         viewModel.onAisleChanged(category)
+    }
+
+    override fun onAlwaysFileHereToggled(enabled: Boolean) {
+        viewModel.onAlwaysFileHereToggled(enabled)
     }
 
     override fun onSaveClicked() {

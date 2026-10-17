@@ -4,22 +4,32 @@
 package com.plusmobileapps.chefmate.recipe.core.impl.addmeal
 
 import app.cash.turbine.test
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
+import com.plusmobileapps.chefmate.meal.data.testing.FakeMealPlanScopeRepository
 import com.plusmobileapps.chefmate.recipe.core.addmeal.ChooseDateBloc
+import com.plusmobileapps.chefmate.recipe.data.Recipe
+import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
 import com.plusmobileapps.chefmate.util.testing.FakeDateTimeUtil
 import com.russhwolf.settings.MapSettings
 import dev.mokkery.answering.returns
 import dev.mokkery.every
+import dev.mokkery.everySuspend
+import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import dev.mokkery.verify.VerifyMode
+import dev.mokkery.verifySuspend
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 
@@ -30,19 +40,31 @@ class ChooseDateBlocTest {
     private val fakeDate = LocalDate(2026, 4, 21)
     private val dateTimeUtil = FakeDateTimeUtil(fakeToday = fakeDate)
     private val settings = MapSettings()
+    private val recipeId = 42L
+    private val recipeRepository =
+        FakeRecipeRepository(
+            MutableStateFlow(listOf(Recipe.Sample.copy(id = recipeId, title = "Test Recipe")))
+        )
 
     private val repository: MealPlanRepository = mock {
         every { getMealsByDateRange("2026-04-01", "2026-04-30") } returns mealsFlow
+        everySuspend { addMeal(any(), any(), any(), any()) } returns Unit
     }
+
+    private val scopeRepository = FakeMealPlanScopeRepository()
 
     private fun createBloc(): ChooseDateBlocImpl =
         ChooseDateBlocImpl(
             context = context,
+            recipeId = recipeId,
             output = output,
-            viewModelFactory = {
+            viewModelFactory = { rid ->
                 ChooseDateViewModel(
+                    recipeId = rid,
                     mainContext = context.mainContext,
                     mealPlanRepository = repository,
+                    scopeRepository = scopeRepository,
+                    recipeRepository = recipeRepository,
                     dateTimeUtil = dateTimeUtil,
                     settings = settings,
                 )
@@ -166,5 +188,95 @@ class ChooseDateBlocTest {
             val state = awaitItem()
             state.selectedDate shouldBe fakeDate
         }
+    }
+
+    @Test
+    fun WHEN_created_THEN_loads_recipe_title_and_defaults_to_dinner() = runTest {
+        val bloc = createBloc()
+        bloc.state.test {
+            val state = awaitItem()
+            state.recipeTitle shouldBe "Test Recipe"
+            state.selectedMealType shouldBe MealType.DINNER
+        }
+    }
+
+    @Test
+    fun WHEN_meal_type_selected_THEN_state_updated() = runTest {
+        val bloc = createBloc()
+        bloc.onMealTypeSelected(MealType.BREAKFAST)
+        bloc.state.test { awaitItem().selectedMealType shouldBe MealType.BREAKFAST }
+    }
+
+    @Test
+    fun WHEN_save_clicked_THEN_adds_meal_for_selected_date_and_type_and_finishes() = runTest {
+        val bloc = createBloc()
+        bloc.onDaySelected(LocalDate(2026, 4, 25))
+        bloc.onMealTypeSelected(MealType.LUNCH)
+        bloc.onSaveClicked()
+        verifySuspend { repository.addMeal(recipeId, "2026-04-25", MealType.LUNCH) }
+        output.lastValue shouldBe ChooseDateBloc.Output.Finished
+    }
+
+    @Test
+    fun WHEN_no_family_plans_THEN_plan_selector_hidden() = runTest {
+        createBloc().state.value.familyPlans shouldBe emptyList()
+    }
+
+    @Test
+    fun WHEN_planner_is_on_a_family_plan_THEN_meal_is_added_to_it() = runTest {
+        every {
+            repository.getMealsByDateRange(
+                "2026-04-01",
+                "2026-04-30",
+                MealPlanScope.Family("fam-1"),
+            )
+        } returns mealsFlow
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        scopeRepository.selectedScope.value = MealPlanScope.Family("fam-1")
+        val bloc = createBloc()
+        bloc.state.value.selectedFamilyId shouldBe "fam-1"
+
+        bloc.onDaySelected(LocalDate(2026, 4, 25))
+        bloc.onSaveClicked()
+
+        verifySuspend {
+            repository.addMeal(
+                recipeId,
+                "2026-04-25",
+                MealType.DINNER,
+                MealPlanScope.Family("fam-1"),
+            )
+        }
+    }
+
+    @Test
+    fun WHEN_plan_picked_THEN_scope_switches_and_picker_closes() = runTest {
+        every {
+            repository.getMealsByDateRange(
+                "2026-04-01",
+                "2026-04-30",
+                MealPlanScope.Family("fam-1"),
+            )
+        } returns mealsFlow
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        val bloc = createBloc()
+        bloc.onPlanSelectorClicked()
+        bloc.state.value.isPlanPickerOpen shouldBe true
+
+        bloc.onPlanSelected("fam-1")
+
+        scopeRepository.selectedScope.value shouldBe MealPlanScope.Family("fam-1")
+        bloc.state.value.selectedFamilyId shouldBe "fam-1"
+        bloc.state.value.isPlanPickerOpen shouldBe false
+    }
+
+    @Test
+    fun WHEN_save_clicked_without_selected_date_THEN_does_nothing() = runTest {
+        every { repository.getMealsByDateRange("2026-05-01", "2026-05-31") } returns mealsFlow
+        val bloc = createBloc()
+        bloc.onNextMonth()
+        bloc.onSaveClicked()
+        verifySuspend(VerifyMode.not) { repository.addMeal(any(), any(), any(), any()) }
+        output.values shouldBe emptyList()
     }
 }

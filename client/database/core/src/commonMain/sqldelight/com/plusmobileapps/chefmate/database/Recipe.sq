@@ -70,6 +70,10 @@ update:
 UPDATE Recipe SET title = ?, description = ?, ingredients = ?, directions = ?, imageUrl = ?, sourceUrl = ?, servings = ?, prepTime = ?, cookTime = ?, totalTime = ?, calories = ?, starRating = ?, isFavorite = ?, updatedAt = ?, isDirty = 1
 WHERE id = ?;
 
+updateFromRemote:
+UPDATE Recipe SET title = ?, description = ?, ingredients = ?, directions = ?, imageUrl = ?, sourceUrl = ?, servings = ?, prepTime = ?, cookTime = ?, totalTime = ?, calories = ?, starRating = ?, isFavorite = ?, isPublic = ?, ownerId = ?, updatedAt = ?
+WHERE id = ?;
+
 delete:
 DELETE FROM Recipe WHERE id = ?;
 
@@ -108,6 +112,15 @@ UPDATE Recipe SET isDirty = 0 WHERE id = ?;
 
 markDirty:
 UPDATE Recipe SET isDirty = 1, updatedAt = ? WHERE id = ?;
+
+-- Cleanly-synced recipes the current user owns. A NULL ownerId means the row was created on
+-- this device and never re-pulled, which also means it's the user's own. Recipes shared via a
+-- book always carry the sharer's ownerId, so they can never match. Dirty rows are excluded so an
+-- unpushed local edit is never pruned away.
+getOwnedSyncedRemoteIds:
+SELECT id, remoteId FROM Recipe
+WHERE remoteId IS NOT NULL AND isDirty = 0 AND isPendingDelete = 0
+  AND (ownerId IS NULL OR ownerId = ?);
 
 getRecipeIdsWithoutBook:
 SELECT Recipe.id FROM Recipe

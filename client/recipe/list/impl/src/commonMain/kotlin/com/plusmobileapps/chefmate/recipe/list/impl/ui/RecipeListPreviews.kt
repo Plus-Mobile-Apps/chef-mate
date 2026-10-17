@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.recipe.list.impl.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.plusmobileapps.chefmate.recipe.data.BuiltinCategory
+import com.plusmobileapps.chefmate.recipe.data.Category
 import com.plusmobileapps.chefmate.recipe.data.SyncStatus
 import com.plusmobileapps.chefmate.recipe.list.RecipeBookPickerContent
 import com.plusmobileapps.chefmate.recipe.list.RecipeFilterOption
@@ -217,6 +218,25 @@ val previewRecipeListBlocCategoryFiltered: RecipeListBloc =
         )
     )
 
+/**
+ * Recipe list with a quick filter and a category already applied — the fixture for the
+ * expanded-width filter rail, which highlights active options in place rather than behind a sheet.
+ */
+val previewRecipeListBlocFilterSidebar: RecipeListBloc =
+    recipeListBloc(
+        RecipeListBloc.Model(
+            recipes = sampleRecipes,
+            totalRecipeCount = sampleRecipes.size,
+            activeFilters = setOf(RecipeFilterOption.FAVORITES),
+            activeCategories = setOf(BuiltinCategory.DINNER),
+            availableUserCategories =
+                persistentListOf(
+                    Category(id = 42L, name = "Weeknight"),
+                    Category(id = 43L, name = "Meal Prep"),
+                ),
+        )
+    )
+
 /** Recipe list in multi-select mode with two recipes picked — exercises the selection top bar. */
 val previewRecipeListBlocSelectionMode: RecipeListBloc =
     recipeListBloc(
@@ -303,6 +323,28 @@ val previewRecipeBooksWithShared: List<RecipeBook> =
             ),
         )
 
+/** [previewRecipeBooksWithShared] plus two books shared with the user's family. */
+val previewRecipeBooksWithFamily: List<RecipeBook> =
+    previewRecipeBooksWithShared +
+        listOf(
+            RecipeBook.Sample.copy(
+                id = 6L,
+                name = "Sunday Dinners",
+                isDefault = false,
+                isOwnedByCurrentUser = false,
+                familyId = "family-1",
+                familyName = "The Smiths",
+            ),
+            RecipeBook.Sample.copy(
+                id = 7L,
+                name = "Holiday Baking",
+                isDefault = false,
+                isOwnedByCurrentUser = false,
+                familyId = "family-1",
+                familyName = "The Smiths",
+            ),
+        )
+
 @Preview(showBackground = true, heightDp = 1100)
 @Composable
 internal fun RecipeListPreview() {
@@ -319,6 +361,13 @@ internal fun RecipeListCookingPreview() {
 @Composable
 internal fun RecipeListCookingTabletPreview() {
     ChefMateTheme { RecipeListScreen(bloc = previewRecipeListBlocCooking) }
+}
+
+/** Expanded window — the filter rail sits to the left of the list. */
+@Preview(showBackground = true, heightDp = 900, widthDp = 1000)
+@Composable
+internal fun RecipeListFilterSidebarPreview() {
+    ChefMateTheme { RecipeListScreen(bloc = previewRecipeListBlocFilterSidebar) }
 }
 
 @Preview(showBackground = true, heightDp = 1100)

@@ -16,6 +16,7 @@ import com.plusmobileapps.chefmate.recipe.data.DEFAULT_INGREDIENT_SCALE
 import com.plusmobileapps.chefmate.recipe.data.IngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
+import com.plusmobileapps.chefmate.subscription.SubscriptionRepository
 import com.plusmobileapps.chefmate.text.ResourceString
 import com.plusmobileapps.chefmate.toast.ToastService
 import dev.zacsweers.metro.Assisted
@@ -40,6 +41,7 @@ class RecipeDetailViewModel(
     private val toastService: ToastService,
     private val scalePreferences: IngredientScalePreferences,
     featureFlags: FeatureFlags,
+    subscriptionRepository: SubscriptionRepository,
 ) : ViewModel(mainContext) {
 
     private val _output = Channel<Output>(Channel.BUFFERED)
@@ -52,6 +54,8 @@ class RecipeDetailViewModel(
 
     private val showAiChat = featureFlags.isEnabled(FeatureFlagRegistry.AiChat)
 
+    private val isSubscribed = subscriptionRepository.isSubscribed
+
     // Surface the shared controller's active mark so the screen can show one coach mark at a time;
     // only ids in CoachMarkId.recipeDetailSequence are anchored on this screen. The persisted
     // ingredient scale for this recipe is folded in so the picker reflects (and shares) whatever
@@ -59,13 +63,19 @@ class RecipeDetailViewModel(
     val state: StateFlow<State> =
         combineStates(
             combineStates(
-                combineStates(_state, coachMarkController.activeCoachMark) { state, activeCoachMark
-                    ->
-                    state.copy(activeCoachMark = activeCoachMark)
+                combineStates(
+                    combineStates(_state, coachMarkController.activeCoachMark) {
+                        state,
+                        activeCoachMark ->
+                        state.copy(activeCoachMark = activeCoachMark)
+                    },
+                    showAiChat,
+                ) { state, showChat ->
+                    state.copy(showAiChat = showChat)
                 },
-                showAiChat,
-            ) { state, showChat ->
-                state.copy(showAiChat = showChat)
+                isSubscribed,
+            ) { state, subscribed ->
+                state.copy(isSubscribed = subscribed)
             },
             scalePreferences.scaleFor(recipeId),
         ) { state, scale ->
@@ -171,6 +181,23 @@ class RecipeDetailViewModel(
     }
 
     /**
+     * Gate for the AI chat button. Returns true when the caller should emit the open-chat output;
+     * otherwise it has raised the premium upsell and the caller should do nothing.
+     *
+     * Read from [state] rather than `_state` — the entitlement is folded in downstream by
+     * [combineStates], so `_state` never carries it.
+     */
+    fun requestAiChat(): Boolean {
+        if (state.value.isSubscribed) return true
+        _state.update { it.copy(showPremiumRequiredDialog = true) }
+        return false
+    }
+
+    fun dismissPremiumRequiredDialog() {
+        _state.update { it.copy(showPremiumRequiredDialog = false) }
+    }
+
+    /**
      * Mark a coach mark seen, but only if it's the one currently showing. This lets a button's tap
      * dismiss its own tip while it's visible, without prematurely consuming tips further down the
      * queue when their button is tapped early.
@@ -190,6 +217,8 @@ class RecipeDetailViewModel(
         val ingredientScale: Double = DEFAULT_INGREDIENT_SCALE,
         val activeCoachMark: String? = null,
         val showAiChat: Boolean = false,
+        val isSubscribed: Boolean = false,
+        val showPremiumRequiredDialog: Boolean = false,
     )
 
     sealed class Output {

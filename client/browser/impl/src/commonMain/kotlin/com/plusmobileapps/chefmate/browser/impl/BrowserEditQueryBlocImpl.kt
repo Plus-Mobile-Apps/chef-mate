@@ -9,7 +9,6 @@ import com.plusmobileapps.chefmate.getViewModel
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -21,7 +20,7 @@ class BrowserEditQueryBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<BrowserEditQueryBloc.Output>,
     @Assisted initialText: String,
-    viewModelFactory: Provider<BrowserEditQueryViewModel>,
+    viewModelFactory: () -> BrowserEditQueryViewModel,
 ) : BrowserEditQueryBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel {

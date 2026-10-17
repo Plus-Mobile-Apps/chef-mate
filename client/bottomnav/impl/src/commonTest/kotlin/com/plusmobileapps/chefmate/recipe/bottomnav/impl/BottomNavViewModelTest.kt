@@ -33,6 +33,7 @@ class BottomNavViewModelTest {
             BottomNavViewModel(
                 mainContext = mainContext,
                 tabOrderPreferences = prefs,
+                navRailPreferences = FakeNavRailPreferences(),
                 notificationsRepository = notificationsRepository,
             )
         vm.state.value.tabs shouldBe customOrder
@@ -45,6 +46,7 @@ class BottomNavViewModelTest {
             BottomNavViewModel(
                 mainContext = mainContext,
                 tabOrderPreferences = prefs,
+                navRailPreferences = FakeNavRailPreferences(),
                 notificationsRepository = notificationsRepository,
             )
         vm.state.value.tabs shouldBe DEFAULT_TAB_ORDER
@@ -68,6 +70,7 @@ class BottomNavViewModelTest {
             BottomNavViewModel(
                 mainContext = mainContext,
                 tabOrderPreferences = prefs,
+                navRailPreferences = FakeNavRailPreferences(),
                 notificationsRepository = notificationsRepository,
             )
         vm.state.value.notificationCount shouldBe 0
@@ -79,4 +82,32 @@ class BottomNavViewModelTest {
             )
         vm.state.value.notificationCount shouldBe 2
     }
+
+    @Test
+    fun rail_collapsed_is_seeded_from_preferences() {
+        val vm = createViewModel(navRailPreferences = FakeNavRailPreferences(initial = true))
+        vm.state.value.railCollapsed shouldBe true
+    }
+
+    @Test
+    fun toggle_rail_collapsed_persists_and_updates_state() {
+        val railPrefs = FakeNavRailPreferences()
+        val vm = createViewModel(navRailPreferences = railPrefs)
+
+        vm.toggleRailCollapsed()
+        railPrefs.railCollapsed.value shouldBe true
+        vm.state.value.railCollapsed shouldBe true
+
+        vm.toggleRailCollapsed()
+        railPrefs.railCollapsed.value shouldBe false
+        vm.state.value.railCollapsed shouldBe false
+    }
+
+    private fun createViewModel(navRailPreferences: FakeNavRailPreferences) =
+        BottomNavViewModel(
+            mainContext = mainContext,
+            tabOrderPreferences = FakeTabOrderPreferences(),
+            navRailPreferences = navRailPreferences,
+            notificationsRepository = notificationsRepository,
+        )
 }

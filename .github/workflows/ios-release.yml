@@ -7,12 +7,15 @@ on:
 
 jobs:
   release:
-    runs-on: macos-26
+    # The iOS 27 App Schema domains (AssistantSchemas .reminders) need the iOS 27 SDK, which
+    # only ships on GitHub's Xcode 27 image (`xcode-27`, macOS 27, currently a public preview).
+    # https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
 
       - name: Set Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+        run: sudo xcode-select -s /Applications/Xcode_27.0.app
 
       - uses: actions/setup-java@v4
         with:

@@ -39,13 +39,15 @@ class RecipeBookRepositoryImplTest {
     ) =
         RecipeBookRepositoryImpl(
             db = db.recipeBookQueries,
+            bookRecipeDb = db.recipeBookRecipeQueries,
             ioContext = testDispatcher,
             dateTimeUtil = dateTimeUtil,
             unique = FakeUnique(),
             remoteDataSource = remoteDataSource,
             memberRemoteDataSource = memberRemoteDataSource,
+            familyRemoteDataSource = FakeFamilyRecipeBookRemoteDataSource(),
             authRepository = fakeAuth,
-            settings = settings,
+            selectionRepository = RecipeBookSelectionRepositoryImpl(settings),
         )
 
     @Test
@@ -249,6 +251,59 @@ class RecipeBookRepositoryImplTest {
         }
 
     @Test
+    fun pull_applies_a_remote_rename_to_a_book_already_synced_locally() =
+        runTest(testDispatcher) {
+            fakeAuth.setAuthenticated()
+            val bookRemote = StubRecipeBookRemote()
+            val repo = repository(remoteDataSource = bookRemote)
+            val created = repo.createBook("Weeknights")
+            db.recipeBookQueries.getById(created.id).executeAsOne().remoteId shouldBe
+                "remote-Weeknights"
+
+            // The book was renamed on another device after this one had already cached it.
+            bookRemote.fetchResult =
+                listOf(
+                    RemoteRecipeBook(
+                        id = "remote-Weeknights",
+                        ownerId = "test-id",
+                        name = "Weeknight Dinners",
+                    )
+                )
+            repo.syncAllUnsynced()
+
+            db.recipeBookQueries.getById(created.id).executeAsOne().name shouldBe
+                "Weeknight Dinners"
+        }
+
+    @Test
+    fun pull_does_not_clobber_a_book_with_an_unpushed_local_rename() =
+        runTest(testDispatcher) {
+            fakeAuth.setAuthenticated()
+            val bookRemote = StubRecipeBookRemote()
+            val repo = repository(remoteDataSource = bookRemote)
+            val created = repo.createBook("Weeknights")
+
+            // Rename locally, but the push fails — the book is still dirty when the pull runs,
+            // and the remote still holds the pre-rename name.
+            bookRemote.upsertFailure = { RuntimeException("network") }
+            repo.renameBook(created.id, "My local name")
+            bookRemote.fetchResult =
+                listOf(
+                    RemoteRecipeBook(
+                        id = "remote-Weeknights",
+                        ownerId = "test-id",
+                        name = "Weeknights",
+                    )
+                )
+
+            repo.syncAllUnsynced()
+
+            val row = db.recipeBookQueries.getById(created.id).executeAsOne()
+            row.name shouldBe "My local name"
+            row.isDirty shouldBe true
+        }
+
+    @Test
     fun pull_skips_books_with_only_a_pending_invite() =
         runTest(testDispatcher) {
             fakeAuth.setAuthenticated()
@@ -288,6 +343,24 @@ class RecipeBookRepositoryImplTest {
                 names shouldNotContain "Invited" // pending-invite book stays hidden
             }
         }
+
+    /**
+     * Stamps a stable remote id derived from the book name so tests can correlate, and lets a test
+     * fail the push to leave a book dirty when the pull runs.
+     */
+    private class StubRecipeBookRemote : RecipeBookRemoteDataSource {
+        var fetchResult: List<RemoteRecipeBook> = emptyList()
+        var upsertFailure: (() -> Throwable)? = null
+
+        override suspend fun upsertRecipeBook(book: RemoteRecipeBook): RemoteRecipeBook {
+            upsertFailure?.invoke()?.let { throw it }
+            return book.copy(id = book.id ?: "remote-${book.name}")
+        }
+
+        override suspend fun deleteRecipeBook(remoteId: String) = Unit
+
+        override suspend fun fetchAccessibleRecipeBooks(): List<RemoteRecipeBook> = fetchResult
+    }
 
     private open class NoopRecipeBookRemote : RecipeBookRemoteDataSource {
         override suspend fun upsertRecipeBook(book: RemoteRecipeBook): RemoteRecipeBook = book

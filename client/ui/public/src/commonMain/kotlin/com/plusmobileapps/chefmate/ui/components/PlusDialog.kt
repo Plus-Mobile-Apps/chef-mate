@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import chefmate.client.ui.public.generated.resources.Res
 import chefmate.client.ui.public.generated.resources.okay
 import com.plusmobileapps.chefmate.text.ResourceString
@@ -17,8 +18,10 @@ fun PlusDialogScaffold(
     content: @Composable (() -> Unit)? = null,
     footer: @Composable () -> Unit = {},
     onDismissRequest: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     AlertDialog(
+        modifier = modifier,
         onDismissRequest = onDismissRequest,
         title = header,
         text = content,
@@ -34,8 +37,10 @@ fun PlusDialog(
     dismissButtonText: TextData? = null,
     onConfirmClick: () -> Unit = {},
     onDismissRequest: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     PlusDialogScaffold(
+        modifier = modifier,
         onDismissRequest = onDismissRequest,
         header = { Text(title.localized()) },
         content = message?.let { { Text(it.localized()) } },

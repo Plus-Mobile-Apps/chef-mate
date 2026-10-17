@@ -21,6 +21,7 @@ kotlin {
             implementation(projects.client.grocery.data.public)
             implementation(projects.client.grocery.core.public)
             implementation(projects.client.recipe.categories.public)
+            implementation(projects.client.subscription.public)
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(libs.arkivanov.decompose.core)
             implementation(compose.components.resources)

@@ -408,6 +408,12 @@ class RecipeRepositoryImpl(
                 } catch (_: Exception) {}
             }
 
+            // Snapshot the prune candidates before this pass can assign any remote ids, so a
+            // recipe pushed (or created on this device) during the sync can never be mistaken for
+            // one deleted elsewhere: it either isn't in this list, or it still has no remoteId.
+            val pruneCandidates =
+                withContext(ioContext) { db.getOwnedSyncedRemoteIds(userId).executeAsList() }
+
             // Push unsynced recipes (no remoteId yet)
             val unsynced = withContext(ioContext) { db.getUnsynced().executeAsList() }
             for (recipe in unsynced) {
@@ -500,7 +506,34 @@ class RecipeRepositoryImpl(
                 for (remote in remoteRecipes) {
                     val remoteId = remote.id ?: continue
                     val existing = db.getByRemoteId(remoteId).executeAsOneOrNull()
-                    if (existing != null) continue
+                    if (existing != null) {
+                        // Already known locally — fold in edits made on another device. Rows with
+                        // unpushed local changes are skipped: their dirty push ran earlier in this
+                        // pass, and overwriting here would drop an edit made while we were
+                        // fetching. Tombstoned rows keep their tombstone until the delete lands.
+                        if (!existing.isDirty && !existing.isPendingDelete) {
+                            db.updateFromRemote(
+                                title = remote.title,
+                                description = remote.description,
+                                ingredients = remote.ingredients,
+                                directions = remote.directions,
+                                imageUrl = remote.imageUrl,
+                                sourceUrl = remote.sourceUrl,
+                                servings = remote.servings?.toLong(),
+                                prepTime = remote.prepTime?.toLong(),
+                                cookTime = remote.cookTime?.toLong(),
+                                totalTime = remote.totalTime?.toLong(),
+                                calories = remote.calories?.toLong(),
+                                starRating = remote.starRating?.toLong(),
+                                isFavorite = remote.isFavorite,
+                                isPublic = remote.isPublic,
+                                ownerId = remote.ownerId.ifBlank { userId },
+                                updatedAt = remote.updatedAt ?: existing.updatedAt,
+                                id = existing.id,
+                            )
+                        }
+                        continue
+                    }
 
                     val matchedByClientId =
                         remote.clientId?.let { clientId ->
@@ -533,6 +566,24 @@ class RecipeRepositoryImpl(
                             isPublic = remote.isPublic,
                         )
                     }
+                }
+            }
+
+            // Prune recipes the user deleted on another device. Scoped to rows the user owns
+            // (or created here and hasn't re-pulled): a recipe shared through a book always
+            // carries the sharer's ownerId, so losing access to a book can never delete a local
+            // copy here — deleteLocalRecipesInBook handles that case explicitly. Only reachable
+            // when fetchAccessibleRecipes succeeded, since a failure aborts the whole sync.
+            withContext(ioContext) {
+                val remoteIds = remoteRecipes.mapNotNull { it.id }.toSet()
+                for (row in pruneCandidates) {
+                    if (row.remoteId in remoteIds) continue
+                    // Re-read: the user may have edited or deleted the recipe while we were
+                    // fetching, which makes it no longer ours to drop.
+                    val current = db.getById(row.id).executeAsOneOrNull() ?: continue
+                    if (current.isDirty || current.isPendingDelete) continue
+                    if (current.remoteId != row.remoteId) continue
+                    db.delete(row.id)
                 }
             }
 

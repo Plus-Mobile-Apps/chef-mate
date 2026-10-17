@@ -2,11 +2,13 @@ package com.plusmobileapps.chefmate.di
 
 import com.plusmobileapps.chefmate.database.AiChatConversationQueries
 import com.plusmobileapps.chefmate.database.AiChatMessageQueries
+import com.plusmobileapps.chefmate.database.BrowserBookmarkQueries
 import com.plusmobileapps.chefmate.database.BrowserHistoryQueries
 import com.plusmobileapps.chefmate.database.CategoryQueries
 import com.plusmobileapps.chefmate.database.CookingSessionQueries
 import com.plusmobileapps.chefmate.database.Database
 import com.plusmobileapps.chefmate.database.GroceryAutocompleteItemQueries
+import com.plusmobileapps.chefmate.database.GroceryCategoryOverrideQueries
 import com.plusmobileapps.chefmate.database.GroceryListMemberQueries
 import com.plusmobileapps.chefmate.database.GroceryListQueries
 import com.plusmobileapps.chefmate.database.GroceryQueries
@@ -51,11 +53,19 @@ abstract class BaseTestApplicationComponent : TestApplicationComponent {
         database.groceryAutocompleteItemQueries
 
     @Provides
+    fun providesGroceryCategoryOverrideQueries(database: Database): GroceryCategoryOverrideQueries =
+        database.groceryCategoryOverrideQueries
+
+    @Provides
     fun providesMealPlanQueries(database: Database): MealPlanQueries = database.mealPlanQueries
 
     @Provides
     fun providesBrowserHistoryQueries(database: Database): BrowserHistoryQueries =
         database.browserHistoryQueries
+
+    @Provides
+    fun providesBrowserBookmarkQueries(database: Database): BrowserBookmarkQueries =
+        database.browserBookmarkQueries
 
     @Provides
     fun providesCookingSessionQueries(database: Database): CookingSessionQueries =

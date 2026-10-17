@@ -5,19 +5,28 @@ package com.plusmobileapps.chefmate.browser
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,29 +38,34 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import chefmate.client.browser.public.generated.resources.Res
+import chefmate.client.browser.public.generated.resources.browser_add_bookmark
 import chefmate.client.browser.public.generated.resources.browser_address_hint
 import chefmate.client.browser.public.generated.resources.browser_back
 import chefmate.client.browser.public.generated.resources.browser_clear
 import chefmate.client.browser.public.generated.resources.browser_download
 import chefmate.client.browser.public.generated.resources.browser_extraction_failed_body
 import chefmate.client.browser.public.generated.resources.browser_forward
-import chefmate.client.browser.public.generated.resources.browser_navigate
+import chefmate.client.browser.public.generated.resources.browser_home
+import chefmate.client.browser.public.generated.resources.browser_more_options
+import chefmate.client.browser.public.generated.resources.browser_open_in_default_browser
+import chefmate.client.browser.public.generated.resources.browser_remove_bookmark
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusButton
 import com.plusmobileapps.chefmate.ui.components.PlusDialog
+import com.plusmobileapps.chefmate.ui.components.PlusTextFieldDefaults
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -62,6 +76,7 @@ fun BrowserScreen(
     modifier: Modifier = Modifier,
 ) {
     val viewState by bloc.state.collectAsState()
+    val uriHandler = LocalUriHandler.current
 
     val failureMessage = viewState.extractionFailureMessage
     if (failureMessage != null) {
@@ -76,15 +91,25 @@ fun BrowserScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         if (viewState.showControls) {
-            AddressBar(
+            BrowserAddressBar(
                 url = viewState.addressBarText,
                 canGoBack = viewState.canGoBack,
                 canGoForward = viewState.canGoForward,
+                canOpenExternally = viewState.currentUrl.isNotBlank(),
+                isBookmarked = viewState.isBookmarked,
                 onUrlChanged = bloc::onUrlChanged,
                 onNavigate = bloc::onNavigate,
                 onGoBack = bloc::onGoBack,
                 onGoForward = bloc::onGoForward,
                 onAddressBarFocused = bloc::onAddressBarFocused,
+                onToggleBookmark = bloc::onToggleBookmark,
+                onHomeClick = bloc::onHomeClicked,
+                // Hand the page that's actually loaded (not the possibly half-typed address text)
+                // to the OS, which routes it to the user's default browser. Guarded because a
+                // scheme with no handler installed makes the platform handler throw.
+                onOpenInDefaultBrowser = {
+                    runCatching { uriHandler.openUri(viewState.currentUrl) }
+                },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
             )
@@ -96,6 +121,9 @@ fun BrowserScreen(
             onCanNavigateChanged = bloc::onCanNavigateChanged,
             goBackTrigger = viewState.goBackTrigger,
             goForwardTrigger = viewState.goForwardTrigger,
+            captureHtmlTrigger = viewState.captureHtmlTrigger,
+            onHtmlCaptured = bloc::onHtmlCaptured,
+            onTitleChanged = bloc::onPageTitleChanged,
             instanceKeeper = bloc.instanceKeeper,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
@@ -103,30 +131,54 @@ fun BrowserScreen(
             BrowserBottomBar(
                 showExtract = viewState.currentUrl.isNotBlank(),
                 isExtracting = viewState.isExtracting,
-                isWebViewLoading = viewState.isWebViewLoading,
                 onExtractRecipe = bloc::onExtractRecipe,
             )
         }
     }
 }
 
+/**
+ * Public so `client/ui/screenshot-test` can snapshot it without a live [PlatformWebView].
+ *
+ * Mirrors Chrome's layout: back and home flank the address field, and the rarer page actions
+ * (forward, bookmark, open externally) live behind a single overflow button so the bar stays
+ * readable on a phone. Home is the only way back to the landing screen on iOS, which has no system
+ * back button.
+ */
 @Composable
-private fun AddressBar(
+fun BrowserAddressBar(
     url: String,
     canGoBack: Boolean,
     canGoForward: Boolean,
+    canOpenExternally: Boolean,
+    isBookmarked: Boolean,
     onUrlChanged: (String) -> Unit,
     onNavigate: () -> Unit,
     onGoBack: () -> Unit,
     onGoForward: () -> Unit,
     onAddressBarFocused: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onHomeClick: () -> Unit,
+    onOpenInDefaultBrowser: () -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
 ) {
     var textFieldValue by remember { mutableStateOf(TextFieldValue(url)) }
-    val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val currentOnAddressBarFocused by rememberUpdatedState(onAddressBarFocused)
+    val addressBarInteractions = remember { MutableInteractionSource() }
+
+    // Editing happens on the EditQuery screen, so open it on an actual tap rather than on focus.
+    // Focus also arrives without the user asking: when EditQuery submits and its focused field
+    // leaves composition, the platform hands focus to the first focusable in the new Browser
+    // screen — this field — which would bounce the user straight back to EditQuery and leave the
+    // page they just searched for hidden underneath.
+    LaunchedEffect(addressBarInteractions) {
+        addressBarInteractions.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) currentOnAddressBarFocused()
+        }
+    }
 
     LaunchedEffect(url) {
         if (url != textFieldValue.text) {
@@ -154,10 +206,10 @@ private fun AddressBar(
                 contentDescription = stringResource(Res.string.browser_back),
             )
         }
-        IconButton(onClick = onGoForward, enabled = canGoForward) {
+        IconButton(onClick = onHomeClick, modifier = Modifier.testTag(BrowserTestTags.HOME)) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(Res.string.browser_forward),
+                imageVector = Icons.Default.Home,
+                contentDescription = stringResource(Res.string.browser_home),
             )
         }
         OutlinedTextField(
@@ -166,18 +218,12 @@ private fun AddressBar(
                 textFieldValue = newValue
                 onUrlChanged(newValue.text)
             },
-            modifier =
-                Modifier.weight(1f)
-                    .then(sharedFieldModifier)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            onAddressBarFocused()
-                        }
-                    },
+            modifier = Modifier.weight(1f).then(sharedFieldModifier),
+            readOnly = true,
+            interactionSource = addressBarInteractions,
             placeholder = { Text(stringResource(Res.string.browser_address_hint)) },
             singleLine = true,
-            shape = RoundedCornerShape(28.dp),
+            shape = PlusTextFieldDefaults.RoundedShape,
             keyboardOptions =
                 KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
             keyboardActions =
@@ -193,7 +239,7 @@ private fun AddressBar(
                         onClick = {
                             textFieldValue = TextFieldValue("")
                             onUrlChanged("")
-                            focusRequester.requestFocus()
+                            onAddressBarFocused()
                         }
                     ) {
                         Icon(
@@ -204,25 +250,107 @@ private fun AddressBar(
                 }
             },
         )
+        BrowserOverflowMenu(
+            hasPage = canOpenExternally,
+            canGoForward = canGoForward,
+            isBookmarked = isBookmarked,
+            onGoForward = onGoForward,
+            onToggleBookmark = onToggleBookmark,
+            onOpenInDefaultBrowser = onOpenInDefaultBrowser,
+        )
+    }
+}
+
+@Composable
+private fun BrowserOverflowMenu(
+    hasPage: Boolean,
+    canGoForward: Boolean,
+    isBookmarked: Boolean,
+    onGoForward: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onOpenInDefaultBrowser: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
         IconButton(
-            onClick = {
-                onNavigate()
-                keyboardController?.hide()
-            }
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(BrowserTestTags.OVERFLOW_MENU),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(Res.string.browser_navigate),
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.browser_more_options),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.browser_forward)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                    )
+                },
+                enabled = canGoForward,
+                onClick = {
+                    expanded = false
+                    onGoForward()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.FORWARD),
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (isBookmarked) Res.string.browser_remove_bookmark
+                            else Res.string.browser_add_bookmark
+                        )
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector =
+                            if (isBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = null,
+                    )
+                },
+                enabled = hasPage,
+                onClick = {
+                    expanded = false
+                    onToggleBookmark()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.TOGGLE_BOOKMARK),
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.browser_open_in_default_browser)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = null,
+                    )
+                },
+                enabled = hasPage,
+                onClick = {
+                    expanded = false
+                    onOpenInDefaultBrowser()
+                },
+                modifier = Modifier.testTag(BrowserTestTags.OPEN_IN_DEFAULT_BROWSER),
             )
         }
     }
 }
 
+/**
+ * The extract button deliberately reflects only [isExtracting], not whether the WebView is still
+ * loading. A load that never reports a terminal state — one stalled subresource on a heavy recipe
+ * page is enough — would otherwise leave the button disabled with no way to retry. Extracting
+ * against a half-rendered page is the safer failure: it surfaces a dismissible error the user can
+ * retry, and the extractor already falls back to fetching the URL when the captured markup carries
+ * no recipe.
+ */
 @Composable
 private fun BrowserBottomBar(
     showExtract: Boolean,
     isExtracting: Boolean,
-    isWebViewLoading: Boolean,
     onExtractRecipe: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -235,7 +363,7 @@ private fun BrowserBottomBar(
         if (showExtract) {
             PlusButton(
                 text = Res.string.browser_download.asTextData(),
-                isLoading = isExtracting || isWebViewLoading,
+                isLoading = isExtracting,
                 onClick = onExtractRecipe,
             )
         }

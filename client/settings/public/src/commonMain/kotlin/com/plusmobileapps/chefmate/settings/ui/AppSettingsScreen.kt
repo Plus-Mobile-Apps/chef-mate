@@ -21,9 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import chefmate.client.settings.public.generated.resources.Res
 import chefmate.client.settings.public.generated.resources.app_settings_backup_section
 import chefmate.client.settings.public.generated.resources.app_settings_bottom_nav_order
+import chefmate.client.settings.public.generated.resources.app_settings_browser_bookmarks
 import chefmate.client.settings.public.generated.resources.app_settings_browser_history_enabled
 import chefmate.client.settings.public.generated.resources.app_settings_browser_section
 import chefmate.client.settings.public.generated.resources.app_settings_clear_history
@@ -35,6 +37,7 @@ import chefmate.client.settings.public.generated.resources.app_settings_default_
 import chefmate.client.settings.public.generated.resources.app_settings_default_search_engine_dialog_title
 import chefmate.client.settings.public.generated.resources.app_settings_default_search_engine_none
 import chefmate.client.settings.public.generated.resources.app_settings_grocery_autocomplete
+import chefmate.client.settings.public.generated.resources.app_settings_grocery_category_rules
 import chefmate.client.settings.public.generated.resources.app_settings_grocery_section
 import chefmate.client.settings.public.generated.resources.app_settings_navigation_section
 import chefmate.client.settings.public.generated.resources.app_settings_recipe_categories
@@ -45,6 +48,7 @@ import chefmate.client.settings.public.generated.resources.import_recipes
 import com.plusmobileapps.chefmate.browser.SearchEngine
 import com.plusmobileapps.chefmate.browser.logo
 import com.plusmobileapps.chefmate.settings.AppSettingsBloc
+import com.plusmobileapps.chefmate.settings.SettingsTestTags
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusButton
@@ -96,6 +100,12 @@ fun AppSettingsScreen(bloc: AppSettingsBloc, modifier: Modifier = Modifier) {
                 onClick = bloc::onDefaultSearchEngineClicked,
             )
             HorizontalDivider()
+            SettingsRow(
+                name = Res.string.app_settings_browser_bookmarks.asTextData(),
+                onClick = bloc::onBookmarksClicked,
+                modifier = Modifier.testTag(SettingsTestTags.BROWSER_BOOKMARKS),
+            )
+            HorizontalDivider()
             HistoryToggleRow(
                 name = Res.string.app_settings_browser_history_enabled.asTextData(),
                 checked = state.isHistoryEnabled,
@@ -117,6 +127,11 @@ fun AppSettingsScreen(bloc: AppSettingsBloc, modifier: Modifier = Modifier) {
             SettingsRow(
                 name = Res.string.app_settings_grocery_autocomplete.asTextData(),
                 onClick = bloc::onGroceryAutocompleteClicked,
+            )
+            HorizontalDivider()
+            SettingsRow(
+                name = Res.string.app_settings_grocery_category_rules.asTextData(),
+                onClick = bloc::onGroceryCategoryRulesClicked,
             )
             HorizontalDivider()
             SectionHeader(name = Res.string.app_settings_backup_section.asTextData())

@@ -23,6 +23,7 @@ kotlin {
             implementation(compose.components.resources)
         }
         commonTest.dependencies {
+            implementation(projects.client.meal.data.testing)
             implementation(projects.client.util.testing)
             implementation(projects.client.toast.testing)
             implementation(libs.multiplatform.settings.test)

@@ -17,6 +17,7 @@ import com.plusmobileapps.chefmate.recipe.core.detail.RecipeDetailBloc
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeIngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
+import com.plusmobileapps.chefmate.subscription.testing.FakeSubscriptionRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
 import com.plusmobileapps.chefmate.text.FixedString
@@ -29,6 +30,7 @@ import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
@@ -68,16 +70,19 @@ class RecipeDetailBlocImplTest {
         )
 
     private lateinit var coachMarkController: CoachMarkController
+    private lateinit var subscriptionRepository: FakeSubscriptionRepository
 
     private fun createBloc(
         recipe: Recipe? = sampleRecipe,
         cookModeTooltipSeen: Boolean = false,
         aiChatEnabled: Boolean = false,
+        subscribed: Boolean = false,
     ): RecipeDetailBlocImpl {
         if (recipe != null) recipes.value = listOf(recipe)
         coachMarkController = CoachMarkController(MapSettings())
         if (cookModeTooltipSeen) coachMarkController.dismiss(CoachMarkId.RECIPE_DETAIL_COOK_MODE)
         val featureFlags = FakeFeatureFlags(mapOf(FeatureFlagRegistry.AiChat to aiChatEnabled))
+        subscriptionRepository = FakeSubscriptionRepository(subscribed)
         val viewModelFactory = RecipeDetailViewModel.Factory { id ->
             RecipeDetailViewModel(
                 recipeId = id,
@@ -87,6 +92,7 @@ class RecipeDetailBlocImplTest {
                 toastService = toastService,
                 scalePreferences = scalePreferences,
                 featureFlags = featureFlags,
+                subscriptionRepository = subscriptionRepository,
             )
         }
         val dateTimeUtil = FakeDateTimeUtil()
@@ -147,10 +153,50 @@ class RecipeDetailBlocImplTest {
     }
 
     @Test
-    fun When_onAiChatClicked_Then_open_ai_chat_output_emitted_with_recipe_id() {
-        val bloc = createBloc()
+    fun When_subscribed_and_onAiChatClicked_Then_open_ai_chat_output_emitted_with_recipe_id() {
+        val bloc = createBloc(aiChatEnabled = true, subscribed = true)
+
         bloc.onAiChatClicked()
+
         output.lastValue shouldBe RecipeDetailBloc.Output.OpenAiChat(sampleRecipe.id)
+    }
+
+    @Test
+    fun When_not_subscribed_and_onAiChatClicked_Then_upsell_shown_and_no_output() {
+        val bloc = createBloc(aiChatEnabled = true, subscribed = false)
+
+        bloc.onAiChatClicked()
+
+        bloc.state.value.showPremiumRequiredDialog shouldBe true
+        output.values.shouldBeEmpty()
+    }
+
+    @Test
+    fun When_upsell_dismissed_Then_dialog_hidden() {
+        val bloc = createBloc(aiChatEnabled = true, subscribed = false)
+        bloc.onAiChatClicked()
+
+        bloc.onPremiumRequiredDismissed()
+
+        bloc.state.value.showPremiumRequiredDialog shouldBe false
+    }
+
+    @Test
+    fun When_subscription_starts_while_open_Then_state_reflects_it() {
+        val bloc = createBloc(aiChatEnabled = true, subscribed = false)
+        bloc.state.value.isSubscribed shouldBe false
+
+        subscriptionRepository.setSubscribed(true)
+
+        bloc.state.value.isSubscribed shouldBe true
+    }
+
+    @Test
+    fun When_not_subscribed_Then_ai_chat_button_still_shown() {
+        // The gate is an upsell, not a hide — only the feature flag removes the button.
+        val bloc = createBloc(aiChatEnabled = true, subscribed = false)
+
+        bloc.state.value.showAiChat shouldBe true
     }
 
     @Test

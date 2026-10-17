@@ -3,11 +3,13 @@ package com.plusmobileapps.chefmate.client.database.di
 import com.plusmobileapps.chefmate.client.database.DriverFactory
 import com.plusmobileapps.chefmate.database.AiChatConversationQueries
 import com.plusmobileapps.chefmate.database.AiChatMessageQueries
+import com.plusmobileapps.chefmate.database.BrowserBookmarkQueries
 import com.plusmobileapps.chefmate.database.BrowserHistoryQueries
 import com.plusmobileapps.chefmate.database.CategoryQueries
 import com.plusmobileapps.chefmate.database.CookingSessionQueries
 import com.plusmobileapps.chefmate.database.Database
 import com.plusmobileapps.chefmate.database.GroceryAutocompleteItemQueries
+import com.plusmobileapps.chefmate.database.GroceryCategoryOverrideQueries
 import com.plusmobileapps.chefmate.database.GroceryListMemberQueries
 import com.plusmobileapps.chefmate.database.GroceryListQueries
 import com.plusmobileapps.chefmate.database.GroceryQueries
@@ -17,13 +19,14 @@ import com.plusmobileapps.chefmate.database.RecipeBookRecipeQueries
 import com.plusmobileapps.chefmate.database.RecipeCategoryQueries
 import com.plusmobileapps.chefmate.database.RecipeQueries
 import com.plusmobileapps.chefmate.di.AppScope
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 
-@SingleIn(AppScope::class)
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface DatabaseComponent {
+object DatabaseComponent {
     @SingleIn(AppScope::class)
     @Provides
     fun database(driverFactory: DriverFactory): Database =
@@ -63,6 +66,11 @@ interface DatabaseComponent {
 
     @SingleIn(AppScope::class)
     @Provides
+    fun providesBrowserBookmarkQueries(database: Database): BrowserBookmarkQueries =
+        database.browserBookmarkQueries
+
+    @SingleIn(AppScope::class)
+    @Provides
     fun providesCookingSessionQueries(database: Database): CookingSessionQueries =
         database.cookingSessionQueries
 
@@ -94,4 +102,9 @@ interface DatabaseComponent {
     @Provides
     fun providesGroceryAutocompleteItemQueries(database: Database): GroceryAutocompleteItemQueries =
         database.groceryAutocompleteItemQueries
+
+    @SingleIn(AppScope::class)
+    @Provides
+    fun providesGroceryCategoryOverrideQueries(database: Database): GroceryCategoryOverrideQueries =
+        database.groceryCategoryOverrideQueries
 }

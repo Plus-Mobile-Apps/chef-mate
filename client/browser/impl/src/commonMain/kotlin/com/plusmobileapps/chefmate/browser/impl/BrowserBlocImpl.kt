@@ -10,7 +10,6 @@ import com.plusmobileapps.chefmate.mapState
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -19,7 +18,7 @@ class BrowserBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<BrowserBloc.Output>,
     @Assisted private val showControls: Boolean,
-    viewModelFactory: Provider<BrowserViewModel>,
+    viewModelFactory: () -> BrowserViewModel,
 ) : BrowserBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel {
@@ -28,8 +27,9 @@ class BrowserBlocImpl(
 
     override val state: StateFlow<BrowserBloc.Model> =
         viewModel.state.mapState {
+            val currentUrl = it.webViewReportedUrl.ifBlank { it.currentUrl }
             BrowserBloc.Model(
-                currentUrl = it.webViewReportedUrl.ifBlank { it.currentUrl },
+                currentUrl = currentUrl,
                 navigateUrl = it.webViewReportedUrl.ifBlank { it.currentUrl },
                 addressBarText = it.addressBarText,
                 isExtracting = it.isExtracting,
@@ -41,6 +41,8 @@ class BrowserBlocImpl(
                 canGoForward = it.canGoForward,
                 goBackTrigger = it.goBackTrigger,
                 goForwardTrigger = it.goForwardTrigger,
+                captureHtmlTrigger = it.captureHtmlTrigger,
+                isBookmarked = BookmarkUrl.normalize(currentUrl) in it.bookmarkedUrls,
             )
         }
 
@@ -64,6 +66,10 @@ class BrowserBlocImpl(
         viewModel.extractRecipe()
     }
 
+    override fun onHtmlCaptured(html: String?) {
+        viewModel.onHtmlCaptured(html)
+    }
+
     override fun onDismissMessage() {
         viewModel.dismissMessage()
     }
@@ -82,5 +88,17 @@ class BrowserBlocImpl(
 
     override fun onAddressBarFocused() {
         viewModel.onAddressBarFocused()
+    }
+
+    override fun onPageTitleChanged(title: String?) {
+        viewModel.onPageTitleChanged(title)
+    }
+
+    override fun onToggleBookmark() {
+        viewModel.toggleBookmark()
+    }
+
+    override fun onHomeClicked() {
+        viewModel.onHomeClicked()
     }
 }

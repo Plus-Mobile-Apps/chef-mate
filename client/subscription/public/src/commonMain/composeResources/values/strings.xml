@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+    <string name="premium_required_title">ChefMate Premium</string>
+    <string name="premium_required_message">The AI cooking assistant is part of ChefMate Premium. Subscribe to ask questions about any recipe, get substitutions, and scale ingredients hands-free.</string>
+    <string name="premium_required_confirm">Got it</string>
+    <string name="premium_locked_badge">Premium</string>
+</resources>

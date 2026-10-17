@@ -7,6 +7,8 @@ import com.plusmobileapps.chefmate.onboarding.AddToGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.AddToGroceryScreen
 import com.plusmobileapps.chefmate.onboarding.CookModeBloc
 import com.plusmobileapps.chefmate.onboarding.CookModeScreen
+import com.plusmobileapps.chefmate.onboarding.FamilySharingBloc
+import com.plusmobileapps.chefmate.onboarding.FamilySharingScreen
 import com.plusmobileapps.chefmate.onboarding.GroceryListsBloc
 import com.plusmobileapps.chefmate.onboarding.GroceryListsScreen
 import com.plusmobileapps.chefmate.onboarding.MealPlanningBloc
@@ -71,6 +73,11 @@ val previewRecipeBooksBloc: RecipeBooksBloc =
 
 val previewGroceryListsBloc: GroceryListsBloc =
     object : GroceryListsBloc {
+        override fun onNextClicked() = Unit
+    }
+
+val previewFamilySharingBloc: FamilySharingBloc =
+    object : FamilySharingBloc {
         override fun onNextClicked() = Unit
     }
 
@@ -168,6 +175,12 @@ internal fun RecipeBooksScreenPreview() {
 @Composable
 internal fun GroceryListsScreenPreview() {
     ChefMateTheme { GroceryListsScreen(bloc = previewGroceryListsBloc) }
+}
+
+@Preview
+@Composable
+internal fun FamilySharingScreenPreview() {
+    ChefMateTheme { FamilySharingScreen(bloc = previewFamilySharingBloc) }
 }
 
 @Preview

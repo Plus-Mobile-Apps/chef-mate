@@ -37,9 +37,30 @@ class RecipeListRobot(private val test: ComposeUiTest) {
         test.onNode(hasText(title) and onScreen).assertIsDisplayed().performClick()
     }
 
-    /** Opens the "+" add-recipe chooser menu. */
+    /**
+     * Opens the "+" add-recipe chooser menu. Compact windows have no "+" in the app bar, so there
+     * this opens the overflow menu, which carries the same create/scan entries.
+     */
     fun openAddMenu(): RecipeListRobot = apply {
-        test.onNode(hasTestTag(RecipeListTestTags.ADD_RECIPE_BUTTON) and onScreen).performClick()
+        val addButton = hasTestTag(RecipeListTestTags.ADD_RECIPE_BUTTON) and onScreen
+        if (test.onAllNodes(addButton).fetchSemanticsNodes().isNotEmpty()) {
+            test.onNode(addButton).performClick()
+        } else {
+            test.onNode(hasTestTag(RecipeListTestTags.OVERFLOW_BUTTON) and onScreen).performClick()
+        }
+    }
+
+    /**
+     * Starts a new recipe by hand without the scan chooser: the app-bar "+" opens the editor
+     * directly on wider windows, while compact windows go through "Create recipe" in the overflow.
+     */
+    fun tapAddRecipe(): RecipeListRobot = apply {
+        val addButton = hasTestTag(RecipeListTestTags.ADD_RECIPE_BUTTON) and onScreen
+        if (test.onAllNodes(addButton).fetchSemanticsNodes().isNotEmpty()) {
+            test.onNode(addButton).performClick()
+        } else {
+            openAddMenu().tapCreateRecipe()
+        }
     }
 
     /**

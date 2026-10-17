@@ -53,6 +53,8 @@ class CookModeBlocImpl(
                 activeCoachMark = vm.activeCoachMark,
                 // Only offer AI chat once a recipe is active — it's the context handed to the chat.
                 showAiChat = vm.showAiChat && active != null,
+                isSubscribed = vm.isSubscribed,
+                showPremiumRequiredDialog = vm.showPremiumRequiredDialog,
             )
         }
 
@@ -74,7 +76,18 @@ class CookModeBlocImpl(
 
     override fun onAiChatClicked() {
         val activeRecipeId = state.value.activeRecipe?.id ?: return
-        output.onNext(CookModeBloc.Output.OpenAiChat(activeRecipeId))
+        if (viewModel.requestAiChat()) {
+            output.onNext(CookModeBloc.Output.OpenAiChat(activeRecipeId))
+        }
+    }
+
+    override fun onViewRecipeClicked() {
+        val activeRecipeId = state.value.activeRecipe?.id ?: return
+        output.onNext(CookModeBloc.Output.OpenRecipeDetail(activeRecipeId))
+    }
+
+    override fun onPremiumRequiredDismissed() {
+        viewModel.dismissPremiumRequiredDialog()
     }
 
     override fun onLayoutToggled() {

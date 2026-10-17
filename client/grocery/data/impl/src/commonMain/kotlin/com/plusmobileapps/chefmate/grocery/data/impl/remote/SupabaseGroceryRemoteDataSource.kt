@@ -2,6 +2,8 @@ package com.plusmobileapps.chefmate.grocery.data.impl.remote
 
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.data.remote.GroceryRemoteDataSource
+import com.plusmobileapps.chefmate.grocery.data.remote.RemoteFamilyGroceryList
+import com.plusmobileapps.chefmate.grocery.data.remote.RemoteFamilyName
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryItem
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryList
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryListCollaborator
@@ -13,6 +15,7 @@ import dev.zacsweers.metro.SingleIn
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
@@ -24,9 +27,11 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 @Inject
@@ -59,7 +64,11 @@ class SupabaseGroceryRemoteDataSource(private val supabaseClient: SupabaseClient
             supabaseClient
                 .from("grocery_lists")
                 .select {
-                    filter { eq("owner_id", ownerId) }
+                    filter {
+                        eq("owner_id", ownerId)
+                        // A family list the user created isn't their personal default.
+                        exact("family_id", null)
+                    }
                     limit(1)
                 }
                 .decodeList<RemoteGroceryList>()
@@ -187,6 +196,49 @@ class SupabaseGroceryRemoteDataSource(private val supabaseClient: SupabaseClient
 
     override suspend fun removeFromList(memberId: String) {
         supabaseClient.from("grocery_list_members").delete { filter { eq("id", memberId) } }
+    }
+
+    override suspend fun fetchFamilyNames(familyIds: Collection<String>): List<RemoteFamilyName> {
+        if (familyIds.isEmpty()) return emptyList()
+        return supabaseClient
+            .from("families")
+            .select(Columns.list("id", "name")) { filter { isIn("id", familyIds.toList()) } }
+            .decodeList<RemoteFamilyName>()
+    }
+
+    override suspend fun fetchFamilyGroceryLists(familyId: String): List<RemoteFamilyGroceryList> =
+        supabaseClient.postgrest
+            .rpc("family_grocery_lists", buildJsonObject { put("p_family_id", familyId) })
+            .decodeList<RemoteFamilyGroceryList>()
+
+    override suspend fun createFamilyGroceryList(familyId: String, name: String): String =
+        supabaseClient.postgrest
+            .rpc(
+                "create_family_grocery_list",
+                buildJsonObject {
+                    put("p_family_id", familyId)
+                    put("p_name", name)
+                },
+            )
+            .decodeAs<JsonElement>()
+            .jsonPrimitive
+            .content
+
+    override suspend fun renameFamilyGroceryList(listId: String, name: String) {
+        supabaseClient.postgrest.rpc(
+            "rename_family_grocery_list",
+            buildJsonObject {
+                put("p_list_id", listId)
+                put("p_name", name)
+            },
+        )
+    }
+
+    override suspend fun deleteFamilyGroceryList(listId: String) {
+        supabaseClient.postgrest.rpc(
+            "delete_family_grocery_list",
+            buildJsonObject { put("p_list_id", listId) },
+        )
     }
 
     private companion object {

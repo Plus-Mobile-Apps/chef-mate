@@ -76,6 +76,18 @@ include(":client:cook:public")
 
 include(":client:database:core")
 
+include(":client:family:data:impl")
+
+include(":client:family:data:public")
+
+include(":client:family:data:testing")
+
+include(":client:family:manage:impl")
+
+include(":client:family:manage:impl-robots")
+
+include(":client:family:manage:public")
+
 include(":client:featureflag:impl")
 
 include(":client:featureflag:public")
@@ -89,6 +101,12 @@ include(":client:grocery:autocomplete:impl")
 include(":client:grocery:autocomplete:impl-robots")
 
 include(":client:grocery:autocomplete:public")
+
+include(":client:grocery:category-rules:impl")
+
+include(":client:grocery:category-rules:impl-robots")
+
+include(":client:grocery:category-rules:public")
 
 include(":client:grocery:core:impl")
 
@@ -186,6 +204,12 @@ include(":client:recipebook:edit:impl-robots")
 
 include(":client:recipebook:edit:public")
 
+include(":client:review:impl")
+
+include(":client:review:public")
+
+include(":client:review:testing")
+
 include(":client:root:impl")
 
 include(":client:root:public")
@@ -207,6 +231,12 @@ include(":client:developer-settings:impl")
 include(":client:developer-settings:public")
 
 include(":client:shared")
+
+include(":client:subscription:impl")
+
+include(":client:subscription:public")
+
+include(":client:subscription:testing")
 
 include(":client:testing")
 

@@ -9,13 +9,18 @@ import chefmate.client.meal.core.public.generated.resources.meal_plan_added_to_c
 import chefmate.client.meal.core.public.generated.resources.meal_plan_added_to_cook_mode_single
 import chefmate.client.meal.core.public.generated.resources.meal_plan_replaced_cook_mode_multiple
 import chefmate.client.meal.core.public.generated.resources.meal_plan_replaced_cook_mode_single
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import com.arkivanov.essenty.lifecycle.resume
 import com.plusmobileapps.chefmate.cook.data.CookingSessionRepository
 import com.plusmobileapps.chefmate.di.CoachMarkController
 import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.meal.core.MealPlanBloc
+import com.plusmobileapps.chefmate.meal.data.FamilyPlan
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
+import com.plusmobileapps.chefmate.meal.data.testing.FakeMealPlanScopeRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
 import com.plusmobileapps.chefmate.text.FixedString
@@ -62,20 +67,124 @@ class MealPlanBlocTest {
 
     val toastService = FakeToastService()
 
-    val bloc =
+    val scopeRepository = FakeMealPlanScopeRepository()
+
+    val settings = MapSettings()
+
+    val bloc = createBloc()
+
+    private fun createBloc() =
         MealPlanBlocImpl(
-            context = context,
+            context = TestBlocContext.create(),
             output = output,
             viewModelFactory = {
                 MealPlanViewModel(
                     mainContext = context.mainContext,
                     repository = repository,
+                    scopeRepository = scopeRepository,
                     cookingSessionRepository = cookingSessionRepository,
                     dateTimeUtil = dateTimeUtil,
                     coachMarkController = coachMarkController,
                     toastService = toastService,
+                    settings = settings,
                 )
             },
+        )
+
+    @Test
+    fun WHEN_user_has_no_family_plans_THEN_no_plan_selector() = runTest {
+        bloc.state.value.planSelector shouldBe null
+    }
+
+    @Test
+    fun WHEN_user_has_family_plans_THEN_selector_shows_personal_plan_selected() = runTest {
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+
+        val selector = bloc.state.value.planSelector!!
+        selector.families shouldBe listOf(FamilyPlan("fam-1", "Smiths"))
+        selector.selectedFamilyId shouldBe null
+    }
+
+    @Test
+    fun WHEN_plan_selector_clicked_THEN_picker_opens_and_dismisses() = runTest {
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+
+        bloc.onPlanSelectorClicked()
+        bloc.state.value.planSelector!!.isPickerOpen shouldBe true
+
+        bloc.onPlanPickerDismissed()
+        bloc.state.value.planSelector!!.isPickerOpen shouldBe false
+    }
+
+    @Test
+    fun WHEN_family_plan_selected_THEN_its_meals_are_shown() = runTest {
+        val familyMeals = MutableStateFlow(listOf(sampleMeal(id = 9, title = "Family Tacos")))
+        every { repository.getMealsByDate("2026-04-17", MealPlanScope.Family("fam-1")) } returns
+            familyMeals
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        bloc.onPlanSelectorClicked()
+
+        bloc.onPlanSelected("fam-1")
+
+        scopeRepository.selectedScope.value shouldBe MealPlanScope.Family("fam-1")
+        val state = bloc.state.value
+        state.planSelector!!.selectedFamilyId shouldBe "fam-1"
+        state.planSelector!!.isPickerOpen shouldBe false
+        state.dayMeals!!.dinner.map { it.recipeTitle } shouldBe listOf("Family Tacos")
+    }
+
+    @Test
+    fun WHEN_personal_plan_selected_THEN_scope_is_personal() = runTest {
+        every { repository.getMealsByDate("2026-04-17", MealPlanScope.Family("fam-1")) } returns
+            mealsFlow
+        scopeRepository.familyPlans.value = listOf(FamilyPlan("fam-1", "Smiths"))
+        bloc.onPlanSelected("fam-1")
+
+        bloc.onPlanSelected(null)
+
+        scopeRepository.selectedScope.value shouldBe MealPlanScope.Personal
+    }
+
+    @Test
+    fun WHEN_resumed_on_a_family_plan_THEN_families_reload_and_meals_sync() = runTest {
+        every { repository.getMealsByDate("2026-04-17", MealPlanScope.Family("fam-1")) } returns
+            mealsFlow
+        everySuspend { repository.syncAllUnsynced() } returns Unit
+        scopeRepository.selectedScope.value = MealPlanScope.Family("fam-1")
+        val lifecycle = LifecycleRegistry()
+
+        MealPlanBlocImpl(
+            context = TestBlocContext.create(lifecycle = lifecycle),
+            output = output,
+            viewModelFactory = {
+                MealPlanViewModel(
+                    mainContext = context.mainContext,
+                    repository = repository,
+                    scopeRepository = scopeRepository,
+                    cookingSessionRepository = cookingSessionRepository,
+                    dateTimeUtil = dateTimeUtil,
+                    coachMarkController = coachMarkController,
+                    toastService = toastService,
+                    settings = settings,
+                )
+            },
+        )
+        val refreshesBefore = scopeRepository.refreshCount
+        lifecycle.resume()
+
+        scopeRepository.refreshCount shouldBe refreshesBefore + 1
+        verifySuspend { repository.syncAllUnsynced() }
+    }
+
+    private fun sampleMeal(id: Long, title: String) =
+        MealPlanItem(
+            id = id,
+            recipeId = id * 10,
+            recipeTitle = title,
+            recipeImageUrl = null,
+            date = "2026-04-17",
+            mealType = MealType.DINNER,
+            familyId = "fam-1",
         )
 
     @Test
@@ -218,6 +327,28 @@ class MealPlanBlocTest {
         bloc.onViewModeSelected(MealPlanBloc.ViewMode.MONTH)
 
         bloc.state.test { awaitItem().viewMode shouldBe MealPlanBloc.ViewMode.MONTH }
+    }
+
+    @Test
+    fun WHEN_view_mode_selected_THEN_it_is_restored_on_next_launch() = runTest {
+        every { repository.getMealsByDateRange("2026-04-01", "2026-04-30") } returns mealsFlow
+
+        bloc.onViewModeSelected(MealPlanBloc.ViewMode.MONTH)
+
+        // A new bloc backed by the same settings stands in for a relaunch of the app.
+        createBloc().state.test { awaitItem().viewMode shouldBe MealPlanBloc.ViewMode.MONTH }
+    }
+
+    @Test
+    fun WHEN_no_view_mode_persisted_THEN_day_mode_is_used() = runTest {
+        createBloc().state.test { awaitItem().viewMode shouldBe MealPlanBloc.ViewMode.DAY }
+    }
+
+    @Test
+    fun WHEN_persisted_view_mode_is_unknown_THEN_day_mode_is_used() = runTest {
+        settings.putString("meal_plan_view_mode", "YEAR")
+
+        createBloc().state.test { awaitItem().viewMode shouldBe MealPlanBloc.ViewMode.DAY }
     }
 
     @Test
@@ -416,10 +547,12 @@ class MealPlanBlocTest {
                         MealPlanViewModel(
                             mainContext = context.mainContext,
                             repository = repository,
+                            scopeRepository = scopeRepository,
                             cookingSessionRepository = sessionRepo,
                             dateTimeUtil = dateTimeUtil,
                             coachMarkController = CoachMarkController(MapSettings()),
                             toastService = toastService,
+                            settings = MapSettings(),
                         )
                     },
                 )

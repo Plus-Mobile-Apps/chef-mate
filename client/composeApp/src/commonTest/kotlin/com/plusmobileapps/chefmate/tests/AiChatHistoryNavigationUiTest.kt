@@ -18,6 +18,7 @@ class AiChatHistoryNavigationUiTest {
     fun history_button_opens_history_screen_with_existing_conversation() =
         runRootBlocTest { component ->
             component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+            component.testSubscriptionRepository.setSubscribed(true)
             component.fakeGeminiClient.deltas = listOf("model reply about chicken")
 
             bottomNav().clickMoreTab()

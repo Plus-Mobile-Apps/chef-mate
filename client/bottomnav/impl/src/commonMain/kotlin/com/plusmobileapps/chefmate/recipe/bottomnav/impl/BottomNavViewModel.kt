@@ -5,6 +5,7 @@ import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.notifications.data.NotificationsRepository
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavBloc.Tab.RECIPES
+import com.plusmobileapps.chefmate.recipe.bottomnav.NavRailPreferences
 import com.plusmobileapps.chefmate.recipe.bottomnav.TabOrderPreferences
 import dev.zacsweers.metro.Inject
 import kotlin.coroutines.CoroutineContext
@@ -20,14 +21,25 @@ import kotlinx.coroutines.flow.update
 class BottomNavViewModel(
     @Main mainContext: CoroutineContext,
     tabOrderPreferences: TabOrderPreferences,
+    private val navRailPreferences: NavRailPreferences,
     notificationsRepository: NotificationsRepository,
 ) : ViewModel(mainContext) {
-    private val _state = MutableStateFlow(State(tabs = tabOrderPreferences.tabOrder.value))
+    private val _state =
+        MutableStateFlow(
+            State(
+                tabs = tabOrderPreferences.tabOrder.value,
+                railCollapsed = navRailPreferences.railCollapsed.value,
+            )
+        )
     val state: StateFlow<State> = _state.asStateFlow()
 
     init {
         tabOrderPreferences.tabOrder
             .onEach { latest -> _state.update { it.copy(tabs = latest) } }
+            .launchIn(scope)
+
+        navRailPreferences.railCollapsed
+            .onEach { collapsed -> _state.update { it.copy(railCollapsed = collapsed) } }
             .launchIn(scope)
 
         notificationsRepository.notifications
@@ -40,9 +52,14 @@ class BottomNavViewModel(
         _state.value = _state.value.copy(selectedTab = tab)
     }
 
+    fun toggleRailCollapsed() {
+        navRailPreferences.setRailCollapsed(!_state.value.railCollapsed)
+    }
+
     data class State(
         val selectedTab: BottomNavBloc.Tab = RECIPES,
         val tabs: List<BottomNavBloc.Tab>,
         val notificationCount: Int = 0,
+        val railCollapsed: Boolean = false,
     )
 }

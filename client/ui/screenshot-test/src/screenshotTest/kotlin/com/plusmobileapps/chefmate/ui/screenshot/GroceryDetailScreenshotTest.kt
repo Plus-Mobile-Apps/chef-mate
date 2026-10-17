@@ -4,19 +4,23 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailBloc
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailSheetContent
+import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocAlwaysFileHere
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocFromRecipe
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocLoaded
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocLoading
 import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocPurchased
+import com.plusmobileapps.chefmate.grocery.core.impl.detail.ui.previewGroceryDetailBlocUnsteppableQuantity
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModalDialogSurface
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -61,11 +65,43 @@ fun GroceryDetailSheetFromRecipeLightScreenshot() {
     GroceryDetailSheet(bloc = previewGroceryDetailBlocFromRecipe)
 }
 
+// A quantity the stepper can't read — both +/- buttons render disabled.
+@PreviewTest
+@Preview(showBackground = true, heightDp = 500)
+@Composable
+fun GroceryDetailSheetUnsteppableQuantityLightScreenshot() {
+    GroceryDetailSheet(bloc = previewGroceryDetailBlocUnsteppableQuantity)
+}
+
 @PreviewTest
 @Preview(showBackground = true, heightDp = 300)
 @Composable
 fun GroceryDetailSheetLoadingLightScreenshot() {
     GroceryDetailSheet(bloc = previewGroceryDetailBlocLoading)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 500)
+@Composable
+fun GroceryDetailSheetAlwaysFileHereLightScreenshot() {
+    GroceryDetailSheet(bloc = previewGroceryDetailBlocAlwaysFileHere)
+}
+
+// Squeezed into less height than the fields need — the stand-in for a phone with the keyboard
+// open. The fields scroll inside the leftover space while the save button stays anchored at the
+// bottom of the sheet.
+@PreviewTest
+@Preview(showBackground = true, heightDp = 300)
+@Composable
+fun GroceryDetailSheetShortLightScreenshot() {
+    ChefMateTheme {
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(260.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            GroceryDetailSheetContent(bloc = previewGroceryDetailBlocLoaded)
+        }
+    }
 }
 
 // ── EXPANDED-width dialog variant ──────────────────────────────────────────

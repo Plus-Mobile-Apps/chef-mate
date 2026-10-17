@@ -58,6 +58,18 @@ class DeveloperSettingsViewModel(
                 }
             }
             .launchIn(scope)
+
+        preferences.isSubscribed
+            .onEach { subscribed -> _state.update { it.copy(isSubscribed = subscribed) } }
+            .launchIn(scope)
+    }
+
+    /**
+     * Flip the fake entitlement. Nothing else to do — every premium gate observes the preference
+     * through the subscription repository, so the whole app reacts on the next emission.
+     */
+    fun setSubscribed(subscribed: Boolean) {
+        preferences.setSubscribed(subscribed)
     }
 
     fun showEnvironmentPicker() {

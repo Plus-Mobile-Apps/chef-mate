@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
+/** Container/icon opacity for a button that is present but not currently actionable. */
+private const val DISABLED_ALPHA = 0.38f
+
 @Composable
 fun PlusIconButton(
     icon: Painter,
@@ -30,20 +33,25 @@ fun PlusIconButton(
     size: Dp = 48.dp,
     backgroundColor: Color? = null,
     iconTint: Color? = null,
+    enabled: Boolean = true,
 ) {
     val bgColor = backgroundColor ?: ChefMateTheme.colorScheme.primaryContainer
     val tintColor = iconTint ?: ChefMateTheme.colorScheme.onPrimaryContainer
 
     Box(
         modifier =
-            modifier.size(size).clip(CircleShape).background(bgColor).clickable(onClick = onClick),
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(if (enabled) bgColor else bgColor.copy(alpha = DISABLED_ALPHA))
+                .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             modifier = Modifier.padding(ChefMateTheme.dimens.paddingSmall),
             painter = icon,
             contentDescription = contentDescription,
-            tint = tintColor,
+            tint = if (enabled) tintColor else tintColor.copy(alpha = DISABLED_ALPHA),
         )
     }
 }
@@ -57,6 +65,7 @@ fun PlusIconButton(
     size: Dp = 48.dp,
     backgroundColor: Color? = null,
     iconTint: Color? = null,
+    enabled: Boolean = true,
 ) {
     val bgColor = backgroundColor ?: ChefMateTheme.colorScheme.secondaryContainer
     val tintColor = iconTint ?: ChefMateTheme.colorScheme.onSecondaryContainer
@@ -66,15 +75,15 @@ fun PlusIconButton(
             modifier
                 .size(size)
                 .clip(ChefMateTheme.shapes.large)
-                .background(bgColor)
-                .clickable(onClick = onClick),
+                .background(if (enabled) bgColor else bgColor.copy(alpha = DISABLED_ALPHA))
+                .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             modifier = Modifier.padding(ChefMateTheme.dimens.paddingSmall),
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = tintColor,
+            tint = if (enabled) tintColor else tintColor.copy(alpha = DISABLED_ALPHA),
         )
     }
 }

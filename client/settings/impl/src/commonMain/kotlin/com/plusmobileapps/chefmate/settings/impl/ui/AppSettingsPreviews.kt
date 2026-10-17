@@ -40,6 +40,10 @@ private fun appSettingsBloc(model: AppSettingsBloc.Model): AppSettingsBloc =
         override fun onRecipeCategoriesClicked() = Unit
 
         override fun onGroceryAutocompleteClicked() = Unit
+
+        override fun onBookmarksClicked() = Unit
+
+        override fun onGroceryCategoryRulesClicked() = Unit
     }
 
 val previewAppSettingsBloc: AppSettingsBloc =

@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.recipe.list.RecipeBookPickerContent
+import com.plusmobileapps.chefmate.recipe.list.RecipeBookTargetPickerContent
+import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeBooksWithFamily
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeBooksWithShared
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -82,4 +84,49 @@ fun RecipeBookPickerAllRecipesLightScreenshot() {
         activeBookId = null,
         isAllRecipesSelected = true,
     )
+}
+
+// ── Family books — one section per family, no edit action ──────────────────
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+fun RecipeBookPickerFamilyLightScreenshot() {
+    RecipeBookPickerScreenshot(books = previewRecipeBooksWithFamily, activeBookId = 6L)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun RecipeBookPickerFamilyDarkScreenshot() {
+    RecipeBookPickerScreenshot(
+        books = previewRecipeBooksWithFamily,
+        activeBookId = 6L,
+        darkTheme = true,
+    )
+}
+
+// ── Bulk "Add to book" sheet body — same grouping, no All recipes/edit/create ─
+
+@Composable
+private fun RecipeBookTargetPickerScreenshot(darkTheme: Boolean = false) {
+    ChefMateTheme(darkTheme = darkTheme) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            RecipeBookTargetPickerContent(books = previewRecipeBooksWithFamily, onBookSelected = {})
+        }
+    }
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 800)
+@Composable
+fun RecipeBookTargetPickerLightScreenshot() {
+    RecipeBookTargetPickerScreenshot()
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 800, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun RecipeBookTargetPickerDarkScreenshot() {
+    RecipeBookTargetPickerScreenshot(darkTheme = true)
 }

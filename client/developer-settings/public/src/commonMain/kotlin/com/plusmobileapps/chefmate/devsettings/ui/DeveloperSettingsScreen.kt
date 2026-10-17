@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.AlertDialog
@@ -16,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import chefmate.client.developer_settings.public.generated.resources.Res
@@ -37,6 +40,8 @@ import chefmate.client.developer_settings.public.generated.resources.dev_login_a
 import chefmate.client.developer_settings.public.generated.resources.dev_no_test_users
 import chefmate.client.developer_settings.public.generated.resources.dev_no_test_users_message
 import chefmate.client.developer_settings.public.generated.resources.dev_picker_dismiss
+import chefmate.client.developer_settings.public.generated.resources.dev_premium_subscription
+import chefmate.client.developer_settings.public.generated.resources.dev_premium_subscription_subtitle
 import chefmate.client.developer_settings.public.generated.resources.dev_reset_coach_marks
 import chefmate.client.developer_settings.public.generated.resources.dev_restart_required_message
 import chefmate.client.developer_settings.public.generated.resources.dev_restart_required_title
@@ -145,6 +150,13 @@ fun DeveloperSettingsScreen(bloc: DeveloperSettingsBloc, modifier: Modifier = Mo
                     onClick = bloc::onFeatureFlagsClicked,
                 )
                 HorizontalDivider()
+                DeveloperSwitchRow(
+                    title = Res.string.dev_premium_subscription.asTextData(),
+                    subtitle = Res.string.dev_premium_subscription_subtitle.asTextData(),
+                    checked = state.isSubscribed,
+                    onCheckedChange = bloc::onSubscribedToggled,
+                )
+                HorizontalDivider()
                 DeveloperRow(
                     title = Res.string.dev_reset_coach_marks.asTextData(),
                     onClick = bloc::onClearCoachMarksClicked,
@@ -184,6 +196,46 @@ private fun DeveloperRow(
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null)
         }
+    }
+}
+
+/**
+ * Row whose control is a switch rather than a drill-in. The whole row toggles, so the target isn't
+ * limited to the switch itself.
+ */
+@Composable
+private fun DeveloperSwitchRow(
+    title: TextData,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: TextData? = null,
+) {
+    val description = title.localized()
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+                .padding(
+                    horizontal = ChefMateTheme.dimens.paddingNormal,
+                    vertical = ChefMateTheme.dimens.paddingSmall,
+                )
+                .semantics { contentDescription = description },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title.localized(), style = ChefMateTheme.typography.titleMedium)
+            if (subtitle != null) {
+                Text(
+                    subtitle.localized(),
+                    style = ChefMateTheme.typography.bodySmall,
+                    color = ChefMateTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -338,6 +390,8 @@ val previewDeveloperSettingsBloc =
         override fun onSignInErrorDismissed() = Unit
 
         override fun onFeatureFlagsClicked() = Unit
+
+        override fun onSubscribedToggled(subscribed: Boolean) = Unit
 
         override fun onClearCoachMarksClicked() = Unit
 

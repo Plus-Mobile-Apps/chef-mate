@@ -20,6 +20,11 @@ sealed class PlusHeaderData {
         override val trailingAccessory: TrailingAccessory? = null,
         /** Optional leading content rendered to the left of the title (e.g. a selector). */
         val leading: (@Composable () -> Unit)? = null,
+        /**
+         * Optional content centered in the app bar's title area — the space left between [leading]
+         * and [trailingAccessory]. Rendered alongside [title], so keep it small (e.g. a count).
+         */
+        val center: (@Composable () -> Unit)? = null,
     ) : PlusHeaderData()
 
     data class Child(

@@ -41,6 +41,9 @@ interface DeveloperSettingsBloc : ComposeScreen {
 
     fun onFeatureFlagsClicked()
 
+    /** Flip the fake premium entitlement that gates AI chat throughout the app. */
+    fun onSubscribedToggled(subscribed: Boolean)
+
     fun onClearCoachMarksClicked()
 
     fun onCoachMarksResetConfirmationDismissed()
@@ -56,6 +59,8 @@ interface DeveloperSettingsBloc : ComposeScreen {
         val showRestartPrompt: Boolean = false,
         val signInError: String? = null,
         val showCoachMarksResetConfirmation: Boolean = false,
+        /** Fake premium entitlement; see [DeveloperPreferences.isSubscribed]. */
+        val isSubscribed: Boolean = false,
     )
 
     sealed class Output {

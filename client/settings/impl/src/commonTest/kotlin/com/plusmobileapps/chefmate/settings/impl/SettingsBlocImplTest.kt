@@ -9,8 +9,10 @@ import com.plusmobileapps.chefmate.auth.usecase.SignOutUseCase
 import com.plusmobileapps.chefmate.featureflag.FeatureFlagRegistry
 import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.settings.SettingsBloc
+import com.plusmobileapps.chefmate.subscription.testing.FakeSubscriptionRepository
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,6 +25,7 @@ class SettingsBlocImplTest {
     private val authRepository = FakeAuthenticationRepository()
     private val signOutUseCase = SignOutUseCase { authRepository.signOut() }
     private val featureFlags = FakeFeatureFlags()
+    private val subscriptionRepository = FakeSubscriptionRepository()
 
     private val bloc by lazy {
         SettingsBlocImpl(
@@ -34,9 +37,42 @@ class SettingsBlocImplTest {
                     authenticationRepository = authRepository,
                     signOutUseCase = signOutUseCase,
                     featureFlags = featureFlags,
+                    subscriptionRepository = subscriptionRepository,
                 )
             },
         )
+    }
+
+    @Test
+    fun When_authenticated_Then_profile_image_and_name_are_exposed() = runTest {
+        authRepository.setAuthenticated(
+            FakeAuthenticationRepository.fakeUser()
+                .copy(userProfileImageUrl = "https://example.com/avatar.png")
+        )
+
+        bloc.state.value.profileImageUrl shouldBe "https://example.com/avatar.png"
+        bloc.state.value.profileName shouldBe "Test User"
+    }
+
+    @Test
+    fun When_anonymous_Then_profile_image_and_name_are_hidden() = runTest {
+        authRepository.setAnonymous()
+
+        bloc.state.value.profileImageUrl shouldBe null
+        bloc.state.value.profileName shouldBe null
+    }
+
+    @Test
+    fun When_signed_out_Then_profile_image_is_cleared() = runTest {
+        authRepository.setAuthenticated(
+            FakeAuthenticationRepository.fakeUser()
+                .copy(userProfileImageUrl = "https://example.com/avatar.png")
+        )
+        bloc.state.value.profileImageUrl shouldBe "https://example.com/avatar.png"
+
+        authRepository.signOut()
+
+        bloc.state.value.profileImageUrl shouldBe null
     }
 
     @Test
@@ -118,9 +154,59 @@ class SettingsBlocImplTest {
     }
 
     @Test
-    fun When_ai_chat_clicked_Then_OpenAiChat_output_emitted() {
+    fun When_subscribed_and_ai_chat_clicked_Then_OpenAiChat_output_emitted() {
+        subscriptionRepository.setSubscribed(true)
+
         bloc.onAiChatClicked()
+
         output.lastValue shouldBe SettingsBloc.Output.OpenAiChat
+    }
+
+    @Test
+    fun When_not_subscribed_and_ai_chat_clicked_Then_upsell_shown_and_no_output() {
+        bloc.onAiChatClicked()
+
+        bloc.state.value.showPremiumRequiredDialog shouldBe true
+        output.values.shouldBeEmpty()
+    }
+
+    @Test
+    fun When_upsell_dismissed_Then_dialog_hidden() {
+        bloc.onAiChatClicked()
+        bloc.state.value.showPremiumRequiredDialog shouldBe true
+
+        bloc.onPremiumRequiredDismissed()
+
+        bloc.state.value.showPremiumRequiredDialog shouldBe false
+    }
+
+    @Test
+    fun When_subscription_starts_Then_state_reflects_it_without_reopening() = runTest {
+        bloc.state.test {
+            awaitItem().isSubscribed shouldBe false
+
+            subscriptionRepository.setSubscribed(true)
+
+            awaitItem().isSubscribed shouldBe true
+        }
+    }
+
+    @Test
+    fun When_auth_state_changes_Then_ai_chat_flag_and_subscription_survive() = runTest {
+        featureFlags.set(FeatureFlagRegistry.AiChat, true)
+        subscriptionRepository.setSubscribed(true)
+
+        bloc.state.test {
+            skipItems(1)
+            // Both stream in independently of auth; an auth emission used to rebuild State from
+            // scratch and silently reset them.
+            authRepository.setAuthenticated()
+
+            val state = expectMostRecentItem()
+            state.isAuthenticated shouldBe true
+            state.isAiChatEnabled shouldBe true
+            state.isSubscribed shouldBe true
+        }
     }
 
     @Test

@@ -3,9 +3,11 @@ package com.plusmobileapps.chefmate
 import co.touchlab.kermit.Logger
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.IO
+import com.plusmobileapps.chefmate.grocery.data.GroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
+import com.plusmobileapps.chefmate.grocery.data.IngredientParser
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlin.coroutines.CoroutineContext
@@ -35,6 +37,7 @@ import kotlinx.serialization.json.Json
 @SingleIn(AppScope::class)
 class WatchDataBridge(
     private val repository: GroceryRepository,
+    private val autocompleteRepository: GroceryAutocompleteRepository,
     @IO private val ioContext: CoroutineContext,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + ioContext)
@@ -116,8 +119,31 @@ class WatchDataBridge(
         scope.launch { onResult(repository.ensureDefaultList()) }
     }
 
+    /**
+     * Item names Siri should recognize inside an "Add <item> to Chef Mate" phrase, most personal
+     * first: the user's saved autocomplete entries, then items already on their lists, then the
+     * built-in vocabulary. Deduplicated case-insensitively and capped at [limit], since every name
+     * multiplies into each parameterized App Shortcut phrase and Siri caps the total.
+     */
+    fun siriSuggestionNames(limit: Int, onResult: (List<String>) -> Unit) {
+        scope.launch {
+            val saved = autocompleteRepository.observeItems().first().map { it.name }
+            val onLists = repository.getGroceries().first().map { it.displayName }
+            val seen = mutableSetOf<String>()
+            val names =
+                (saved.asSequence() + onLists.asSequence() + IngredientParser.allSuggestionNames())
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && seen.add(it.lowercase()) }
+                    .take(limit)
+                    .toList()
+            onResult(names)
+        }
+    }
+
     private fun encode(listToItems: List<Pair<GroceryListModel, List<GroceryItem>>>): String {
-        val lists = listToItems.map { (list, _) -> WatchListDto(list.id, list.name, list.isShared) }
+        val lists = listToItems.map { (list, _) ->
+            WatchListDto(list.id, list.name, list.isShared || list.isFamily)
+        }
         val items = listToItems.flatMap { (list, items) ->
             items.map {
                 WatchItemDto(

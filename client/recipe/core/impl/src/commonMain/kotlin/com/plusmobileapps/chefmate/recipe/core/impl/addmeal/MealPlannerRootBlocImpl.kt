@@ -86,6 +86,7 @@ class MealPlannerRootBlocImpl(
                     bloc =
                         chooseDateFactory.create(
                             context = context,
+                            recipeId = config.recipeId,
                             output = { dateOutput ->
                                 when (dateOutput) {
                                     is ChooseDateBloc.Output.DateSelected ->
@@ -95,6 +96,7 @@ class MealPlannerRootBlocImpl(
                                                 date = dateOutput.date.toString(),
                                             )
                                         )
+                                    ChooseDateBloc.Output.Finished -> output.onNext(Output.Finished)
                                     ChooseDateBloc.Output.Back -> onBackClicked()
                                 }
                             },

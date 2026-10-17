@@ -13,6 +13,7 @@ import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.IO
 import com.plusmobileapps.chefmate.grocery.data.CollaborationStatus
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
+import com.plusmobileapps.chefmate.grocery.data.GroceryCategoryOverrideRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryItem
 import com.plusmobileapps.chefmate.grocery.data.GroceryListInvite
 import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
@@ -67,11 +68,21 @@ class GroceryRepositoryImpl(
     private val dateTimeUtil: DateTimeUtil,
     private val remoteDataSource: GroceryRemoteDataSource,
     private val authRepository: AuthenticationRepository,
+    private val categoryOverrideRepository: GroceryCategoryOverrideRepository,
 ) : GroceryRepository {
 
     private val scope = CoroutineScope(ioContext + SupervisorJob())
     private val syncMutex = Mutex()
     private val syncingIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    // Latest name→aisle rules, cached so the synchronous [getGrocery] read can apply them without
+    // re-querying. The [getGroceries] flows below re-read this via [combine] so rule changes
+    // re-emit.
+    private val categoryOverrides = MutableStateFlow<Map<String, GroceryCategory>>(emptyMap())
+
+    // Items hidden by [stageDelete] while an undo window is open, keyed by id. Filtered out of the
+    // [getGroceries] flows; the rows stay in the database until [commitDelete].
+    private val pendingDeletes = MutableStateFlow<Map<Long, GroceryItem>>(emptyMap())
 
     private var realtimeJob: Job? = null
     private var realtimeUserId: String? = null
@@ -86,6 +97,9 @@ class GroceryRepositoryImpl(
                     stopRealtimeSync()
                 }
             }
+        }
+        scope.launch {
+            categoryOverrideRepository.observeOverrideMap().collect { categoryOverrides.value = it }
         }
     }
 
@@ -123,17 +137,24 @@ class GroceryRepositoryImpl(
     }
 
     override fun getGroceries(): Flow<List<GroceryItem>> =
-        combine(queries.readAll().asFlow().map { it.executeAsList() }, syncingIds) { items, syncing
-                ->
-                items.map { fromEntity(it, syncing) }
+        combine(
+                queries.readAll().asFlow().map { it.executeAsList() },
+                syncingIds,
+                categoryOverrides,
+                pendingDeletes,
+            ) { items, syncing, overrides, pending ->
+                items.filter { it.id !in pending }.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
     override fun getGroceries(listId: Long): Flow<List<GroceryItem>> =
-        combine(queries.readByListId(listId).asFlow().map { it.executeAsList() }, syncingIds) {
-                items,
-                syncing ->
-                items.map { fromEntity(it, syncing) }
+        combine(
+                queries.readByListId(listId).asFlow().map { it.executeAsList() },
+                syncingIds,
+                categoryOverrides,
+                pendingDeletes,
+            ) { items, syncing, overrides, pending ->
+                items.filter { it.id !in pending }.map { fromEntity(it, syncing, overrides) }
             }
             .flowOn(ioContext)
 
@@ -155,6 +176,8 @@ class GroceryRepositoryImpl(
                             },
                         role = entity.role.toListRole(),
                         isShared = entity.isShared,
+                        familyId = entity.familyId,
+                        familyName = entity.familyName,
                     )
                 }
             }
@@ -288,10 +311,30 @@ class GroceryRepositoryImpl(
         }
     }
 
+    override fun stageDelete(item: GroceryItem) {
+        pendingDeletes.update { it + (item.id to item) }
+    }
+
+    override fun undoDelete(itemId: Long) {
+        pendingDeletes.update { it - itemId }
+    }
+
+    override fun commitDelete(itemId: Long) {
+        val item = pendingDeletes.value[itemId] ?: return
+        scope.launch {
+            try {
+                deleteGrocery(item)
+            } finally {
+                // Unhide only after the row is gone so it doesn't flash back in between.
+                pendingDeletes.update { it - itemId }
+            }
+        }
+    }
+
     override suspend fun getGrocery(id: Long): GroceryItem? =
         withContext(ioContext) {
             queries.getGroceryById(id).executeAsOneOrNull()?.let {
-                fromEntity(it, syncingIds.value)
+                fromEntity(it, syncingIds.value, categoryOverrides.value)
             }
         }
 
@@ -363,7 +406,8 @@ class GroceryRepositoryImpl(
         withContext(ioContext) {
             val existing = listQueries.getAll().executeAsList()
             if (existing.isNotEmpty()) {
-                existing.first().id
+                // Prefer a personal list so un-targeted adds don't land on a family's list.
+                (existing.firstOrNull { it.familyId == null } ?: existing.first()).id
             } else {
                 listQueries.transactionWithResult {
                     listQueries.create(
@@ -515,12 +559,16 @@ class GroceryRepositoryImpl(
             // entry rather than pushing a duplicate when signing in on a new device.
             val remoteLists = remoteDataSource.fetchAccessibleGroceryLists()
             val remoteListIds = remoteLists.mapNotNull { it.id }.toSet()
+            val familyNames = fetchFamilyNames(remoteLists.mapNotNull { it.familyId }.toSet())
             withContext(ioContext) {
                 for (remoteList in remoteLists) {
                     val remoteId = remoteList.id ?: continue
-                    val isOwned = remoteList.ownerId == userId
+                    val familyId = remoteList.familyId
+                    // A family list belongs to the family, not its creator: every member edits its
+                    // items, and nobody manages it from the grocery list (see Manage Family).
+                    val isOwned = familyId == null && remoteList.ownerId == userId
                     val role = if (isOwned) "owner" else "editor"
-                    val isShared = !isOwned
+                    val isShared = familyId == null && !isOwned
 
                     val existing = listQueries.getByRemoteId(remoteId).executeAsOneOrNull()
                     if (existing != null) {
@@ -530,15 +578,34 @@ class GroceryRepositoryImpl(
                             isShared = isShared,
                             id = existing.id,
                         )
+                        listQueries.updateFamily(
+                            familyId = familyId,
+                            familyName = familyId?.let { familyNames[it] ?: existing.familyName },
+                            id = existing.id,
+                        )
+                        // A family list is renamed through Manage Family, never locally, so the
+                        // remote name always wins.
+                        if (familyId != null && existing.name != remoteList.name) {
+                            listQueries.updateNameFromRemote(
+                                name = remoteList.name,
+                                id = existing.id,
+                            )
+                        }
                         continue
                     }
 
                     // Match a local unsynced list by name so we don't duplicate the local
-                    // default list when signing in on a new device.
+                    // default list when signing in on a new device. Only the user's own personal
+                    // lists can be that local list.
                     val localLists = listQueries.getAll().executeAsList()
-                    val matchedByName = localLists.firstOrNull {
-                        it.remoteId == null && it.name == remoteList.name
-                    }
+                    val matchedByName =
+                        if (isOwned) {
+                            localLists.firstOrNull {
+                                it.remoteId == null && it.name == remoteList.name
+                            }
+                        } else {
+                            null
+                        }
                     if (matchedByName != null) {
                         listQueries.updateRemoteId(remoteId = remoteId, id = matchedByName.id)
                         listQueries.updateOwnership(
@@ -557,6 +624,11 @@ class GroceryRepositoryImpl(
                             ownerId = remoteList.ownerId,
                             role = role,
                             isShared = isShared,
+                            id = newId,
+                        )
+                        listQueries.updateFamily(
+                            familyId = familyId,
+                            familyName = familyId?.let { familyNames[it] },
                             id = newId,
                         )
                     }
@@ -930,10 +1002,27 @@ class GroceryRepositoryImpl(
             }
             .flowOn(ioContext)
 
+    /**
+     * Names for the families that own [familyIds], keyed by id. Empty on failure — callers keep the
+     * last known name rather than failing the whole sync over a label.
+     */
+    private suspend fun fetchFamilyNames(familyIds: Set<String>): Map<String, String> {
+        if (familyIds.isEmpty()) return emptyMap()
+        return try {
+            remoteDataSource.fetchFamilyNames(familyIds).associate { it.id to it.name }
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            Logger.e(throwable = t, tag = TAG) { "fetching family names failed" }
+            emptyMap()
+        }
+    }
+
     private suspend fun syncListMembers(userId: String) {
         val allLists = withContext(ioContext) { listQueries.getAll().executeAsList() }
         for (list in allLists) {
             val remoteListId = list.remoteId ?: continue
+            // Family lists have no collaborators — the family is the membership.
+            if (list.familyId != null) continue
             try {
                 val remoteMembers = remoteDataSource.fetchListMembers(remoteListId)
                 cacheListCollaborators(
@@ -1028,7 +1117,11 @@ class GroceryRepositoryImpl(
             else -> ListRole.OWNER
         }
 
-    private fun fromEntity(entity: Grocery, syncing: Set<Long>): GroceryItem {
+    private fun fromEntity(
+        entity: Grocery,
+        syncing: Set<Long>,
+        overrides: Map<String, GroceryCategory>,
+    ): GroceryItem {
         val syncStatus =
             when {
                 entity.id in syncing -> SyncStatus.SYNCING
@@ -1039,12 +1132,15 @@ class GroceryRepositoryImpl(
         val parsed = IngredientParser.parse(entity.name)
         val storedAisle =
             entity.aisle?.let { runCatching { GroceryCategory.valueOf(it) }.getOrNull() }
+        // Resolution order: a per-item stored aisle wins, then the user's name→aisle rule, then the
+        // parser's guess.
+        val category = storedAisle ?: overrides[parsed.name.lowercase()] ?: parsed.category
         return GroceryItem(
             id = entity.id,
             name = entity.name,
             displayName = parsed.name,
             quantity = parsed.quantity,
-            category = storedAisle ?: parsed.category,
+            category = category,
             isChecked = entity.isChecked,
             syncStatus = syncStatus,
             recipeName = entity.recipeName,

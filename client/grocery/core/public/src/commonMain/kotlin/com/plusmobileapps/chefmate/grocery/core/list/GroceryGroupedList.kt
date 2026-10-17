@@ -5,7 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,27 +19,41 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.zIndex
 import chefmate.client.grocery.core.public.generated.resources.Res
 import chefmate.client.grocery.core.public.generated.resources.grocery_checked
+import chefmate.client.grocery.core.public.generated.resources.grocery_delete_item
 import chefmate.client.grocery.core.public.generated.resources.grocery_not_checked
 import chefmate.client.grocery.core.public.generated.resources.grocery_recipe_source
+import com.plusmobileapps.chefmate.Platform
+import com.plusmobileapps.chefmate.currentPlatform
 import com.plusmobileapps.chefmate.grocery.core.displayName
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.PhraseModel
 import com.plusmobileapps.chefmate.ui.text.toInlineMarkdownAnnotatedString
+import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import org.jetbrains.compose.resources.stringResource
 
 data class GroceryDisplayItem(
@@ -53,6 +69,14 @@ data class GroceryDisplayGroup(val category: GroceryCategory, val items: List<Gr
 /** Peak opacity of the brief highlight shown on a freshly added grocery item. */
 private const val HIGHLIGHT_PEAK_ALPHA = 0.5f
 
+/**
+ * Default for `swipeToDeleteEnabled`. Swipe-to-delete is a touch idiom, so it's offered on
+ * phones/tablets only. On desktop the row's trailing delete button is the way to remove an item,
+ * and a mouse drag across a row would be an easy way to lose one by accident.
+ */
+internal val supportsSwipeToDelete: Boolean
+    get() = currentPlatform == Platform.ANDROID || currentPlatform == Platform.IOS
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GroceryGroupedList(
@@ -63,14 +87,36 @@ fun GroceryGroupedList(
     state: LazyListState = rememberLazyListState(),
     showHeaders: Boolean = true,
     highlightedKey: Any? = null,
+    // Called with the highlighted key once its highlight has played (or its row left the screen
+    // part-way through), so the caller can clear it and the row doesn't flash again when it next
+    // comes into view.
+    onHighlightFinished: (Any) -> Unit = {},
     trailingContent: (@Composable (GroceryDisplayItem) -> Unit)? = null,
+    onSwipeToDelete: ((GroceryDisplayItem) -> Unit)? = null,
+    swipeToDeleteEnabled: Boolean = supportsSwipeToDelete,
     footer: (LazyListScope.() -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(),
+    // When true a pinned category header sticks at the top content padding rather than the top of
+    // the viewport — for a list whose top padding reserves a frosted header it scrolls behind,
+    // which would otherwise cover the pinned header.
+    pinHeadersBelowTopPadding: Boolean = false,
 ) {
-    LazyColumn(state = state, modifier = modifier.fillMaxSize()) {
+    LazyColumn(state = state, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
         groups.forEach { group ->
             if (showHeaders) {
-                stickyHeader(key = "header_${group.category.name}") {
-                    CategoryHeader(category = group.category)
+                stickyHeader(
+                    key = "header_${group.category.name}",
+                    contentType = CategoryHeaderContentType,
+                ) { index ->
+                    CategoryHeader(
+                        category = group.category,
+                        modifier =
+                            if (pinHeadersBelowTopPadding) {
+                                Modifier.pinBelowTopPadding(state, index)
+                            } else {
+                                Modifier
+                            },
+                    )
                 }
             }
             items(group.items.size, key = { group.items[it].key }) { index ->
@@ -81,6 +127,11 @@ fun GroceryGroupedList(
                     onClick = { onItemClick(item.key) },
                     trailingContent = trailingContent,
                     highlighted = item.key == highlightedKey,
+                    onHighlightFinished = { onHighlightFinished(item.key) },
+                    onSwipeToDelete =
+                        onSwipeToDelete
+                            ?.takeIf { swipeToDeleteEnabled }
+                            ?.let { delete -> { delete(item) } },
                     modifier = Modifier.animateItem(),
                 )
                 HorizontalDivider()
@@ -89,6 +140,40 @@ fun GroceryGroupedList(
         footer?.invoke(this)
     }
 }
+
+private const val CategoryHeaderContentType = "category_header"
+
+/**
+ * Shifts the sticky header at [index] down so it pins at the list's top content padding instead of
+ * the top of the viewport, where LazyColumn pins sticky headers regardless of padding. The next
+ * header still pushes it out as it arrives. Item offsets are measured from the end of the top
+ * padding, so the pinned position is offset 0.
+ *
+ * Runs at placement time against the layout info of the same pass, so it never lags a frame behind
+ * the scroll. The z-index keeps the header over the rows it now overlaps, as a pinned header is.
+ */
+private fun Modifier.pinBelowTopPadding(state: LazyListState, index: Int): Modifier =
+    zIndex(1f).layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) {
+            val items = state.layoutInfo.visibleItemsInfo
+            val self = items.fastFirstOrNull { it.index == index }
+            val offset =
+                if (self == null) {
+                    0
+                } else {
+                    val nextHeaderTop =
+                        items
+                            .fastFirstOrNull {
+                                it.index > index && it.contentType == CategoryHeaderContentType
+                            }
+                            ?.offset ?: Int.MAX_VALUE
+                    val pinnedTop = minOf(0, nextHeaderTop - self.size)
+                    maxOf(self.offset, pinnedTop) - self.offset
+                }
+            placeable.place(0, offset)
+        }
+    }
 
 @Composable
 internal fun CategoryHeader(category: GroceryCategory, modifier: Modifier = Modifier) {
@@ -110,18 +195,99 @@ private fun GroceryDisplayListItem(
     trailingContent: (@Composable (GroceryDisplayItem) -> Unit)?,
     modifier: Modifier = Modifier,
     highlighted: Boolean = false,
+    onHighlightFinished: () -> Unit = {},
+    onSwipeToDelete: (() -> Unit)? = null,
+) {
+    if (onSwipeToDelete != null) {
+        // Deliberately not rememberSwipeToDismissBoxState(): that state is saveable, and the keyed
+        // LazyColumn keeps saved state for a key after its row leaves. When a deleted row comes
+        // back (Undo), it would be restored already dismissed, and SwipeToDismissBox fires
+        // onDismiss for any non-Settled state on composition — deleting the item again.
+        val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+        val dismissState = remember {
+            SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold)
+        }
+        SwipeToDismissBox(
+            state = dismissState,
+            modifier = modifier,
+            // Start-to-end is left alone so the swipe doesn't fight the Android system back
+            // gesture, which starts at the leading edge. Delete is a swipe towards the trailing
+            // edge only.
+            enableDismissFromStartToEnd = false,
+            onDismiss = { onSwipeToDelete() },
+            backgroundContent = { DeleteSwipeBackground() },
+        ) {
+            GroceryItemRow(
+                item = item,
+                onCheckedChange = onCheckedChange,
+                onClick = onClick,
+                trailingContent = trailingContent,
+                highlighted = highlighted,
+                onHighlightFinished = onHighlightFinished,
+                // The row is normally transparent over the screen background; it needs to be
+                // opaque here so the red delete background stays hidden until it's swiped aside.
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+            )
+        }
+    } else {
+        GroceryItemRow(
+            item = item,
+            onCheckedChange = onCheckedChange,
+            onClick = onClick,
+            trailingContent = trailingContent,
+            highlighted = highlighted,
+            onHighlightFinished = onHighlightFinished,
+            modifier = modifier,
+        )
+    }
+}
+
+/** Revealed behind a grocery row as it's swiped away, signalling what the gesture will do. */
+@Composable
+private fun DeleteSwipeBackground() {
+    Box(
+        modifier =
+            Modifier.fillMaxSize()
+                .background(MaterialTheme.colorScheme.errorContainer)
+                .padding(horizontal = ChefMateTheme.dimens.paddingNormal),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Delete,
+            contentDescription = stringResource(Res.string.grocery_delete_item),
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+}
+
+@Composable
+private fun GroceryItemRow(
+    item: GroceryDisplayItem,
+    onCheckedChange: () -> Unit,
+    onClick: () -> Unit,
+    trailingContent: (@Composable (GroceryDisplayItem) -> Unit)?,
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
+    onHighlightFinished: () -> Unit = {},
 ) {
     // Briefly tint the row when it's the freshly added item, then fade back to transparent so the
     // user can see where it landed in the list.
     val highlightColor = MaterialTheme.colorScheme.primaryContainer
     val highlightAlpha = remember { Animatable(0f) }
+    val currentOnHighlightFinished by rememberUpdatedState(onHighlightFinished)
     LaunchedEffect(highlighted) {
         if (highlighted) {
-            highlightAlpha.snapTo(HIGHLIGHT_PEAK_ALPHA)
-            highlightAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 1200, delayMillis = 400),
-            )
+            try {
+                highlightAlpha.snapTo(HIGHLIGHT_PEAK_ALPHA)
+                highlightAlpha.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 1200, delayMillis = 400),
+                )
+            } finally {
+                // Also on cancellation: a row scrolled away mid-highlight has still been shown, and
+                // must not replay the highlight when it's recomposed on scrolling back.
+                currentOnHighlightFinished()
+            }
         }
     }
     Row(

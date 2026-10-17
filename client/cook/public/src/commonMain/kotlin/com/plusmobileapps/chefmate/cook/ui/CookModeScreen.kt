@@ -42,10 +42,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material.icons.filled.Visibility
@@ -96,6 +99,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import chefmate.client.cook.public.generated.resources.Res
 import chefmate.client.cook.public.generated.resources.cook_mode_ai_chat
+import chefmate.client.cook.public.generated.resources.cook_mode_ai_chat_premium
 import chefmate.client.cook.public.generated.resources.cook_mode_allow_screen_off
 import chefmate.client.cook.public.generated.resources.cook_mode_directions
 import chefmate.client.cook.public.generated.resources.cook_mode_finish
@@ -110,8 +114,10 @@ import chefmate.client.cook.public.generated.resources.cook_mode_layout_onboardi
 import chefmate.client.cook.public.generated.resources.cook_mode_layout_split
 import chefmate.client.cook.public.generated.resources.cook_mode_layout_stacked
 import chefmate.client.cook.public.generated.resources.cook_mode_loading
+import chefmate.client.cook.public.generated.resources.cook_mode_more_options
 import chefmate.client.cook.public.generated.resources.cook_mode_no_active_recipe
 import chefmate.client.cook.public.generated.resources.cook_mode_scale_ingredients
+import chefmate.client.cook.public.generated.resources.cook_mode_view_recipe
 import chefmate.client.cook.public.generated.resources.cook_mode_whats_cooking
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.cook.WhatsCookingBloc
@@ -119,6 +125,8 @@ import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.recipe.data.IngredientScaler
 import com.plusmobileapps.chefmate.recipe.data.IngredientSection
 import com.plusmobileapps.chefmate.recipe.data.Recipe
+import com.plusmobileapps.chefmate.subscription.ui.PremiumLockedIcon
+import com.plusmobileapps.chefmate.subscription.ui.PremiumRequiredDialog
 import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
@@ -132,6 +140,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
 import com.plusmobileapps.chefmate.ui.text.parseListLine
 import com.plusmobileapps.chefmate.ui.text.toDisplayAnnotatedString
+import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -141,6 +150,10 @@ fun CookModeScreen(bloc: CookModeBloc, modifier: Modifier = Modifier) {
     val state by bloc.state.collectAsState()
     if (state.keepScreenOn) {
         KeepScreenOn()
+    }
+    // Upsell shown when a non-subscriber taps the AI chat button.
+    if (state.showPremiumRequiredDialog) {
+        PremiumRequiredDialog(onDismiss = bloc::onPremiumRequiredDismissed)
     }
     // Ingredient scale multiplier for the active recipe. Owned by the BLoC so it persists per
     // recipe
@@ -236,15 +249,25 @@ private fun CookModeCoachMark(
 /**
  * Header control that opens the AI chat grounded in the active recipe. Rendered only when the AI
  * Chat feature flag is on (via [visible]); nothing is emitted otherwise.
+ *
+ * Without [subscribed] the control stays tappable but dimmed — the click opens the premium upsell
+ * rather than the chat, so disabling it would be misleading.
  */
 @Composable
-private fun CookModeAiChatButton(visible: Boolean, onClick: () -> Unit) {
+private fun CookModeAiChatButton(visible: Boolean, subscribed: Boolean, onClick: () -> Unit) {
     if (!visible) return
     IconButton(onClick = onClick) {
-        Icon(
-            imageVector = Icons.Default.AutoAwesome,
-            contentDescription = stringResource(Res.string.cook_mode_ai_chat),
-        )
+        if (subscribed) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = stringResource(Res.string.cook_mode_ai_chat),
+            )
+        } else {
+            PremiumLockedIcon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = stringResource(Res.string.cook_mode_ai_chat_premium),
+            )
+        }
     }
 }
 
@@ -304,8 +327,18 @@ private fun CookModeTabletLayout(
                                     )
                                 }
                             }
+                            if (state.activeRecipe != null) {
+                                IconButton(onClick = bloc::onViewRecipeClicked) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                        contentDescription =
+                                            stringResource(Res.string.cook_mode_view_recipe),
+                                    )
+                                }
+                            }
                             CookModeAiChatButton(
                                 visible = state.showAiChat,
+                                subscribed = state.isSubscribed,
                                 onClick = bloc::onAiChatClicked,
                             )
                             CookModeScaleButton(scale = scale, onScaleChange = onScaleChange)
@@ -463,11 +496,11 @@ private fun CookModeMobileLayout(
                         onCloseClick = bloc::onCloseClicked,
                         trailingAccessory =
                             PlusHeaderData.TrailingAccessory.Custom {
-                                CookModeAiChatButton(
-                                    visible = state.showAiChat,
-                                    onClick = bloc::onAiChatClicked,
-                                )
-                                CookModeScaleButton(scale = scale, onScaleChange = onScaleChange)
+                                // Phone widths can't fit every control, so everything but Finish
+                                // collapses behind an overflow menu, which sits last. The coach
+                                // marks anchor on the overflow button since that's where those
+                                // controls now live.
+                                CookModeFinishButton(onFinish = bloc::onFinishClicked)
                                 CookModeCoachMark(
                                     id = CoachMarkId.COOK_MODE_KEEP_SCREEN_ON,
                                     text =
@@ -475,48 +508,20 @@ private fun CookModeMobileLayout(
                                     activeCoachMark = state.activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
-                                    IconButton(onClick = bloc::onKeepScreenOnToggled) {
-                                        Icon(
-                                            imageVector =
-                                                if (state.keepScreenOn) Icons.Default.Visibility
-                                                else Icons.Default.VisibilityOff,
-                                            contentDescription =
-                                                stringResource(
-                                                    if (state.keepScreenOn)
-                                                        Res.string.cook_mode_allow_screen_off
-                                                    else Res.string.cook_mode_keep_screen_on
-                                                ),
+                                    CookModeCoachMark(
+                                        id = CoachMarkId.COOK_MODE_LAYOUT,
+                                        text = Res.string.cook_mode_layout_onboarding.asTextData(),
+                                        activeCoachMark = state.activeCoachMark,
+                                        onDismiss = bloc::onCoachMarkDismissed,
+                                    ) {
+                                        CookModeOverflowMenu(
+                                            bloc = bloc,
+                                            state = state,
+                                            scale = scale,
+                                            onScaleChange = onScaleChange,
                                         )
                                     }
                                 }
-                                CookModeCoachMark(
-                                    id = CoachMarkId.COOK_MODE_LAYOUT,
-                                    text = Res.string.cook_mode_layout_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
-                                    onDismiss = bloc::onCoachMarkDismissed,
-                                ) {
-                                    IconButton(onClick = bloc::onLayoutToggled) {
-                                        Icon(
-                                            imageVector =
-                                                if (
-                                                    state.layoutMode ==
-                                                        CookModeBloc.LayoutMode.Stacked
-                                                )
-                                                    Icons.Default.ViewWeek
-                                                else Icons.Default.ViewAgenda,
-                                            contentDescription =
-                                                stringResource(
-                                                    if (
-                                                        state.layoutMode ==
-                                                            CookModeBloc.LayoutMode.Stacked
-                                                    )
-                                                        Res.string.cook_mode_layout_split
-                                                    else Res.string.cook_mode_layout_stacked
-                                                ),
-                                        )
-                                    }
-                                }
-                                CookModeFinishButton(onFinish = bloc::onFinishClicked)
                             },
                     ),
                 modifier = Modifier.fillMaxSize(),
@@ -540,6 +545,141 @@ private fun CookModeMobileLayout(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Compact-width overflow menu holding every Cook Mode header control except Finish: view recipe
+ * (when a recipe is active), AI chat (when flagged on), ingredient scaling, keep-screen-on, and the
+ * layout toggle. Picking "Scale" swaps the menu's items for the scale factors rather than opening a
+ * nested menu.
+ */
+@Composable
+private fun CookModeOverflowMenu(
+    bloc: CookModeBloc,
+    state: CookModeBloc.Model,
+    scale: Double,
+    onScaleChange: (Double) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var showScaleOptions by remember { mutableStateOf(false) }
+    val dismiss = {
+        expanded = false
+        showScaleOptions = false
+    }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.cook_mode_more_options),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
+            if (showScaleOptions) {
+                IngredientScaler.DEFAULT_FACTORS.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(IngredientScaler.label(option)) },
+                        trailingIcon = {
+                            if (option == scale) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                            }
+                        },
+                        onClick = {
+                            dismiss()
+                            onScaleChange(option)
+                        },
+                    )
+                }
+                return@DropdownMenu
+            }
+            if (state.activeRecipe != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.cook_mode_view_recipe)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        dismiss()
+                        bloc.onViewRecipeClicked()
+                    },
+                )
+            }
+            if (state.showAiChat) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.cook_mode_ai_chat)) },
+                    leadingIcon = {
+                        if (state.isSubscribed) {
+                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null)
+                        } else {
+                            PremiumLockedIcon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription =
+                                    stringResource(Res.string.cook_mode_ai_chat_premium),
+                            )
+                        }
+                    },
+                    onClick = {
+                        dismiss()
+                        bloc.onAiChatClicked()
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.cook_mode_scale_ingredients)) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Scale, contentDescription = null)
+                },
+                trailingIcon = { Text(IngredientScaler.label(scale)) },
+                onClick = { showScaleOptions = true },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (state.keepScreenOn) Res.string.cook_mode_allow_screen_off
+                            else Res.string.cook_mode_keep_screen_on
+                        )
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector =
+                            if (state.keepScreenOn) Icons.Default.Visibility
+                            else Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    dismiss()
+                    bloc.onKeepScreenOnToggled()
+                },
+            )
+            val isStacked = state.layoutMode == CookModeBloc.LayoutMode.Stacked
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (isStacked) Res.string.cook_mode_layout_split
+                            else Res.string.cook_mode_layout_stacked
+                        )
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector =
+                            if (isStacked) Icons.Default.ViewWeek else Icons.Default.ViewAgenda,
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    dismiss()
+                    bloc.onLayoutToggled()
+                },
+            )
         }
     }
 }
@@ -1088,4 +1228,9 @@ private fun CookModeBottomBar(
     }
 }
 
-private fun splitLines(text: String): List<String> = text.split("\n").filter { it.isNotBlank() }
+/**
+ * Splits stored recipe text into displayable lines, dropping blanks and the stray `<br>` tags
+ * recipes edited by an older build may still carry (see [withoutLineBreakTags]).
+ */
+private fun splitLines(text: String): List<String> =
+    text.withoutLineBreakTags().split("\n").filter { it.isNotBlank() }

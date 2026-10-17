@@ -146,4 +146,18 @@ class AppSettingsBlocImplTest {
         bloc.onExportRecipesClicked()
         output.lastValue shouldBe AppSettingsBloc.Output.OpenExportRecipes
     }
+
+    @Test
+    fun When_grocery_category_rules_clicked_Then_open_grocery_category_rules_output_emitted() {
+        val bloc = createBloc()
+        bloc.onGroceryCategoryRulesClicked()
+        output.lastValue shouldBe AppSettingsBloc.Output.OpenGroceryCategoryRules
+    }
+
+    @Test
+    fun When_bookmarks_clicked_Then_open_browser_bookmarks_output_emitted() {
+        val bloc = createBloc()
+        bloc.onBookmarksClicked()
+        output.lastValue shouldBe AppSettingsBloc.Output.OpenBrowserBookmarks
+    }
 }

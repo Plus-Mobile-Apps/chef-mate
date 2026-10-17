@@ -26,6 +26,7 @@ class AiChatRecipeReopenUiTest {
     @Test
     fun reopening_from_a_recipe_shows_the_prior_conversation() = runRootBlocTest { component ->
         component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+        component.testSubscriptionRepository.setSubscribed(true)
         component.fakeGeminiClient.deltas = listOf("Bake it at 400°F for 25 minutes.")
 
         recipeList().clickRecipe(TestRecipes.fullyPopulated.title)
@@ -43,6 +44,7 @@ class AiChatRecipeReopenUiTest {
     @Test
     fun new_conversation_button_clears_the_reopened_conversation() = runRootBlocTest { component ->
         component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+        component.testSubscriptionRepository.setSubscribed(true)
         component.fakeGeminiClient.deltas = listOf("Sure, here's how.")
 
         recipeList().clickRecipe(TestRecipes.fullyPopulated.title)

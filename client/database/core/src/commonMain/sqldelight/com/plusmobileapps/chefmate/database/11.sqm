@@ -1,0 +1,15 @@
+-- User-defined "always file <name> under <aisle>" rules (see GroceryCategoryOverride.sq).
+-- Sync-ready columns (remoteId, clientId, isDirty, ownerId) are unused while the
+-- feature is local-only; a follow-up wires Supabase sync without a migration.
+CREATE TABLE GroceryCategoryOverride (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    categoryKey TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    remoteId TEXT UNIQUE,
+    clientId TEXT,
+    isDirty INTEGER NOT NULL DEFAULT 0,
+    ownerId TEXT
+);
+
+CREATE UNIQUE INDEX idx_grocery_category_override_name ON GroceryCategoryOverride(name COLLATE NOCASE);

@@ -26,12 +26,17 @@ interface ToastService {
      * dismissal). [onAction] is held only until the message is shown and dequeued — for a
      * navigation action, route through something app-scoped rather than capturing a short-lived
      * screen object.
+     *
+     * [onDismiss] runs when the message goes away *without* its action being tapped (timeout,
+     * swipe, or the host leaving composition). Exactly one of [onAction] / [onDismiss] runs per
+     * message — useful for deferring a destructive change until an "Undo" window has passed.
      */
     fun show(
         message: TextData,
         actionLabel: TextData? = null,
         duration: SnackbarDuration = SnackbarDuration.Short,
         onAction: (() -> Unit)? = null,
+        onDismiss: (() -> Unit)? = null,
     )
 
     /** Called by the host once a message has been displayed and dismissed, so it can be removed. */

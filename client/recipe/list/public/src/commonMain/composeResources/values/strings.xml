@@ -1,12 +1,15 @@
 <resources>
     <!-- Recipe List Screen -->
     <string name="recipe_list_title">Recipes</string>
+    <string name="recipe_list_recipe_count_one">1 recipe</string>
+    <string name="recipe_list_recipe_count">{count} recipes</string>
     <string name="recipe_list_add_recipe">Add recipe</string>
     <string name="recipe_list_create_recipe">Create recipe</string>
     <!-- First-run coach marks -->
     <string name="recipe_list_add_onboarding">Tap here to add your first recipe</string>
     <string name="recipe_list_view_mode_onboarding">Switch between grid and list views</string>
     <string name="recipe_list_filter_onboarding">Sort and filter to find recipes fast</string>
+    <string name="recipe_list_overflow_onboarding">Add recipes and switch views from here</string>
     <string name="recipe_list_scan_from_photo">Scan from photo</string>
     <string name="recipe_list_scanning_title">Scanning photo…</string>
     <string name="recipe_list_scanning_message">Reading the recipe from your photo.</string>
@@ -91,6 +94,7 @@
     <string name="recipe_list_book_edit">Edit recipe book</string>
     <string name="recipe_list_book_my_books">My Books</string>
     <string name="recipe_list_book_shared_with_you">Shared with you</string>
+    <string name="recipe_list_book_family_fallback">Family books</string>
     <string name="recipe_list_book_shared_badge">Shared</string>
 
     <!-- Collaboration invite banner -->

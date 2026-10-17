@@ -28,6 +28,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.metro)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.compose)
     alias(libs.plugins.plusKtfmt)
 }
@@ -36,6 +37,9 @@ kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
+            // The appfunctions KSP processor derives a generated class name from the module name;
+            // the default KMP one (`chefmate.client:composeApp`) contains a `:` it can't escape.
+            moduleName.set("chefmate_composeApp")
 
             // commonTest is shared with the Android instrumented test variant
             // (connectedDebugAndroidTest), not the unit test variant (testDebugUnitTest).
@@ -92,8 +96,13 @@ kotlin {
             api(projects.client.cook.public)
             api(projects.client.featureflag.impl)
             api(projects.client.featureflag.public)
+            api(projects.client.family.data.impl)
+            api(projects.client.family.manage.impl)
+            api(projects.client.family.manage.public)
             api(projects.client.grocery.autocomplete.impl)
             api(projects.client.grocery.autocomplete.public)
+            api(projects.client.grocery.categoryRules.impl)
+            api(projects.client.grocery.categoryRules.public)
             api(projects.client.grocery.data.impl)
             api(projects.client.grocery.core.impl)
             api(projects.client.grocery.core.public)
@@ -122,6 +131,10 @@ kotlin {
             api(projects.client.settings.impl)
             api(projects.client.settings.root.impl)
             api(projects.client.developerSettings.impl)
+            api(projects.client.review.impl)
+            api(projects.client.review.public)
+            api(projects.client.subscription.impl)
+            api(projects.client.subscription.public)
             api(projects.client.toast.impl)
             api(projects.client.toast.public)
             api(projects.client.ui.public)
@@ -133,6 +146,15 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.bugsnag.kmp)
             implementation(libs.kermit.bugsnag)
+            // AGP pins the androidTest classpath to whatever the app runtime resolved
+            // ("consistent resolution"), as a `strictly` constraint. The app otherwise settles on
+            // concurrent-futures 1.1.0 (via activity -> profileinstaller) while androidx.test:core
+            // 1.7.0 pulls concurrent-futures-ktx 1.2.0, which needs 1.2.0 — leaving
+            // :connectedDebugAndroidTest unresolvable. Raise the app side so both agree.
+            implementation(libs.androidx.concurrent.futures)
+            // Exposes "add to grocery list" to on-device agents (Gemini) — see
+            // BaseChefMateAppFunctionService.
+            implementation(libs.androidx.appfunctions)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
@@ -163,8 +185,10 @@ kotlin {
             implementation(projects.client.bottomnav.implRobots)
             implementation(projects.client.browser.implRobots)
             implementation(projects.client.featureflag.testing)
+            implementation(projects.client.subscription.testing)
             implementation(projects.client.recipe.categories.implRobots)
             implementation(projects.client.grocery.autocomplete.implRobots)
+            implementation(projects.client.grocery.categoryRules.implRobots)
             implementation(projects.client.grocery.core.implRobots)
             implementation(projects.client.recipe.core.implRobots)
             implementation(projects.client.recipe.list.implRobots)
@@ -173,6 +197,9 @@ kotlin {
             implementation(projects.client.profile.implRobots)
             implementation(projects.client.notifications.implRobots)
             implementation(projects.client.onboarding.implRobots)
+            implementation(projects.client.family.manage.implRobots)
+            implementation(projects.client.family.data.testing)
+            implementation(projects.client.recipebook.data.testing)
         }
         val jvmTest by getting {
             dependencies {
@@ -228,8 +255,8 @@ android {
         applicationId = "com.plusmobileapps.chefmate"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 126
-        versionName = "1.9.40"
+        versionCode = 139
+        versionName = "1.9.53"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
@@ -246,9 +273,13 @@ android {
 }
 
 dependencies {
+    add("kspAndroid", libs.androidx.appfunctions.compiler)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4.android)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+// The app module aggregates every @AppFunction into the XML schema the platform indexes.
+ksp { arg("appfunctions:aggregateAppFunctions", "true") }
 
 compose.desktop {
     application {
@@ -274,7 +305,7 @@ compose.desktop {
             // the OSes they don't apply to, so this one list is correct for all three legs.
             targetFormats(TargetFormat.Pkg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Chef Mate"
-            packageVersion = "1.9.40"
+            packageVersion = "1.9.53"
             description = "Chef Mate - Your AI Cooking Assistant"
             vendor = "Plus Mobile Apps"
 
@@ -320,7 +351,7 @@ compose.desktop {
 
             // macOS configuration — Mac App Store distribution
             macOS {
-                packageVersion = "1.9.40"
+                packageVersion = "1.9.53"
                 // Matches the iOS app id so macOS joins the same App Store record (Universal
                 // Purchase / one "Chef Mate" listing), NOT the Android-style id used above.
                 bundleID = "com.plusmobileapps.chefmate.ChefMate"

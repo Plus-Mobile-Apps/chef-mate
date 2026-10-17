@@ -18,7 +18,6 @@ import com.plusmobileapps.chefmate.util.TimeFormatterUtil
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -32,7 +31,7 @@ import kotlinx.coroutines.flow.onEach
 class RecipeListBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    private val viewModelFactory: Provider<RecipeListViewModel>,
+    private val viewModelFactory: () -> RecipeListViewModel,
     private val timeFormatterUtil: TimeFormatterUtil,
     private val toastService: ToastService,
 ) : RecipeListBloc, BlocContext by context {

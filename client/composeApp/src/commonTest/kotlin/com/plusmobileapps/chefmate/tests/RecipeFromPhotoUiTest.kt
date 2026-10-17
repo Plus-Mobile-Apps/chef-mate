@@ -37,8 +37,8 @@ class RecipeFromPhotoUiTest {
 
     @Test
     fun add_button_opens_editor_directly_when_scan_flag_disabled() = runRootBlocTest {
-        // Flag defaults to off: the add button must open the blank editor with no chooser.
-        recipeList().openAddMenu()
+        // Flag defaults to off: adding a recipe must open the blank editor with no chooser.
+        recipeList().tapAddRecipe()
 
         editRecipe().awaitDisplayed()
     }
@@ -46,6 +46,7 @@ class RecipeFromPhotoUiTest {
     @Test
     fun ai_chat_shows_attach_photo_button() = runRootBlocTest { component ->
         component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+        component.testSubscriptionRepository.setSubscribed(true)
 
         bottomNav().clickMoreTab()
         more().awaitDisplayed().clickAiChatRow()

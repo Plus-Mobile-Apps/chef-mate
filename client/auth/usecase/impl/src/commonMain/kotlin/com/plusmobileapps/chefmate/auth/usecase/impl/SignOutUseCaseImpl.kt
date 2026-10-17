@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate.auth.usecase.impl
 import com.plusmobileapps.chefmate.aichat.AiChatLocalDataCleaner
 import com.plusmobileapps.chefmate.auth.data.AuthenticationRepository
 import com.plusmobileapps.chefmate.auth.usecase.SignOutUseCase
+import com.plusmobileapps.chefmate.browser.BrowserBookmarkRepository
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.data.GroceryAutocompleteRepository
 import com.plusmobileapps.chefmate.grocery.data.GroceryRepository
@@ -26,6 +27,7 @@ class SignOutUseCaseImpl(
     private val categoryRepository: CategoryRepository,
     private val groceryAutocompleteRepository: GroceryAutocompleteRepository,
     private val aiChatLocalDataCleaner: AiChatLocalDataCleaner,
+    private val browserBookmarkRepository: BrowserBookmarkRepository,
 ) : SignOutUseCase {
     override suspend fun invoke() {
         authenticationRepository.signOut()
@@ -34,6 +36,12 @@ class SignOutUseCaseImpl(
         recipeBookRepository.clearLocalData()
         categoryRepository.clearLocalData()
         groceryAutocompleteRepository.clearLocalData()
+        browserBookmarkRepository.clearLocalData()
+        // Grocery category rules are deliberately NOT cleared here. Every other repository above
+        // is server-backed, so wiping it locally is recoverable on the next sign-in. Category
+        // rules are device-local (no Supabase table yet), so clearing them would destroy the
+        // user's rules permanently. They're treated as a device preference that outlives the
+        // session; DeleteAccountUseCase still wipes them, since that's explicit erasure.
         groceryRepository.clearLocalData()
         groceryRepository.ensureDefaultList()
         aiChatLocalDataCleaner.clearLocalData()

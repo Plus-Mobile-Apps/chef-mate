@@ -1,0 +1,59 @@
+name: Admin Pages
+
+# Builds the :admin feature-flag dashboard (wasmJs) and deploys it to this repo's GitHub Pages.
+# Requires Settings → Pages → Source = "GitHub Actions". The bundle embeds only the Supabase anon
+# key; admin writes are authorized by the `admins` RLS policy (see docs/feature-flag-admin.md).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - ".github/workflows/admin-pages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: admin-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build admin web bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build wasmJs distribution
+        # BuildKonfig reads these at Gradle configuration time; without them the bundle silently
+        # falls back to placeholder Supabase credentials and every sign-in fails.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::SUPABASE_URL / SUPABASE_KEY secrets are not set"
+            exit 1
+          fi
+          ./gradlew :admin:wasmJsBrowserDistribution
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: admin/build/dist/wasmJs/productionExecutable
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

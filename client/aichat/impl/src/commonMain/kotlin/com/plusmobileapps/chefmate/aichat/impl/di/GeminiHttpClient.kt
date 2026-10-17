@@ -1,6 +1,7 @@
 package com.plusmobileapps.chefmate.aichat.impl.di
 
 import com.plusmobileapps.chefmate.di.AppScope
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Inject
@@ -78,8 +79,9 @@ class SupabaseAiChatFunctionConfig(private val supabaseClient: SupabaseClient) :
     }
 }
 
+@BindingContainer
 @ContributesTo(AppScope::class)
-interface GeminiHttpClientComponent {
+object GeminiHttpClientComponent {
 
     @Provides
     @SingleIn(AppScope::class)

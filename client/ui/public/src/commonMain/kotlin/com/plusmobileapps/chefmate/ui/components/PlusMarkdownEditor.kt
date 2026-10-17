@@ -83,6 +83,7 @@ import com.plusmobileapps.chefmate.ui.text.toDisplayAnnotatedString
 import com.plusmobileapps.chefmate.ui.text.toggleBulletList
 import com.plusmobileapps.chefmate.ui.text.toggleInlineMarker
 import com.plusmobileapps.chefmate.ui.text.toggleNumberedList
+import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -116,7 +117,8 @@ class PlusMarkdownEditorController {
  * [showListButtons] adds bulleted/numbered list buttons to the toolbar — meaningful for the
  * one-item-per-line ingredient and direction fields, omitted for free-form fields like description.
  *
- * A drag handle in the bottom-end corner resizes the editor between [minHeight] and [maxHeight].
+ * A drag handle below the field, aligned to the end, resizes the editor between [minHeight] and
+ * [maxHeight].
  */
 @Composable
 fun PlusMarkdownEditor(
@@ -167,17 +169,34 @@ fun PlusMarkdownEditor(
     val latestOnValueChange by rememberUpdatedState(onValueChange)
     // Seed the initial content synchronously so it's present on the first frame (no empty flash).
     remember(richTextState) { richTextState.setMarkdown(value) }
-    LaunchedEffect(value) {
+    // The rich editor's markdown as the caller last saw it. Tracking it lets both halves of the
+    // sync below compare without re-serializing the whole document on every keystroke.
+    var richTextMarkdown by remember { mutableStateOf(value) }
+
+    // Both effects run only while rich text is the active editor. In Markdown mode the raw field
+    // owns the value, and letting the hidden rich state write back would round-trip every keystroke
+    // through the library's parser — which turns a pair of trailing blank lines into a literal
+    // `<br>` that the user then cannot delete, because deleting it re-creates it.
+    LaunchedEffect(richTextMode, value) {
+        if (!richTextMode) return@LaunchedEffect
         // Load external markdown into the rich editor; the equality guard avoids resetting the
-        // caret
-        // while the user is typing (we just emitted this exact value).
-        if (richTextState.toMarkdown() != value) richTextState.setMarkdown(value)
+        // caret while the user is typing (we just emitted this exact value).
+        if (value != richTextMarkdown) {
+            richTextMarkdown = value
+            richTextState.setMarkdown(value)
+        }
     }
-    LaunchedEffect(richTextState) {
+    LaunchedEffect(richTextMode, richTextState) {
+        if (!richTextMode) return@LaunchedEffect
         snapshotFlow { richTextState.annotatedString }
             .collect {
-                val markdown = richTextState.toMarkdown()
-                if (markdown != latestValue) latestOnValueChange(markdown)
+                // Blank paragraphs serialize to `<br>`, which is meaningless in the plain
+                // one-item-per-line text the caller stores — normalize it back to a blank line.
+                val markdown = richTextState.toMarkdown().withoutLineBreakTags()
+                richTextMarkdown = markdown
+                // Compare against the normalized caller value so a recipe saved with a stray
+                // `<br>` by an older build isn't reported as an edit the moment it's opened.
+                if (markdown != latestValue.withoutLineBreakTags()) latestOnValueChange(markdown)
             }
     }
 
@@ -279,9 +298,14 @@ fun PlusMarkdownEditor(
                     }
                 }
             }
+        }
+
+        // The handle sits below the field rather than overlaying its bottom-end corner: on touch
+        // platforms an overlay swallows the drags that move the caret and selection handles, which
+        // land in exactly that corner on the last line.
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             ResizeHandle(
                 label = label,
-                modifier = Modifier.align(Alignment.BottomEnd),
                 onResizeBy = { deltaDp ->
                     heightDp = (heightDp + deltaDp).coerceIn(minHeight.value, maxHeight.value)
                 },
@@ -416,7 +440,7 @@ private fun MarkdownPreview(text: String, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingExtraSmall),
             ) {
-                text.split("\n").forEach { line ->
+                text.withoutLineBreakTags().split("\n").forEach { line ->
                     Text(
                         text = parseListLine(line).toDisplayAnnotatedString(),
                         style = MaterialTheme.typography.bodyLarge,
@@ -428,7 +452,11 @@ private fun MarkdownPreview(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ResizeHandle(label: String, modifier: Modifier, onResizeBy: (Float) -> Unit) {
+private fun ResizeHandle(
+    label: String,
+    onResizeBy: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Icon(
         imageVector = Icons.Default.DragHandle,
         contentDescription = stringResource(Res.string.markdown_editor_resize_handle_a11y, label),

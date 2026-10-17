@@ -8,4 +8,6 @@
     <string name="bottom_nav_order_settings_row">Bottom navigation order</string>
     <string name="bottom_nav_order_save">Save</string>
     <string name="bottom_nav_order_drag_handle_content_description">Drag to reorder</string>
+    <string name="nav_rail_collapse">Collapse navigation</string>
+    <string name="nav_rail_expand">Expand navigation</string>
 </resources>

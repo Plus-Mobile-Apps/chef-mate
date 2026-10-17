@@ -10,6 +10,7 @@ import com.plusmobileapps.chefmate.grocery.data.ListRole
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -20,12 +21,17 @@ class FakeGroceryRepository : GroceryRepository {
     private var nextId = 1L
     private var nextListId = 2L
     private val itemListMap = mutableMapOf<Long, Long>()
+    private val pendingDeletes = MutableStateFlow<Set<Long>>(emptySet())
 
-    override fun getGroceries(): Flow<List<GroceryItem>> = _groceries.asStateFlow()
+    override fun getGroceries(): Flow<List<GroceryItem>> =
+        combine(_groceries, pendingDeletes) { items, pending ->
+            items.filter { it.id !in pending }
+        }
 
-    override fun getGroceries(listId: Long): Flow<List<GroceryItem>> = _groceries.map { items ->
-        items.filter { itemListMap[it.id] == listId }
-    }
+    override fun getGroceries(listId: Long): Flow<List<GroceryItem>> =
+        combine(_groceries, pendingDeletes) { items, pending ->
+            items.filter { itemListMap[it.id] == listId && it.id !in pending }
+        }
 
     override fun getGroceryLists(): Flow<List<GroceryListModel>> = _lists.asStateFlow()
 
@@ -86,6 +92,21 @@ class FakeGroceryRepository : GroceryRepository {
     override suspend fun deleteGrocery(item: GroceryItem) {
         itemListMap.remove(item.id)
         _groceries.update { items -> items.filter { it.id != item.id } }
+    }
+
+    override fun stageDelete(item: GroceryItem) {
+        pendingDeletes.update { it + item.id }
+    }
+
+    override fun undoDelete(itemId: Long) {
+        pendingDeletes.update { it - itemId }
+    }
+
+    override fun commitDelete(itemId: Long) {
+        if (itemId !in pendingDeletes.value) return
+        itemListMap.remove(itemId)
+        _groceries.update { items -> items.filter { it.id != itemId } }
+        pendingDeletes.update { it - itemId }
     }
 
     override suspend fun getGrocery(id: Long): GroceryItem? = _groceries.value.find { it.id == id }

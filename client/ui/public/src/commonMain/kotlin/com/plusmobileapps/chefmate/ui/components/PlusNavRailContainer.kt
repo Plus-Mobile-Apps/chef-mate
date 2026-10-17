@@ -1,5 +1,6 @@
 package com.plusmobileapps.chefmate.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,13 +9,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.NavigationRail
@@ -23,13 +26,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.plusmobileapps.chefmate.text.TextData
+import com.plusmobileapps.chefmate.ui.components.glass.GlassSurface
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 data class NavRailItem(
@@ -39,26 +51,91 @@ data class NavRailItem(
     val onClick: () -> Unit,
 )
 
+/**
+ * The wide-window counterpart of the floating bottom navigation pill: a rounded rail floating at
+ * the start edge, inset from the window edges and sharing the pill's shape, border and shadow.
+ *
+ * Unlike the bottom bar, screen content is inset past the rail rather than running behind it. It
+ * would be prettier to blur real content through the rail, but screens measure themselves to pick a
+ * layout — [PlusResponsiveContainer] window size classes, the recipe list's filter sidebar — and
+ * full-bleed content makes every one of those breakpoints read a window ~250dp wider than the space
+ * it actually has. So the rail floats over the app background, which is why it is drawn as a solid
+ * surface rather than glass: there would be nothing behind it to see.
+ *
+ * [railContent], when given, replaces the standard [NavigationRail] inside the rail's surface — for
+ * a caller that draws its own items (the bottom nav's sliding selection lens). It sizes itself and
+ * is centered vertically; [navRail] is then unused.
+ */
 @Composable
 fun PlusNavRailHeaderContainer(
     modifier: Modifier = Modifier,
     navRail: List<NavRailItem>,
     expandedItems: Boolean = false,
+    railContent: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val density = LocalDensity.current
+    var railBlockWidth by remember { mutableStateOf(0.dp) }
 
-    Row(modifier = modifier.fillMaxSize()) {
-        NavigationRail(
-            modifier = Modifier.fillMaxHeight(),
-            windowInsets =
-                WindowInsets(
-                    left = WindowInsets.displayCutout.getLeft(density, LayoutDirection.Ltr),
-                    right = 0,
-                    top = WindowInsets.statusBars.getTop(density),
-                    bottom = WindowInsets.systemGestures.getBottom(density),
-                ),
-            content = {
+    val cutoutStart =
+        with(density) { WindowInsets.displayCutout.getLeft(density, LayoutDirection.Ltr).toDp() }
+    // Clamp rather than add, matching the bottom pill: on a notched device in landscape the rail
+    // sits just clear of the cutout instead of a full margin beyond it.
+    val startMargin = maxOf(cutoutStart, ChefMateTheme.dimens.paddingNormal)
+    val verticalMargin = ChefMateTheme.dimens.paddingNormal
+    // NavigationRail fills its max height, so on a tall window (an unfolded Pixel Fold) the first
+    // item sits right at the top margin. A bare 16dp left it under the status bar, where the system
+    // swallows touches for the notification shade — clamp past the status bar and any top cutout.
+    val topInset =
+        with(density) {
+            WindowInsets.systemBars.union(WindowInsets.displayCutout).getTop(density).toDp()
+        }
+    val topMargin = maxOf(topInset, verticalMargin)
+
+    val paddingValues: PaddingValues =
+        with(density) {
+            PaddingValues.Absolute(
+                left = railBlockWidth,
+                right = WindowInsets.displayCutout.getRight(density, LayoutDirection.Ltr).toDp(),
+                top = WindowInsets.statusBars.getTop(density).toDp(),
+                bottom = WindowInsets.navigationBars.getBottom(density).toDp(),
+            )
+        }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = ChefMateTheme.colorScheme.background,
+            contentColor = ChefMateTheme.colorScheme.onBackground,
+        ) {
+            content(paddingValues)
+        }
+
+        // A stadium is right for the narrow icon rail but absurd on the 240dp expanded one, where
+        // the corner radius would resolve against the width. Animated, so a rail collapsing or
+        // expanding in place morphs its corners along with its size instead of snapping.
+        val stadiumFraction by
+            animateFloatAsState(targetValue = if (expandedItems) 0f else 1f, label = "railShape")
+        GlassSurface(
+            backdrop = null,
+            shape = RoundedCornerShape(RailCornerSize(stadiumFraction)),
+            modifier =
+                Modifier.align(Alignment.CenterStart)
+                    // Measured before the margins so the reported block is what content has to
+                    // clear from the start edge, not the bare rail width.
+                    .onSizeChanged { railBlockWidth = with(density) { it.width.toDp() } }
+                    .padding(start = startMargin, top = topMargin, bottom = verticalMargin),
+        ) {
+            if (railContent != null) {
+                railContent()
+                return@GlassSurface
+            }
+            NavigationRail(
+                containerColor = Color.Transparent,
+                contentColor = ChefMateTheme.colorScheme.onSurface,
+                windowInsets =
+                    WindowInsets(bottom = WindowInsets.systemGestures.getBottom(density)),
+            ) {
                 navRail.forEach { item ->
                     if (expandedItems) {
                         PlusExpandedNavRailItem(
@@ -76,31 +153,23 @@ fun PlusNavRailHeaderContainer(
                         )
                     }
                 }
-            },
-            containerColor = ChefMateTheme.colorScheme.surfaceContainer,
-            contentColor = ChefMateTheme.colorScheme.onSurface,
-        )
-
-        Box(modifier = Modifier.weight(1f)) {
-            val paddingValues: PaddingValues =
-                with(density) {
-                    PaddingValues.Absolute(
-                        right =
-                            WindowInsets.displayCutout
-                                .getRight(density, LayoutDirection.Ltr)
-                                .toDp(),
-                        top = WindowInsets.statusBars.getTop(density).toDp(),
-                        bottom = WindowInsets.navigationBars.getBottom(density).toDp(),
-                    )
-                }
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = ChefMateTheme.colorScheme.background,
-                contentColor = ChefMateTheme.colorScheme.onBackground,
-            ) {
-                content(paddingValues)
             }
         }
+    }
+}
+
+private val ExpandedRailCornerRadius = 28.dp
+
+/**
+ * A corner that is [ExpandedRailCornerRadius] at a [stadiumFraction] of 0 and a full stadium (half
+ * the shorter side) at 1. Resolved against the live size, so it stays correct while the rail's
+ * bounds animate.
+ */
+private data class RailCornerSize(private val stadiumFraction: Float) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val expanded = with(density) { ExpandedRailCornerRadius.toPx() }
+        val stadium = shapeSize.minDimension / 2
+        return expanded + (stadium - expanded) * stadiumFraction
     }
 }
 
@@ -112,12 +181,10 @@ fun PlusExpandedNavRailItem(
     icon: @Composable () -> Unit,
     label: @Composable () -> Unit,
 ) {
+    // Unselected items are transparent rather than surfaceContainer: the rail is one rounded
+    // surface now, and a second opaque rectangle per item would show its corners through it.
     val backgroundColor =
-        if (selected) {
-            ChefMateTheme.colorScheme.secondaryContainer
-        } else {
-            ChefMateTheme.colorScheme.surfaceContainer
-        }
+        if (selected) ChefMateTheme.colorScheme.secondaryContainer else Color.Transparent
 
     val contentColor =
         if (selected) {

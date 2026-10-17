@@ -2,8 +2,11 @@
 
 package com.plusmobileapps.chefmate.grocery.core.robots
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
@@ -15,6 +18,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import androidx.compose.ui.test.waitUntilExactlyOneExists
+import androidx.compose.ui.text.AnnotatedString
 import com.plusmobileapps.chefmate.grocery.core.detail.GroceryDetailTestTags
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListTestTags
 
@@ -62,6 +66,37 @@ class GroceryListRobot(private val test: ComposeUiTest) {
 
     fun assertItemInputText(text: String): GroceryListRobot = apply {
         test.onNode(hasTestTag(GroceryListTestTags.ITEM_INPUT) and onScreen).assertTextEquals(text)
+    }
+
+    /**
+     * Asserts the input has been cleared. Checked against `EditableText` rather than
+     * [assertItemInputText] because an empty field renders its placeholder, and the placeholder
+     * counts towards the node's `Text`.
+     */
+    fun assertItemInputEmpty(): GroceryListRobot = apply {
+        test
+            .onNode(hasTestTag(GroceryListTestTags.ITEM_INPUT) and onScreen)
+            .assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(""))
+            )
+    }
+
+    /** Taps the Done button beside the input, which only exists while the field has focus. */
+    fun clickDone(): GroceryListRobot = apply {
+        val matcher = hasTestTag(GroceryListTestTags.DONE_BUTTON) and onScreen
+        test.waitUntilExactlyOneExists(matcher)
+        test.onNode(matcher).performClick()
+    }
+
+    /**
+     * Waits for a list row named [displayName]. The add-item field is excluded: right after typing
+     * a name and submitting it, the field still holds that same text until the add lands, and
+     * matching it would let this return before the item exists.
+     */
+    fun awaitItemDisplayed(displayName: String): GroceryListRobot = apply {
+        test.waitUntilAtLeastOneExists(
+            hasText(displayName) and onScreen and !hasTestTag(GroceryListTestTags.ITEM_INPUT)
+        )
     }
 
     /** Opens the list selector (bottom sheet on phones, dropdown on tablets). */

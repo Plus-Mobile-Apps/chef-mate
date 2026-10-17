@@ -27,13 +27,16 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 interface RecipeExtractorService {
-    suspend fun extractRecipe(url: String): ExtractedRecipeData
+    /**
+     * @param renderedHtml The page's markup as the in-app WebView rendered it, or `null` when it
+     *   couldn't be read. Preferred over fetching [url], which for a growing number of sites
+     *   returns a bot-check page rather than the recipe.
+     */
+    suspend fun extractRecipe(url: String, renderedHtml: String?): ExtractedRecipeData
 }
 
 @SingleIn(AppScope::class)
@@ -48,7 +51,7 @@ class RecipeExtractorServiceImpl(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    override suspend fun extractRecipe(url: String): ExtractedRecipeData =
+    override suspend fun extractRecipe(url: String, renderedHtml: String?): ExtractedRecipeData =
         withContext(ioContext) {
             // Our own share links render their recipe content client-side after load (fetched from
             // Supabase), so there's no server-rendered markup for the scraper below to parse —
@@ -56,36 +59,49 @@ class RecipeExtractorServiceImpl(
             ChefMateUrls.recipeShareUrlRemoteId(url)?.let { remoteId ->
                 return@withContext recipeRepository
                     .fetchPublicRecipe(remoteId)
-                    .getOrElse { throw IllegalStateException("No recipe data found on this page") }
+                    .getOrElse { throw IllegalStateException(NO_RECIPE_FOUND) }
                     .toExtractedRecipeData(url)
             }
 
-            val response = httpClient.get(url) { header("User-Agent", USER_AGENT) }
-            if (!response.status.isSuccess()) {
-                throw IllegalStateException(
-                    "Could not load the page (HTTP ${response.status.value})"
-                )
-            }
-            val html = response.bodyAsText()
+            // The rendered DOM is strictly better source material than a fresh fetch — it's the
+            // page after its scripts ran, and after whatever bot check stood in front of it.
+            renderedHtml
+                ?.let { parseRecipe(Ksoup.parse(it), url) }
+                ?.let {
+                    return@withContext it
+                }
 
-            val document = Ksoup.parse(html)
-            val jsonLdScripts = document.select("script[type=application/ld+json]")
-
-            for (script in jsonLdScripts) {
-                val data = parseRecipeJsonText(script.data(), url) ?: continue
-                // schema.org flattens grouped ingredients, so recover any sub-section headers
-                // (e.g. "For the sauce:") from the page markup when present.
-                val grouped = parseIngredientSections(document)
-                return@withContext if (grouped != null) data.copy(ingredients = grouped) else data
-            }
-
-            // No JSON-LD recipe — fall back to microdata/microformat markup.
-            parseMicrodataRecipe(document, url)?.let {
-                return@withContext it
+            val fetched = runCatching {
+                val response = httpClient.get(url) { header("User-Agent", USER_AGENT) }
+                if (!response.status.isSuccess()) {
+                    throw IllegalStateException(
+                        "Could not load the page (HTTP ${response.status.value})"
+                    )
+                }
+                response.bodyAsText()
             }
 
-            throw IllegalStateException("No recipe data found on this page")
+            // Having already read the rendered page, a failed fetch tells the user nothing useful —
+            // the page they're looking at simply had no recipe markup in it.
+            val html = if (renderedHtml != null) fetched.getOrNull() else fetched.getOrThrow()
+
+            html?.let { parseRecipe(Ksoup.parse(it), url) }
+                ?: throw IllegalStateException(NO_RECIPE_FOUND)
         }
+
+    /** Returns `null` when [document] carries no recipe markup this parser understands. */
+    private fun parseRecipe(document: Document, url: String): ExtractedRecipeData? {
+        for (script in document.select("script[type=application/ld+json]")) {
+            val data = parseRecipeJsonText(script.data(), url) ?: continue
+            // schema.org flattens grouped ingredients, so recover any sub-section headers
+            // (e.g. "For the sauce:") from the page markup when present.
+            val grouped = parseIngredientSections(document)
+            return if (grouped != null) data.copy(ingredients = grouped) else data
+        }
+
+        // No JSON-LD recipe — fall back to microdata/microformat markup.
+        return parseMicrodataRecipe(document, url)
+    }
 
     private fun Recipe.toExtractedRecipeData(sourceUrl: String): ExtractedRecipeData =
         ExtractedRecipeData(
@@ -258,10 +274,10 @@ class RecipeExtractorServiceImpl(
             is JsonObject -> {
                 val type = element["@type"]
                 val isRecipe =
-                    when {
-                        type == null -> false
-                        type is JsonArray -> type.any { it.jsonPrimitive.contentOrNull == "Recipe" }
-                        else -> type.jsonPrimitive.contentOrNull == "Recipe"
+                    when (type) {
+                        null -> false
+                        is JsonArray -> type.any { it.stringOrNull() == "Recipe" }
+                        else -> type.stringOrNull() == "Recipe"
                     }
                 if (isRecipe) {
                     element
@@ -294,13 +310,16 @@ class RecipeExtractorServiceImpl(
     private fun String.decodeHtmlEntities(): String = Parser.unescapeEntities(this, false)
 
     private fun parseRecipeFromJson(obj: JsonObject, sourceUrl: String): ExtractedRecipeData {
-        val title = obj["name"]?.jsonPrimitive?.contentOrNull?.decodeHtmlEntities() ?: ""
-        val description = obj["description"]?.jsonPrimitive?.contentOrNull?.decodeHtmlEntities()
+        // `headline` is the fallback for publishers that only title the article, not the recipe.
+        val title =
+            (obj["name"].stringOrNull() ?: obj["headline"].stringOrNull())?.decodeHtmlEntities()
+                ?: ""
+        val description = obj["description"].stringOrNull()?.decodeHtmlEntities()
 
         val ingredients =
-            obj["recipeIngredient"]?.jsonArray?.mapNotNull {
-                it.jsonPrimitive.contentOrNull?.decodeHtmlEntities()
-            } ?: emptyList()
+            (obj["recipeIngredient"] ?: obj["ingredients"]).stringList().map {
+                it.decodeHtmlEntities()
+            }
 
         val directions = parseDirections(obj)
 
@@ -308,13 +327,13 @@ class RecipeExtractorServiceImpl(
             when (val img = obj["image"]) {
                 is JsonArray -> img.firstOrNull()?.let { extractImageUrl(it) }
                 is JsonObject -> extractImageUrl(img)
-                else -> img?.jsonPrimitive?.contentOrNull
+                else -> img.stringOrNull()
             }
 
         val servings = parseServings(obj)
-        val prepTime = parseDuration(obj["prepTime"]?.jsonPrimitive?.contentOrNull)
-        val cookTime = parseDuration(obj["cookTime"]?.jsonPrimitive?.contentOrNull)
-        val totalTime = parseDuration(obj["totalTime"]?.jsonPrimitive?.contentOrNull)
+        val prepTime = obj["prepTime"].durationMinutes()
+        val cookTime = obj["cookTime"].durationMinutes()
+        val totalTime = obj["totalTime"].durationMinutes()
         val calories = parseCalories(obj)
 
         return ExtractedRecipeData(
@@ -338,52 +357,46 @@ class RecipeExtractorServiceImpl(
             is JsonArray ->
                 instructions.flatMap { element ->
                     when {
-                        element is JsonObject &&
-                            element["@type"]?.jsonPrimitive?.contentOrNull == "HowToStep" ->
-                            listOfNotNull(
-                                element["text"]?.jsonPrimitive?.contentOrNull?.decodeHtmlEntities()
-                            )
-                        element is JsonObject &&
-                            element["@type"]?.jsonPrimitive?.contentOrNull == "HowToSection" -> {
-                            val items =
-                                element["itemListElement"]?.jsonArray ?: return@flatMap emptyList()
-                            items.mapNotNull { item ->
-                                item.jsonObject["text"]
-                                    ?.jsonPrimitive
-                                    ?.contentOrNull
-                                    ?.decodeHtmlEntities()
-                            }
-                        }
+                        element !is JsonObject ->
+                            listOfNotNull(element.stringOrNull()?.decodeHtmlEntities())
+                        element["@type"].stringOrNull() == "HowToSection" ->
+                            (element["itemListElement"] as? JsonArray)?.mapNotNull { item ->
+                                (item as? JsonObject)?.get("text").stringOrNull()
+                            } ?: emptyList()
+                        // Anything else object-shaped is a step: HowToStep, CreativeWork, or an
+                        // untyped `{"text": …}`. Read `text`, falling back to `name` for the
+                        // publishers that put the step body there instead.
                         else ->
-                            listOfNotNull(element.jsonPrimitive.contentOrNull?.decodeHtmlEntities())
-                    }
+                            listOfNotNull(
+                                element["text"].stringOrNull() ?: element["name"].stringOrNull()
+                            )
+                    }.map { it.decodeHtmlEntities() }
                 }
-            else -> listOfNotNull(instructions.jsonPrimitive.contentOrNull?.decodeHtmlEntities())
+            else -> listOfNotNull(instructions.stringOrNull()?.decodeHtmlEntities())
         }
     }
 
     private fun extractImageUrl(element: JsonElement): String? =
         when (element) {
-            is JsonObject -> element["url"]?.jsonPrimitive?.contentOrNull
-            else -> element.jsonPrimitive.contentOrNull
+            is JsonObject -> element["url"].stringOrNull()
+            else -> element.stringOrNull()
         }
 
-    private fun parseServings(obj: JsonObject): Int? {
-        val yield = obj["recipeYield"] ?: return null
-        return when (yield) {
-            is JsonArray -> yield.firstOrNull()?.jsonPrimitive?.contentOrNull.firstNumber()
-            else -> yield.jsonPrimitive.contentOrNull.firstNumber()
+    private fun parseServings(obj: JsonObject): Int? =
+        when (val yield = obj["recipeYield"]) {
+            null -> null
+            is JsonArray -> yield.firstOrNull().stringOrNull().firstNumber()
+            else -> yield.stringOrNull().firstNumber()
         }
-    }
 
-    private fun parseCalories(obj: JsonObject): Int? {
-        val nutrition = obj["nutrition"]?.jsonObject ?: return null
-        return nutrition["calories"]?.jsonPrimitive?.contentOrNull.firstNumber()
-    }
+    private fun parseCalories(obj: JsonObject): Int? =
+        (obj["nutrition"] as? JsonObject)?.get("calories").stringOrNull().firstNumber()
 
     companion object {
         // A real mobile-browser User-Agent. Some sites' WAFs return 403 to bot-style or
         // spoofed desktop-Chrome User-Agents, but accept genuine mobile-browser strings.
+        private const val NO_RECIPE_FOUND = "No recipe data found on this page"
+
         private const val USER_AGENT =
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 " +
                 "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
@@ -419,6 +432,39 @@ class RecipeExtractorServiceImpl(
             )
 
         private fun String?.nullIfBlank(): String? = this?.takeIf { it.isNotBlank() }
+
+        /**
+         * schema.org values are only *conventionally* strings — publishers routinely nest an object
+         * or an array where the spec suggests text. Reading them through this (rather than
+         * `jsonPrimitive`, which throws) keeps one oddly-shaped field from failing the whole
+         * recipe.
+         */
+        private fun JsonElement?.stringOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull
+
+        /** Reads a field that may be published as a single string or a list of them. */
+        private fun JsonElement?.stringList(): List<String> =
+            when (this) {
+                null -> emptyList()
+                is JsonArray -> mapNotNull { it.stringOrNull() }
+                else -> listOfNotNull(stringOrNull())
+            }
+
+        /**
+         * A schema.org duration is usually a bare ISO-8601 string, but a recipe that publishes a
+         * *range* — Serious Eats' sous vide burgers cook for anywhere from 45 minutes to 4 hours —
+         * uses a `Duration` object with `minValue`/`maxValue` instead. Take the lower bound, the
+         * same end of a range [firstNumber] takes for a "6 to 8" yield.
+         */
+        private fun JsonElement?.durationMinutes(): Int? =
+            when (this) {
+                null -> null
+                is JsonArray -> firstOrNull().durationMinutes()
+                is JsonObject ->
+                    parseDuration(this["minValue"].stringOrNull())
+                        ?: parseDuration(this["value"].stringOrNull())
+                        ?: parseDuration(this["maxValue"].stringOrNull())
+                else -> parseDuration(stringOrNull())
+            }
 
         private fun String.collapseWhitespace(): String = replace(WHITESPACE, " ").trim()
 

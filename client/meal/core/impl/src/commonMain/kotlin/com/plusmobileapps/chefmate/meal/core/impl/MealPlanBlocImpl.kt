@@ -1,5 +1,6 @@
 package com.plusmobileapps.chefmate.meal.core.impl
 
+import com.arkivanov.essenty.lifecycle.doOnResume
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
 import com.plusmobileapps.chefmate.di.AppScope
@@ -14,7 +15,6 @@ import com.plusmobileapps.chefmate.text.FixedString
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.LocalDate
@@ -24,10 +24,16 @@ import kotlinx.datetime.LocalDate
 class MealPlanBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    private val viewModelFactory: Provider<MealPlanViewModel>,
+    private val viewModelFactory: () -> MealPlanViewModel,
 ) : MealPlanBloc, BlocContext by context {
 
     private val viewModel: MealPlanViewModel = instanceKeeper.getViewModel { viewModelFactory() }
+
+    init {
+        // On resume rather than in init so coming back to the tab picks up family changes and
+        // other members' meals.
+        lifecycle.doOnResume { viewModel.onResume() }
+    }
 
     override val state: StateFlow<MealPlanBloc.Model> =
         viewModel.state.mapState {
@@ -59,6 +65,16 @@ class MealPlanBlocImpl(
                 showDoneCookingDialog = it.showDoneCookingDialog,
                 pendingReplaceCookMode = it.pendingReplaceCookMode?.toImmutableList(),
                 activeCoachMark = it.activeCoachMark,
+                planSelector =
+                    it.familyPlans
+                        .takeIf { plans -> plans.isNotEmpty() }
+                        ?.let { plans ->
+                            MealPlanBloc.PlanSelector(
+                                families = plans.toImmutableList(),
+                                selectedFamilyId = it.planScope.familyId,
+                                isPickerOpen = it.isPlanPickerOpen,
+                            )
+                        },
             )
         }
 
@@ -140,5 +156,17 @@ class MealPlanBlocImpl(
 
     override fun onCoachMarkDismissed(id: String) {
         viewModel.dismissCoachMark(id)
+    }
+
+    override fun onPlanSelectorClicked() {
+        viewModel.openPlanPicker()
+    }
+
+    override fun onPlanPickerDismissed() {
+        viewModel.dismissPlanPicker()
+    }
+
+    override fun onPlanSelected(familyId: String?) {
+        viewModel.selectPlan(familyId)
     }
 }

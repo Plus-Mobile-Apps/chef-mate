@@ -1,10 +1,12 @@
 package com.plusmobileapps.chefmate.ui.screenshot
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.tools.screenshot.PreviewTest
@@ -14,6 +16,7 @@ import com.plusmobileapps.chefmate.recipe.list.RecipeSortOption
 import com.plusmobileapps.chefmate.recipe.list.SortFilterSheetContent
 import com.plusmobileapps.chefmate.recipe.list.impl.ui.previewRecipeListBlocCategoryFiltered
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModalDialogSurface
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 // Snapshot coverage for the category filter feature:
@@ -130,6 +133,88 @@ fun SortFilterSheetWithUserCategoriesDarkScreenshot() {
                     ),
                 onApply = { _, _, _, _ -> },
             )
+        }
+    }
+}
+
+// endregion
+
+// region Expanded-width dialog presentation
+
+// On expanded windows PlusResponsiveModal presents the sheet as a centered dialog, and the
+// quick filters + categories have moved to the left rail — so only sort is left in it. We render
+// PlusResponsiveModalDialogSurface directly because Dialog doesn't snapshot under the plugin.
+
+@PreviewTest
+@Preview(showBackground = true, widthDp = 700, heightDp = 320)
+@Composable
+fun SortFilterDialogSortOnlyLightScreenshot() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            // A Box relaxes the preview's fixed-width constraints the way a real Dialog window
+            // does, so the surface's 560.dp cap actually applies.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                PlusResponsiveModalDialogSurface(title = null, onCloseClick = null) {
+                    SortFilterSheetContent(
+                        initialSort = RecipeSortOption.TOP_RATED,
+                        initialFilters = emptySet(),
+                        initialCategories = emptySet(),
+                        onApply = { _, _, _, _ -> },
+                        showFilters = false,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@PreviewTest
+@Preview(
+    showBackground = true,
+    widthDp = 700,
+    heightDp = 320,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+fun SortFilterDialogSortOnlyDarkScreenshot() {
+    ChefMateTheme(darkTheme = true) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            // A Box relaxes the preview's fixed-width constraints the way a real Dialog window
+            // does, so the surface's 560.dp cap actually applies.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                PlusResponsiveModalDialogSurface(title = null, onCloseClick = null) {
+                    SortFilterSheetContent(
+                        initialSort = RecipeSortOption.TOP_RATED,
+                        initialFilters = emptySet(),
+                        initialCategories = emptySet(),
+                        onApply = { _, _, _, _ -> },
+                        showFilters = false,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// With no rail on screen (an empty library) the dialog still carries the full sheet.
+@PreviewTest
+@Preview(showBackground = true, widthDp = 700, heightDp = 700)
+@Composable
+fun SortFilterDialogFullLightScreenshot() {
+    ChefMateTheme {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            // A Box relaxes the preview's fixed-width constraints the way a real Dialog window
+            // does, so the surface's 560.dp cap actually applies.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                PlusResponsiveModalDialogSurface(title = null, onCloseClick = null) {
+                    SortFilterSheetContent(
+                        initialSort = RecipeSortOption.RECENTLY_ADDED,
+                        initialFilters = emptySet(),
+                        initialCategories = setOf(BuiltinCategory.BREAKFAST),
+                        onApply = { _, _, _, _ -> },
+                    )
+                }
+            }
         }
     }
 }

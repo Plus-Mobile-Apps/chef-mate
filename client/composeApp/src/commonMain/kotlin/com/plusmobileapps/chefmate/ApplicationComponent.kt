@@ -3,6 +3,7 @@ package com.plusmobileapps.chefmate
 import com.plusmobileapps.chefmate.auth.data.AuthenticationRepository
 import com.plusmobileapps.chefmate.di.OnboardingRepository
 import com.plusmobileapps.chefmate.recipe.core.root.RecipeRootBloc
+import com.plusmobileapps.chefmate.review.InAppReviewService
 import com.plusmobileapps.chefmate.root.RootBloc
 import com.plusmobileapps.chefmate.toast.ToastService
 import com.russhwolf.settings.Settings
@@ -20,4 +21,5 @@ interface ApplicationComponent {
     val onboardingRepository: OnboardingRepository
     val settings: Settings
     val toastService: ToastService
+    val inAppReviewService: InAppReviewService
 }

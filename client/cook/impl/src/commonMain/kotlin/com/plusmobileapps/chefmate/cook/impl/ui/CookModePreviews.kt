@@ -49,6 +49,10 @@ private fun cookBloc(model: CookModeBloc.Model): CookModeBloc =
 
         override fun onAiChatClicked() = Unit
 
+        override fun onViewRecipeClicked() = Unit
+
+        override fun onPremiumRequiredDismissed() = Unit
+
         override fun onLayoutToggled() = Unit
 
         override fun onKeepScreenOnToggled() = Unit
@@ -93,9 +97,13 @@ val previewCookBlocStacked: CookModeBloc =
 val previewCookBlocSplit: CookModeBloc =
     cookBloc(previewCookBlocStacked.state.value.copy(layoutMode = CookModeBloc.LayoutMode.Split))
 
-// AI Chat feature flag on: the header surfaces the "Ask AI about this recipe" button.
+// AI Chat feature flag on for a subscriber: the header surfaces the "Ask AI" button, unlocked.
 val previewCookBlocWithAiChat: CookModeBloc =
-    cookBloc(previewCookBlocStacked.state.value.copy(showAiChat = true))
+    cookBloc(previewCookBlocStacked.state.value.copy(showAiChat = true, isSubscribed = true))
+
+// Same, but for a non-subscriber: the button is dimmed and opens the premium upsell.
+val previewCookBlocWithLockedAiChat: CookModeBloc =
+    cookBloc(previewCookBlocStacked.state.value.copy(showAiChat = true, isSubscribed = false))
 
 val previewCookBlocLoading: CookModeBloc = cookBloc(CookModeBloc.Model(isLoading = true))
 

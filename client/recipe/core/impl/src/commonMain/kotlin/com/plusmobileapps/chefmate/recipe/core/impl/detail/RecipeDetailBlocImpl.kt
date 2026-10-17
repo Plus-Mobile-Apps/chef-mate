@@ -124,6 +124,8 @@ class RecipeDetailBlocImpl(
                 ingredientScale = it.ingredientScale,
                 activeCoachMark = it.activeCoachMark,
                 showAiChat = it.showAiChat,
+                isSubscribed = it.isSubscribed,
+                showPremiumRequiredDialog = it.showPremiumRequiredDialog,
             )
         }
 
@@ -176,7 +178,13 @@ class RecipeDetailBlocImpl(
     }
 
     override fun onAiChatClicked() {
-        output.onNext(Output.OpenAiChat(recipeId))
+        if (viewModel.requestAiChat()) {
+            output.onNext(Output.OpenAiChat(recipeId))
+        }
+    }
+
+    override fun onPremiumRequiredDismissed() {
+        viewModel.dismissPremiumRequiredDialog()
     }
 
     override fun onCoachMarkDismissed(id: String) {

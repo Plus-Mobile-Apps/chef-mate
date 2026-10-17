@@ -6,22 +6,26 @@ import com.plusmobileapps.chefmate.auth.data.AuthState
 import com.plusmobileapps.chefmate.auth.data.AuthenticationRepository
 import com.plusmobileapps.chefmate.database.RecipeBook as DbRecipeBook
 import com.plusmobileapps.chefmate.database.RecipeBookQueries
+import com.plusmobileapps.chefmate.database.RecipeBookRecipeQueries
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.IO
 import com.plusmobileapps.chefmate.recipe.data.SyncStatus
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.recipebook.data.RecipeBookRepository
+import com.plusmobileapps.chefmate.recipebook.data.RecipeBookSelection
+import com.plusmobileapps.chefmate.recipebook.data.RecipeBookSelectionRepository
+import com.plusmobileapps.chefmate.recipebook.data.impl.remote.FamilyRecipeBookRemoteDataSource
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RecipeBookMemberRemoteDataSource
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RecipeBookRemoteDataSource
 import com.plusmobileapps.chefmate.recipebook.data.impl.remote.RemoteRecipeBook
 import com.plusmobileapps.chefmate.util.DateTimeUtil
 import com.plusmobileapps.chefmate.util.Unique
-import com.russhwolf.settings.Settings
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Instant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -40,13 +44,15 @@ import kotlinx.coroutines.withContext
 @ContributesBinding(AppScope::class)
 class RecipeBookRepositoryImpl(
     private val db: RecipeBookQueries,
+    private val bookRecipeDb: RecipeBookRecipeQueries,
     @IO private val ioContext: CoroutineContext,
     private val dateTimeUtil: DateTimeUtil,
     private val unique: Unique,
     private val remoteDataSource: RecipeBookRemoteDataSource,
     private val memberRemoteDataSource: RecipeBookMemberRemoteDataSource,
+    private val familyRemoteDataSource: FamilyRecipeBookRemoteDataSource,
     private val authRepository: AuthenticationRepository,
-    private val settings: Settings,
+    private val selectionRepository: RecipeBookSelectionRepository,
 ) : RecipeBookRepository {
 
     private val scope = CoroutineScope(ioContext + SupervisorJob())
@@ -57,13 +63,13 @@ class RecipeBookRepositoryImpl(
     init {
         scope.launch {
             val defaultId = ensureDefaultBookId()
-            val stored = settings.getLong(KEY_ACTIVE_BOOK, NO_ACTIVE_BOOK)
             _activeBookId.value =
-                when {
+                when (val stored = selectionRepository.lastSelection) {
                     // The user explicitly picked the cross-book "All recipes" view.
-                    stored == ALL_RECIPES_SELECTED -> null
-                    stored != NO_ACTIVE_BOOK && bookExists(stored) -> stored
-                    else -> defaultId
+                    RecipeBookSelection.AllRecipes -> null
+                    is RecipeBookSelection.Book ->
+                        if (bookExists(stored.id)) stored.id else defaultId
+                    null -> defaultId
                 }
         }
         scope.launch {
@@ -87,12 +93,12 @@ class RecipeBookRepositoryImpl(
     override suspend fun getDefaultBookId(): Long = ensureDefaultBookId()
 
     override suspend fun setActiveBook(id: Long) {
-        settings.putLong(KEY_ACTIVE_BOOK, id)
+        selectionRepository.select(RecipeBookSelection.Book(id))
         _activeBookId.value = id
     }
 
     override suspend fun selectAllRecipes() {
-        settings.putLong(KEY_ACTIVE_BOOK, ALL_RECIPES_SELECTED)
+        selectionRepository.select(RecipeBookSelection.AllRecipes)
         _activeBookId.value = null
     }
 
@@ -118,6 +124,9 @@ class RecipeBookRepositoryImpl(
     }
 
     override suspend fun renameBook(id: Long, name: String): RecipeBook {
+        val entity = withContext(ioContext) { db.getById(id).executeAsOne() }
+        // A family book is renamed through Manage Family; a local rename would never push.
+        if (entity.familyId != null) return entity.toRecipeBook()
         val book =
             withContext(ioContext) {
                 db.transactionWithResult {
@@ -131,8 +140,9 @@ class RecipeBookRepositoryImpl(
 
     override suspend fun deleteBook(id: Long) {
         val entity = withContext(ioContext) { db.getById(id).executeAsOneOrNull() } ?: return
-        // "My Recipes" is the fallback book new recipes file under — it always has to exist.
-        if (entity.isDefault) return
+        // "My Recipes" is the fallback book new recipes file under — it always has to exist. Family
+        // books are deleted for the whole family through Manage Family.
+        if (entity.isDefault || entity.familyId != null) return
         val remoteId = entity.remoteId
 
         if (remoteId == null) {
@@ -177,7 +187,7 @@ class RecipeBookRepositoryImpl(
     override suspend fun clearLocalData() {
         withContext(ioContext) { db.deleteAll() }
         // Drop the persisted active-book selection — it points at a now-deleted row.
-        settings.putLong(KEY_ACTIVE_BOOK, NO_ACTIVE_BOOK)
+        selectionRepository.clear()
         // Recreate the baseline "My Recipes" book so a signed-out/fresh session stays valid.
         _activeBookId.value = ensureDefaultBookId()
     }
@@ -332,12 +342,36 @@ class RecipeBookRepositoryImpl(
                     emptySet()
                 }
             val remoteBooks = remoteDataSource.fetchAccessibleRecipeBooks()
+            val familyNames = fetchFamilyNames(remoteBooks.mapNotNull { it.familyId }.toSet())
             withContext(ioContext) {
                 for (remote in remoteBooks) {
                     val remoteId = remote.id ?: continue
                     // Skip books the user only has a pending (un-accepted) invite to.
                     if (remote.ownerId != userId && remoteId in pendingBookIds) continue
-                    if (db.getByRemoteId(remoteId).executeAsOneOrNull() != null) continue
+                    val familyId = remote.familyId
+                    val existing = db.getByRemoteId(remoteId).executeAsOneOrNull()
+                    if (existing != null) {
+                        // Already known locally — fold in a rename made on another device. Books
+                        // with an unpushed local rename are skipped: their dirty push ran earlier
+                        // in this pass, and overwriting here would drop a rename made while we
+                        // were fetching. isDefault is deliberately left alone; it's a local
+                        // sentinel for "My Recipes" that other code (e.g. the orphaned-recipe
+                        // fallback in recipe sync) depends on exactly one book carrying.
+                        if (!existing.isDirty && !existing.isPendingDelete) {
+                            db.updateFromRemote(
+                                name = remote.name,
+                                ownerId = remote.ownerId,
+                                updatedAt = remote.updatedAt ?: existing.updatedAt,
+                                id = existing.id,
+                            )
+                        }
+                        db.updateFamily(
+                            familyId = familyId,
+                            familyName = familyId?.let { familyNames[it] ?: existing.familyName },
+                            id = existing.id,
+                        )
+                        continue
+                    }
 
                     // Adopt the existing remote id onto the matching local book rather than
                     // inserting a duplicate. Match by clientId first, then — for your own default
@@ -349,7 +383,9 @@ class RecipeBookRepositoryImpl(
                         } else {
                             null
                         }
-                    val isOwn = remote.ownerId == userId
+                    // A family book belongs to the family, not its creator: it's never anyone's
+                    // default and is managed from Manage Family.
+                    val isOwn = familyId == null && remote.ownerId == userId
                     val matched: DbRecipeBook? =
                         when {
                             matchedByClientId != null -> matchedByClientId
@@ -371,10 +407,73 @@ class RecipeBookRepositoryImpl(
                             clientId = remote.clientId,
                             ownerId = remote.ownerId,
                         )
+                        db.getByRemoteId(remoteId).executeAsOneOrNull()?.let { created ->
+                            db.updateFamily(
+                                familyId = familyId,
+                                familyName = familyId?.let { familyNames[it] },
+                                id = created.id,
+                            )
+                        }
                     }
                 }
             }
+
+            pruneFamilyBooks(
+                userId = userId,
+                accessibleRemoteIds = remoteBooks.mapNotNull { it.id }.toSet(),
+            )
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Drops family books the server no longer returns — the user left the family, was removed, or
+     * the book was deleted — along with the other members' recipes that only reached the user
+     * through them. The user's own recipes stay, refiled under "My Recipes". Only reachable when
+     * the pull succeeded, since a failed fetch aborts the sync.
+     */
+    private suspend fun pruneFamilyBooks(userId: String, accessibleRemoteIds: Set<String>) {
+        val removed =
+            withContext(ioContext) {
+                val gone =
+                    db.getFamilyBooks().executeAsList().filter {
+                        it.remoteId !in accessibleRemoteIds
+                    }
+                if (gone.isEmpty()) return@withContext emptyList()
+                val defaultId = db.getDefault().executeAsOneOrNull()?.id
+                db.transaction {
+                    for (book in gone) {
+                        // Foreign recipes first, so the refile below only moves the user's own.
+                        bookRecipeDb.deleteForeignRecipesOnlyInBook(
+                            recipeBookId = book.id,
+                            userId = userId,
+                        )
+                        if (defaultId != null) {
+                            bookRecipeDb.refileRecipesOnlyInBook(
+                                targetBookId = defaultId,
+                                recipeBookId = book.id,
+                            )
+                        }
+                        db.delete(book.id)
+                    }
+                }
+                gone.map { it.id }
+            }
+        removed.forEach { resetActiveBookIfRemoved(it) }
+    }
+
+    /**
+     * Names for the families that own [familyIds], keyed by id. Empty on failure — callers keep the
+     * last known name rather than failing the whole sync over a label.
+     */
+    private suspend fun fetchFamilyNames(familyIds: Set<String>): Map<String, String> {
+        if (familyIds.isEmpty()) return emptyMap()
+        return try {
+            familyRemoteDataSource.fetchFamilyNames(familyIds).associate { it.id to it.name }
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            Logger.e(throwable = t, tag = TAG) { "fetching family names failed" }
+            emptyMap()
+        }
     }
 
     private fun DbRecipeBook.toRecipeBook(): RecipeBook {
@@ -388,11 +487,15 @@ class RecipeBookRepositoryImpl(
             id = id,
             name = name,
             isDefault = isDefault,
-            // No ownerId yet (locally created, unsynced) means the creator owns it.
-            isOwnedByCurrentUser = ownerId == null || ownerId == currentUserId,
+            // No ownerId yet (locally created, unsynced) means the creator owns it. Nobody owns a
+            // family book, its creator included.
+            isOwnedByCurrentUser =
+                familyId == null && (ownerId == null || ownerId == currentUserId),
             syncStatus = syncStatus,
             createdAt = parseTimestamp(createdAt),
             updatedAt = parseTimestamp(updatedAt),
+            familyId = familyId,
+            familyName = familyName,
         )
     }
 
@@ -409,10 +512,6 @@ class RecipeBookRepositoryImpl(
 
     private companion object {
         const val TAG = "RecipeBookRepositoryImpl"
-        const val KEY_ACTIVE_BOOK = "recipe_active_book"
-        const val NO_ACTIVE_BOOK = -1L
-        // Sentinel persisted when the user picks the cross-book "All recipes" view.
-        const val ALL_RECIPES_SELECTED = -2L
         const val DEFAULT_BOOK_NAME = "My Recipes"
     }
 }

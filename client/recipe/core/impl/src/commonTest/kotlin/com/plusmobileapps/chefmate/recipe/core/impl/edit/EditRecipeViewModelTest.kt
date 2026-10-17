@@ -15,6 +15,8 @@ import com.plusmobileapps.chefmate.recipe.data.testing.FakePendingRecipePhotoSto
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipePhotoStorage
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
 import com.plusmobileapps.chefmate.recipebook.data.testing.FakeRecipeBookRepository
+import com.plusmobileapps.chefmate.review.ReviewMilestone
+import com.plusmobileapps.chefmate.review.testing.FakeInAppReviewService
 import com.russhwolf.settings.MapSettings
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -37,6 +39,7 @@ class EditRecipeViewModelTest {
     private val pendingPhotoStore = FakePendingRecipePhotoStore()
     private val mainContext = UnconfinedTestDispatcher()
     private val coachMarkController = CoachMarkController(MapSettings())
+    private val inAppReviewService = FakeInAppReviewService()
 
     private fun createViewModel(
         recipeId: Long? = null,
@@ -58,6 +61,7 @@ class EditRecipeViewModelTest {
             pendingRecipePhotoStore = pendingPhotoStore,
             markdownEditorModeRepository = MarkdownEditorModeRepository(MapSettings()),
             coachMarkController = coachMarkController,
+            inAppReviewService = inAppReviewService,
         )
 
     @Test
@@ -369,6 +373,28 @@ class EditRecipeViewModelTest {
         recipes.value.size shouldBe 1
         recipes.value.first().categories.singleOrNull()?.builtinId shouldBe
             BuiltinCategory.BREAKFAST.id
+    }
+
+    @Test
+    fun When_new_recipe_saved_Then_review_milestone_reported() = runTest {
+        val vm = createViewModel()
+        vm.updateTitle("Pancakes")
+
+        vm.save()
+        vm.output.first().shouldBeFinished()
+
+        inAppReviewService.milestones shouldBe listOf(ReviewMilestone.RecipeSaved)
+    }
+
+    @Test
+    fun When_existing_recipe_saved_Then_no_review_milestone() = runTest {
+        recipes.value = listOf(Recipe.Sample.copy(id = 11))
+        val vm = createViewModel(recipeId = 11)
+
+        vm.save()
+        vm.output.first().shouldBeFinished()
+
+        inAppReviewService.milestones shouldBe emptyList()
     }
 
     @Test

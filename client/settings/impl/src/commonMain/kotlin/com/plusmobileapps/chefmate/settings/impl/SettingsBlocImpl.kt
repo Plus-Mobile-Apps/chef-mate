@@ -14,7 +14,6 @@ import com.plusmobileapps.chefmate.settings.createGreeting
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
-import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
 
 @AssistedInject
@@ -22,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class SettingsBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<Output>,
-    viewModelFactory: Provider<SettingsViewModel>,
+    viewModelFactory: () -> SettingsViewModel,
 ) : SettingsBloc, BlocContext by context {
 
     private val viewModel = instanceKeeper.getViewModel { viewModelFactory() }
@@ -33,6 +32,8 @@ class SettingsBlocImpl(
                 isAuthenticated = it.isAuthenticated,
                 isAnonymous = it.isAnonymous,
                 greeting = it.userName?.let { name -> createGreeting(name) },
+                profileName = it.userName,
+                profileImageUrl = it.profileImageUrl,
                 verificationMessage =
                     it.emailAwaitingVerification?.let { email ->
                         createEmailVerificationMessage(email)
@@ -40,6 +41,9 @@ class SettingsBlocImpl(
                 showSignOutConfirmationDialog = it.showSignOutConfirmationDialog,
                 isDebugBuild = isDebugBuild,
                 isAiChatEnabled = it.isAiChatEnabled,
+                isManageFamilyEnabled = it.isManageFamilyEnabled,
+                isSubscribed = it.isSubscribed,
+                showPremiumRequiredDialog = it.showPremiumRequiredDialog,
                 versionName = BuildConfig.VERSION_NAME,
             )
         }
@@ -72,6 +76,10 @@ class SettingsBlocImpl(
         output.onNext(Output.OpenNotifications)
     }
 
+    override fun onManageFamilyClicked() {
+        output.onNext(Output.OpenManageFamily)
+    }
+
     override fun onUrlClicked(url: String) {
         output.onNext(Output.OpenUrl(url))
     }
@@ -81,7 +89,13 @@ class SettingsBlocImpl(
     }
 
     override fun onAiChatClicked() {
-        output.onNext(Output.OpenAiChat)
+        if (viewModel.requestAiChat()) {
+            output.onNext(Output.OpenAiChat)
+        }
+    }
+
+    override fun onPremiumRequiredDismissed() {
+        viewModel.dismissPremiumRequiredDialog()
     }
 
     override fun onDeveloperSettingsClicked() {

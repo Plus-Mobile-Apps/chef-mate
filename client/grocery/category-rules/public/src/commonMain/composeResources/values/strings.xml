@@ -1,0 +1,18 @@
+<resources>
+    <!-- Grocery category rules management screen (Settings → Grocery → Category rules) -->
+    <string name="grocery_category_rules_title">Category rules</string>
+    <string name="grocery_category_rules_section">Your rules</string>
+    <string name="grocery_category_rules_create_a11y">Add rule</string>
+    <string name="grocery_category_rules_name_placeholder">Item name</string>
+    <string name="grocery_category_rules_create_confirm_a11y">Save rule</string>
+    <string name="grocery_category_rules_create_cancel_a11y">Cancel</string>
+    <string name="grocery_category_rules_category_label">Aisle</string>
+    <string name="grocery_category_rules_empty">No rules yet — tap the + button to always file an item under a chosen aisle.</string>
+    <string name="grocery_category_rules_row_summary">{name} → {aisle}</string>
+    <string name="grocery_category_rules_more_a11y">More actions for {name}</string>
+    <string name="grocery_category_rules_delete">Delete</string>
+    <string name="grocery_category_rules_delete_title">Delete rule?</string>
+    <string name="grocery_category_rules_delete_message">{name} will go back to being categorized automatically.</string>
+    <string name="grocery_category_rules_delete_confirm">Delete</string>
+    <string name="grocery_category_rules_delete_cancel">Cancel</string>
+</resources>

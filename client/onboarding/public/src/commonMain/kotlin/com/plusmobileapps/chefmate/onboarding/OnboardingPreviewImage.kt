@@ -26,9 +26,10 @@ private val PreviewMaxWidth: Dp = 560.dp
 
 /**
  * A framed preview of a real feature screen shown at the top of an onboarding step so the user can
- * see what the feature looks like. [light]/[dark] are the same captures used by the feature
- * snapshot tests; the variant is picked from the active theme (not the system setting) so it stays
- * correct even when the theme is forced. The frame wraps the whole capture — width is capped at
+ * see what the feature looks like. [light]/[dark] are rendered from the real feature screens by
+ * `OnboardingCapturesScreenshotTest` (copy them in with `scripts/update-onboarding-previews.sh`);
+ * the variant is picked from the active theme (not the system setting) so it stays correct even
+ * when the theme is forced. The frame wraps the whole capture — width is capped at
  * [PreviewMaxWidth] and the height follows the image's own aspect ratio, so nothing is cropped.
  */
 @Composable

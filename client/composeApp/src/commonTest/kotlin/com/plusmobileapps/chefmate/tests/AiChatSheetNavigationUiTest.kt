@@ -21,6 +21,7 @@ class AiChatSheetNavigationUiTest {
     @Test
     fun ai_chat_from_recipe_detail_opens_full_screen() = runRootBlocTest { component ->
         component.testFeatureFlags.set(FeatureFlagRegistry.AiChat, true)
+        component.testSubscriptionRepository.setSubscribed(true)
 
         recipeList().clickRecipe(TestRecipes.fullyPopulated.title)
         recipeDetail().awaitDisplayed().tapAiChat()

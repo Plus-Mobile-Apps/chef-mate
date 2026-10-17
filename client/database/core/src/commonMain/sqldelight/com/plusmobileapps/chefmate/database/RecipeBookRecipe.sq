@@ -30,3 +30,20 @@ countByBook:
 SELECT recipeBookId, COUNT(*) AS recipeCount
 FROM RecipeBookRecipe
 GROUP BY recipeBookId;
+
+-- Drops the local copies of recipes that only reach the user through :recipeBookId — filed in no
+-- other local book and authored by someone else — e.g. once the user loses access to a family
+-- book. The user's own recipes are kept; callers refile them.
+deleteForeignRecipesOnlyInBook:
+DELETE FROM Recipe
+WHERE id IN (SELECT recipeId FROM RecipeBookRecipe WHERE recipeBookId = :recipeBookId)
+  AND id NOT IN (SELECT recipeId FROM RecipeBookRecipe WHERE recipeBookId != :recipeBookId)
+  AND ownerId IS NOT NULL AND ownerId != :userId;
+
+-- Files the recipes that live only in :recipeBookId under :targetBookId too, so they still have a
+-- book once :recipeBookId goes away.
+refileRecipesOnlyInBook:
+INSERT OR IGNORE INTO RecipeBookRecipe (recipeBookId, recipeId)
+SELECT :targetBookId, recipeId FROM RecipeBookRecipe
+WHERE recipeBookId = :recipeBookId
+  AND recipeId NOT IN (SELECT recipeId FROM RecipeBookRecipe WHERE recipeBookId != :recipeBookId);

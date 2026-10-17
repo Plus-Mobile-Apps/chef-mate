@@ -11,8 +11,10 @@ import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.value.Value
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.browser.BrowserBookmarksBloc
 import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.grocery.autocomplete.GroceryAutocompleteBloc
+import com.plusmobileapps.chefmate.grocery.categoryrules.GroceryCategoryRulesBloc
 import com.plusmobileapps.chefmate.recipe.bottomnav.BottomNavOrderBloc
 import com.plusmobileapps.chefmate.recipe.categories.RecipeCategoriesBloc
 import com.plusmobileapps.chefmate.recipe.exporter.ExportRecipesBloc
@@ -40,6 +42,8 @@ class SettingsRootBlocImpl(
     private val exportRecipes: ExportRecipesBloc.Factory,
     private val recipeCategories: RecipeCategoriesBloc.Factory,
     private val groceryAutocomplete: GroceryAutocompleteBloc.Factory,
+    private val groceryCategoryRules: GroceryCategoryRulesBloc.Factory,
+    private val browserBookmarks: BrowserBookmarksBloc.Factory,
 ) : SettingsRootBloc, BlocContext by context {
 
     private val navigation = StackNavigation<Configuration>()
@@ -121,6 +125,24 @@ class SettingsRootBlocImpl(
                             output = ::handleGroceryAutocompleteOutput,
                         )
                 )
+
+            Configuration.GroceryCategoryRules ->
+                SettingsRootBloc.Child.GroceryCategoryRules(
+                    bloc =
+                        groceryCategoryRules.create(
+                            context = context,
+                            output = ::handleGroceryCategoryRulesOutput,
+                        )
+                )
+
+            Configuration.BrowserBookmarks ->
+                SettingsRootBloc.Child.BrowserBookmarks(
+                    bloc =
+                        browserBookmarks.create(
+                            context = context,
+                            output = ::handleBrowserBookmarksOutput,
+                        )
+                )
         }
 
     private fun handleAppSettingsOutput(output: AppSettingsBloc.Output) {
@@ -128,6 +150,8 @@ class SettingsRootBlocImpl(
             AppSettingsBloc.Output.Back -> this.output.onNext(Output.Back)
             AppSettingsBloc.Output.OpenBottomNavOrder ->
                 navigation.bringToFront(Configuration.BottomNavOrder)
+            AppSettingsBloc.Output.OpenBrowserBookmarks ->
+                navigation.bringToFront(Configuration.BrowserBookmarks)
             AppSettingsBloc.Output.OpenImportRecipes ->
                 navigation.bringToFront(Configuration.ImportRecipes)
             AppSettingsBloc.Output.OpenExportRecipes ->
@@ -136,6 +160,8 @@ class SettingsRootBlocImpl(
                 navigation.bringToFront(Configuration.RecipeCategories)
             AppSettingsBloc.Output.OpenGroceryAutocomplete ->
                 navigation.bringToFront(Configuration.GroceryAutocomplete)
+            AppSettingsBloc.Output.OpenGroceryCategoryRules ->
+                navigation.bringToFront(Configuration.GroceryCategoryRules)
         }
     }
 
@@ -172,6 +198,18 @@ class SettingsRootBlocImpl(
         }
     }
 
+    private fun handleGroceryCategoryRulesOutput(output: GroceryCategoryRulesBloc.Output) {
+        when (output) {
+            GroceryCategoryRulesBloc.Output.Back -> navigation.pop()
+        }
+    }
+
+    private fun handleBrowserBookmarksOutput(output: BrowserBookmarksBloc.Output) {
+        when (output) {
+            BrowserBookmarksBloc.Output.Back -> navigation.pop()
+        }
+    }
+
     @Serializable
     private sealed class Configuration {
         @Serializable data object AppSettings : Configuration()
@@ -185,5 +223,9 @@ class SettingsRootBlocImpl(
         @Serializable data object RecipeCategories : Configuration()
 
         @Serializable data object GroceryAutocomplete : Configuration()
+
+        @Serializable data object GroceryCategoryRules : Configuration()
+
+        @Serializable data object BrowserBookmarks : Configuration()
     }
 }

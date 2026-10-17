@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +22,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -38,6 +45,32 @@ fun SignInScreen(auth: AdminAuth) {
     var code by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    fun sendCode() {
+        if (loading || email.isBlank()) return
+        error = null
+        loading = true
+        scope.launch {
+            auth
+                .sendOtp(email.trim())
+                .onSuccess { step = SignInStep.EnterCode }
+                .onFailure { error = it.message ?: "Could not send code" }
+            loading = false
+        }
+    }
+
+    fun verifyCode() {
+        if (loading || code.isBlank()) return
+        error = null
+        loading = true
+        scope.launch {
+            auth.verifyOtp(email.trim(), code.trim()).onFailure {
+                error = it.message ?: "Invalid code"
+            }
+            // On success the session flips and AdminRoot swaps to the dashboard.
+            loading = false
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -59,21 +92,16 @@ fun SignInScreen(auth: AdminAuth) {
                         label = { Text("Admin email") },
                         singleLine = true,
                         enabled = !loading,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth().submitOnEnter(::sendCode),
+                        keyboardOptions =
+                            KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Send,
+                            ),
+                        keyboardActions = KeyboardActions(onSend = { sendCode() }),
                     )
                     Button(
-                        onClick = {
-                            error = null
-                            loading = true
-                            scope.launch {
-                                auth
-                                    .sendOtp(email.trim())
-                                    .onSuccess { step = SignInStep.EnterCode }
-                                    .onFailure { error = it.message ?: "Could not send code" }
-                                loading = false
-                            }
-                        },
+                        onClick = ::sendCode,
                         enabled = !loading && email.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -88,22 +116,16 @@ fun SignInScreen(auth: AdminAuth) {
                         label = { Text("6-digit code") },
                         singleLine = true,
                         enabled = !loading,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth().submitOnEnter(::verifyCode),
+                        keyboardOptions =
+                            KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done,
+                            ),
+                        keyboardActions = KeyboardActions(onDone = { verifyCode() }),
                     )
                     Button(
-                        onClick = {
-                            error = null
-                            loading = true
-                            scope.launch {
-                                auth.verifyOtp(email.trim(), code.trim()).onFailure {
-                                    error = it.message ?: "Invalid code"
-                                }
-                                // On success the session flips and AdminRoot swaps to the
-                                // dashboard.
-                                loading = false
-                            }
-                        },
+                        onClick = ::verifyCode,
                         enabled = !loading && code.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -125,5 +147,20 @@ fun SignInScreen(auth: AdminAuth) {
             if (loading) CircularProgressIndicator()
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
+    }
+}
+
+/**
+ * Submits on a hardware Enter key press. Soft keyboards go through `keyboardActions`; this covers
+ * physical keyboards on web and desktop, where the IME action doesn't reliably fire. The event is
+ * consumed so a single-line field doesn't also handle it.
+ */
+private fun Modifier.submitOnEnter(onSubmit: () -> Unit): Modifier = onPreviewKeyEvent {
+    val isEnter = it.key == Key.Enter || it.key == Key.NumPadEnter
+    if (isEnter && it.type == KeyEventType.KeyDown) {
+        onSubmit()
+        true
+    } else {
+        false
     }
 }

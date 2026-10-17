@@ -172,6 +172,64 @@ class RecipeExtractorServiceTest {
 
     // endregion
 
+    // region non-string field shapes
+
+    @Test
+    fun When_duration_is_a_range_object_Then_the_lower_bound_is_used() {
+        val json =
+            """{"@type":["Recipe"],"name":"Sous Vide Burgers","recipeIngredient":["Beef"],
+               "cookTime":{"@type":"Duration","minValue":"PT45M","maxValue":"PT245M"},
+               "totalTime":{"@type":"Duration","minValue":"PT65M","maxValue":"PT265M"},
+               "prepTime":"PT10M"}"""
+        val recipe = service.parseRecipeJsonText(json, SOURCE_URL)
+        recipe?.cookTime shouldBe 45
+        recipe?.totalTime shouldBe 65
+        recipe?.prepTime shouldBe 10
+    }
+
+    @Test
+    fun When_duration_is_an_object_Then_the_rest_of_the_recipe_still_parses() {
+        val json =
+            """{"@type":"Recipe","name":"Braise","recipeIngredient":["Beef"],
+               "recipeInstructions":["Sear"],"totalTime":{"@type":"Duration","maxValue":"PT4H"}}"""
+        val recipe = service.parseRecipeJsonText(json, SOURCE_URL)
+        recipe?.title shouldBe "Braise"
+        recipe?.ingredients shouldBe listOf("Beef")
+        recipe?.directions shouldBe listOf("Sear")
+        recipe?.totalTime shouldBe 240
+    }
+
+    @Test
+    fun When_title_is_only_a_headline_Then_used_as_the_title() {
+        val json = """{"@type":["Recipe"],"headline":"Halal Cart Chicken","recipeIngredient":[]}"""
+        service.parseRecipeJsonText(json, SOURCE_URL)?.title shouldBe "Halal Cart Chicken"
+    }
+
+    @Test
+    fun When_a_step_object_is_untyped_Then_its_text_is_still_read() {
+        val json = recipeJson(instructions = """[{"text":"Sear the beef"},{"name":"Rest it"}]""")
+        service.parseRecipeJsonText(json, SOURCE_URL)?.directions shouldBe
+            listOf("Sear the beef", "Rest it")
+    }
+
+    @Test
+    fun When_ingredients_are_a_single_string_Then_parsed_as_one_entry() {
+        val json = """{"@type":"Recipe","name":"Toast","recipeIngredient":"1 slice bread"}"""
+        service.parseRecipeJsonText(json, SOURCE_URL)?.ingredients shouldBe listOf("1 slice bread")
+    }
+
+    @Test
+    fun When_nutrition_is_not_an_object_Then_calories_are_null_and_parsing_continues() {
+        val json =
+            """{"@type":"Recipe","name":"Snack","recipeIngredient":["Nuts"],
+                       "nutrition":["not an object"]}"""
+        val recipe = service.parseRecipeJsonText(json, SOURCE_URL)
+        recipe?.calories shouldBe null
+        recipe?.ingredients shouldBe listOf("Nuts")
+    }
+
+    // endregion
+
     // region ingredient sections
 
     @Test
@@ -389,7 +447,7 @@ class RecipeExtractorServiceTest {
                 directions = "Brown the beef.\nWarm the tortillas.",
             )
 
-        val extracted = service.extractRecipe(url)
+        val extracted = service.extractRecipe(url, renderedHtml = null)
 
         extracted.title shouldBe "Weeknight Tacos"
         extracted.ingredients shouldBe listOf("For the tacos:", "1 lb ground beef", "8 tortillas")
@@ -401,10 +459,71 @@ class RecipeExtractorServiceTest {
     fun When_our_own_share_link_has_no_matching_public_recipe_Then_throws() = runTest {
         val url = ChefMateUrls.recipeShareUrl("missing-id")
 
-        val error = runCatching { service.extractRecipe(url) }.exceptionOrNull()
+        val error = runCatching {
+            service.extractRecipe(url, renderedHtml = null)
+        }
+            .exceptionOrNull()
 
         error?.message shouldBe "No recipe data found on this page"
     }
+
+    // endregion
+
+    // region rendered WebView HTML
+
+    @Test
+    fun When_the_rendered_page_has_a_recipe_Then_it_is_used_without_fetching_the_url() = runTest {
+        // Any real fetch of this host would fail the test by throwing, which is the point: sites
+        // behind a bot check only ever yield their recipe through the WebView.
+        val extracted =
+            service.extractRecipe(
+                "https://blocked.invalid/recipe",
+                renderedHtml =
+                    """<html><head><script type="application/ld+json">
+                       {"@type":"Recipe","name":"Rendered Roast",
+                        "recipeIngredient":["1 roast"],"recipeInstructions":["Roast it"]}
+                       </script></head><body></body></html>""",
+            )
+
+        extracted.title shouldBe "Rendered Roast"
+        extracted.ingredients shouldBe listOf("1 roast")
+        extracted.directions shouldBe listOf("Roast it")
+        extracted.sourceUrl shouldBe "https://blocked.invalid/recipe"
+    }
+
+    @Test
+    fun When_the_rendered_page_has_only_microdata_Then_it_is_still_used() = runTest {
+        val extracted =
+            service.extractRecipe(
+                "https://blocked.invalid/recipe",
+                renderedHtml =
+                    """<html><body><div class="hrecipe">
+                       <h1 class="fn">Rendered Stew</h1>
+                       <span class="ingredient">2 carrots</span>
+                       <div class="instructions"><p>Simmer.</p></div>
+                       </div></body></html>""",
+            )
+
+        extracted.title shouldBe "Rendered Stew"
+        extracted.ingredients shouldBe listOf("2 carrots")
+        extracted.directions shouldBe listOf("Simmer.")
+    }
+
+    @Test
+    fun When_the_rendered_page_has_no_recipe_and_the_url_cannot_be_fetched_Then_reports_no_recipe() =
+        runTest {
+            val error = runCatching {
+                service.extractRecipe(
+                    "https://blocked.invalid/not-a-recipe",
+                    renderedHtml = "<html><body><p>Just an article.</p></body></html>",
+                )
+            }
+                .exceptionOrNull()
+
+            // Not the HTTP failure: we already had the page the user is looking at, and it simply
+            // had no recipe in it.
+            error?.message shouldBe "No recipe data found on this page"
+        }
 
     // endregion
 

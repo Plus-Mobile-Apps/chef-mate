@@ -125,3 +125,26 @@ private fun TextFieldValue.toggleLinePrefix(
         selection = TextRange(lineStart, lineStart + rewritten.length),
     )
 }
+
+/** The HTML tag the rich-text editor serializes a run of consecutive blank paragraphs to. */
+private const val LINE_BREAK_TAG = "<br>"
+
+/**
+ * Rewrites the standalone `<br>` lines the rich-text editor emits for consecutive blank paragraphs
+ * back into the plain blank lines they stand for.
+ *
+ * Recipe text is stored as plain, one-item-per-line markdown and rendered with the inline parser,
+ * which knows nothing about HTML — so a `<br>` that reaches storage shows up as a literal line of
+ * text on the detail and cook screens, and as a stray item when ingredients are added to a grocery
+ * list. The blank line it stands for survives the round trip through the rich editor unchanged, so
+ * dropping the tag is lossless. Lines without the tag are returned untouched.
+ */
+fun String.withoutLineBreakTags(): String =
+    if (!contains(LINE_BREAK_TAG)) {
+        this
+    } else {
+        split("\n").joinToString("\n") { line ->
+            if (!line.contains(LINE_BREAK_TAG)) line
+            else line.replace(LINE_BREAK_TAG, "").let { if (it.isBlank()) "" else it }
+        }
+    }

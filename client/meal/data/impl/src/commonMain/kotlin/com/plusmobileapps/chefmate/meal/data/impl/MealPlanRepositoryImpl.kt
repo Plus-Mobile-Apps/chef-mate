@@ -10,6 +10,7 @@ import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.di.IO
 import com.plusmobileapps.chefmate.meal.data.MealPlanItem
 import com.plusmobileapps.chefmate.meal.data.MealPlanRepository
+import com.plusmobileapps.chefmate.meal.data.MealPlanScope
 import com.plusmobileapps.chefmate.meal.data.MealType
 import com.plusmobileapps.chefmate.meal.data.SyncStatus
 import com.plusmobileapps.chefmate.meal.data.impl.remote.MealPlanRemoteDataSource
@@ -58,17 +59,28 @@ class MealPlanRepositoryImpl(
         }
     }
 
-    override fun getMealsByDate(date: String): Flow<List<MealPlanItem>> =
-        queries.getByDate(date).asFlow().mapToList(ioContext).map { rows ->
+    override fun getMealsByDate(date: String, scope: MealPlanScope): Flow<List<MealPlanItem>> =
+        queries.getByDate(date, scope.familyId).asFlow().mapToList(ioContext).map { rows ->
             rows.map { it.toMealPlanItem() }
         }
 
-    override fun getMealsByDateRange(startDate: String, endDate: String): Flow<List<MealPlanItem>> =
-        queries.getByDateRange(startDate, endDate).asFlow().mapToList(ioContext).map { rows ->
-            rows.map { it.toMealPlanItem() }
-        }
+    override fun getMealsByDateRange(
+        startDate: String,
+        endDate: String,
+        scope: MealPlanScope,
+    ): Flow<List<MealPlanItem>> =
+        queries
+            .getByDateRange(startDate, endDate, scope.familyId)
+            .asFlow()
+            .mapToList(ioContext)
+            .map { rows -> rows.map { it.toMealPlanItem() } }
 
-    override suspend fun addMeal(recipeId: Long, date: String, mealType: MealType) {
+    override suspend fun addMeal(
+        recipeId: Long,
+        date: String,
+        mealType: MealType,
+        scope: MealPlanScope,
+    ) {
         val clientId = Uuid.random().toString()
         val now = dateTimeUtil.now.toString()
         val localId =
@@ -81,6 +93,7 @@ class MealPlanRepositoryImpl(
                         clientId = clientId,
                         createdAt = now,
                         updatedAt = now,
+                        familyId = scope.familyId,
                     )
                     queries.lastInsertId().executeAsOne().MAX
                         ?: error("Failed to get last insert id")
@@ -144,6 +157,7 @@ class MealPlanRepositoryImpl(
                             createdAt = entity.createdAt,
                             updatedAt = entity.updatedAt,
                             clientId = clientId,
+                            familyId = entity.familyId,
                         )
                     )
                 withContext(ioContext) {
@@ -162,6 +176,11 @@ class MealPlanRepositoryImpl(
             // race, so ensure recipes have synced first. Recipe sync is guarded by its own mutex
             // and is idempotent, so this coalesces with any in-flight recipe sync.
             recipeRepository.syncAllUnsynced()
+
+            // Snapshot the prune candidates before this pass can assign any remote ids — see
+            // the same guard in RecipeRepositoryImpl.
+            val pruneCandidates =
+                withContext(ioContext) { queries.getSyncedRemoteIds().executeAsList() }
 
             // Push unsynced meal plans (no remoteId yet)
             val unsynced = withContext(ioContext) { queries.getUnsynced().executeAsList() }
@@ -187,6 +206,7 @@ class MealPlanRepositoryImpl(
                                 createdAt = meal.createdAt,
                                 updatedAt = meal.updatedAt,
                                 clientId = clientId,
+                                familyId = meal.familyId,
                             )
                         )
                     withContext(ioContext) {
@@ -195,13 +215,20 @@ class MealPlanRepositoryImpl(
                 } catch (_: Exception) {}
             }
 
-            // Pull remote meal plans
-            val remoteMeals = remoteDataSource.fetchAllMealPlans(userId)
+            // Pull every meal the user can see: their own plus their families' shared plans.
+            val remoteMeals = remoteDataSource.fetchAccessibleMealPlans()
             withContext(ioContext) {
                 for (remote in remoteMeals) {
                     val remoteId = remote.id ?: continue
                     val existing = queries.getByRemoteId(remoteId).executeAsOneOrNull()
-                    if (existing != null) continue
+                    if (existing != null) {
+                        // Meals are never edited in place, but deleting a family drops its meals
+                        // back onto their creators' personal plans server-side.
+                        if (existing.familyId != remote.familyId) {
+                            queries.updateFamilyId(familyId = remote.familyId, id = existing.id)
+                        }
+                        continue
+                    }
 
                     val matchedByClientId =
                         remote.clientId?.let { clientId ->
@@ -223,9 +250,23 @@ class MealPlanRepositoryImpl(
                             createdAt = remote.createdAt ?: dateTimeUtil.now.toString(),
                             updatedAt = remote.updatedAt ?: dateTimeUtil.now.toString(),
                             remoteId = remoteId,
-                            ownerId = userId,
+                            // Keep the real creator: a family meal may belong to another member.
+                            ownerId = remote.ownerId.ifBlank { userId },
+                            familyId = remote.familyId,
                         )
                     }
+                }
+
+                // Prune meals the remote no longer lists: deleted on another device or by another
+                // family member, or on the plan of a family the user has left. The fetch returns
+                // every meal the user can see, so anything synced that's missing is gone for them.
+                // Meals without a remoteId are still pending their first push and are preserved.
+                val remoteIds = remoteMeals.mapNotNull { it.id }.toSet()
+                for (row in pruneCandidates) {
+                    if (row.remoteId in remoteIds) continue
+                    val current = queries.getById(row.id).executeAsOneOrNull() ?: continue
+                    if (current.remoteId != row.remoteId) continue
+                    queries.delete(row.id)
                 }
             }
         } catch (_: Exception) {}
@@ -250,6 +291,7 @@ private fun com.plusmobileapps.chefmate.database.GetByDate.toMealPlanItem(): Mea
         recipeImageUrl = recipeImageUrl,
         date = date,
         mealType = MealType.valueOf(mealType),
+        familyId = familyId,
         syncStatus = if (remoteId != null) SyncStatus.SYNCED else SyncStatus.NOT_SYNCED,
     )
 
@@ -261,5 +303,6 @@ private fun com.plusmobileapps.chefmate.database.GetByDateRange.toMealPlanItem()
         recipeImageUrl = recipeImageUrl,
         date = date,
         mealType = MealType.valueOf(mealType),
+        familyId = familyId,
         syncStatus = if (remoteId != null) SyncStatus.SYNCED else SyncStatus.NOT_SYNCED,
     )

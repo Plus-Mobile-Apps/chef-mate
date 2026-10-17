@@ -14,9 +14,11 @@ import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryItem
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryList
 import com.plusmobileapps.chefmate.grocery.data.remote.RemoteGroceryListMember
+import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryCategoryOverrideRepository
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryRemoteDataSource
 import com.plusmobileapps.chefmate.util.testing.FakeDateTimeUtil
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -33,6 +35,7 @@ class GroceryRepositoryImplTest {
     private val fakeAuth = FakeAuthenticationRepository()
     private val fakeRemote = FakeGroceryRemoteDataSource()
     private val dateTimeUtil = FakeDateTimeUtil()
+    private val fakeOverrides = FakeGroceryCategoryOverrideRepository()
 
     private val repository =
         GroceryRepositoryImpl(
@@ -43,6 +46,7 @@ class GroceryRepositoryImplTest {
             dateTimeUtil = dateTimeUtil,
             remoteDataSource = fakeRemote,
             authRepository = fakeAuth,
+            categoryOverrideRepository = fakeOverrides,
         )
 
     @Test
@@ -557,6 +561,63 @@ class GroceryRepositoryImplTest {
             }
         }
 
+    // ─── staged delete (undo) ─────────────────────────────────────────────────
+
+    @Test
+    fun stageDelete_hides_item_from_flows_without_deleting_the_row() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+
+            repository.stageDelete(apples)
+
+            repository.getGroceries(listId).first().isEmpty() shouldBe true
+            repository.getGroceries().first().isEmpty() shouldBe true
+            db.groceryQueries.getGroceryById(apples.id).executeAsOneOrNull() shouldNotBe null
+        }
+
+    @Test
+    fun undoDelete_restores_a_staged_item() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+            repository.stageDelete(apples)
+
+            repository.undoDelete(apples.id)
+
+            repository.getGroceries(listId).first().map { it.id } shouldBe listOf(apples.id)
+        }
+
+    @Test
+    fun commitDelete_removes_the_staged_row_from_local_db() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+            repository.stageDelete(apples)
+
+            repository.commitDelete(apples.id)
+            advanceUntilIdle()
+
+            db.groceryQueries.getGroceryById(apples.id).executeAsOneOrNull() shouldBe null
+            repository.getGroceries(listId).first().isEmpty() shouldBe true
+        }
+
+    @Test
+    fun commitDelete_is_a_no_op_for_an_item_that_was_not_staged() =
+        runTest(testDispatcher) {
+            val listId = repository.ensureDefaultList()
+            repository.addGrocery(listId, "Apples")
+            val apples = repository.getGroceries(listId).first().single()
+
+            repository.commitDelete(apples.id)
+            advanceUntilIdle()
+
+            repository.getGroceries(listId).first().map { it.id } shouldBe listOf(apples.id)
+        }
+
     // ─── deleteAllGroceries ───────────────────────────────────────────────────
 
     @Test
@@ -1010,5 +1071,72 @@ class GroceryRepositoryImplTest {
             // The checked state reached the backend via updateGroceryItem.
             val remote = fakeRemote.remoteItems.values.flatten().first { it.name == "Milk" }
             remote.isChecked shouldBe true
+        }
+
+    @Test
+    fun categoryOverride_wins_over_parser_default() =
+        runTest(testDispatcher) {
+            // "Paper Towels" isn't in the IngredientParser vocabulary, so it defaults to OTHER.
+            repository.addGrocery("Paper Towels")
+            repository.getGroceries().first().first { it.name == "Paper Towels" }.category shouldBe
+                GroceryCategory.OTHER
+
+            fakeOverrides.setOverride("Paper Towels", GroceryCategory.SNACKS)
+            advanceUntilIdle()
+
+            repository.getGroceries().test {
+                awaitItem().first { it.name == "Paper Towels" }.category shouldBe
+                    GroceryCategory.SNACKS
+            }
+        }
+
+    @Test
+    fun categoryOverride_matches_parsed_name_case_insensitively() =
+        runTest(testDispatcher) {
+            // The stored name carries a quantity; the rule is keyed off the parsed name ("cold
+            // brew").
+            repository.addGrocery("2 cans Cold Brew")
+            fakeOverrides.setOverride("cold brew", GroceryCategory.BEVERAGES)
+            advanceUntilIdle()
+
+            repository.getGroceries().test {
+                awaitItem().first { it.name == "2 cans Cold Brew" }.category shouldBe
+                    GroceryCategory.BEVERAGES
+            }
+        }
+
+    @Test
+    fun per_item_stored_aisle_wins_over_category_override() =
+        runTest(testDispatcher) {
+            repository.addGrocery("Paper Towels")
+            val item = repository.getGroceries().first().first { it.name == "Paper Towels" }
+            // A per-item aisle set on this row (e.g. via the detail screen) pins it to
+            // CANNED_GOODS.
+            repository.updateGrocery(item.copy(category = GroceryCategory.CANNED_GOODS))
+            // A conflicting name rule should NOT override the explicit per-item choice.
+            fakeOverrides.setOverride("Paper Towels", GroceryCategory.SNACKS)
+            advanceUntilIdle()
+
+            repository.getGroceries().test {
+                awaitItem().first { it.name == "Paper Towels" }.category shouldBe
+                    GroceryCategory.CANNED_GOODS
+            }
+        }
+
+    @Test
+    fun removing_a_category_override_reverts_to_parser_default() =
+        runTest(testDispatcher) {
+            repository.addGrocery("Paper Towels")
+            fakeOverrides.setOverride("Paper Towels", GroceryCategory.SNACKS)
+            advanceUntilIdle()
+            val id = fakeOverrides.observeOverrides().first().first().id
+
+            fakeOverrides.removeOverride(id)
+            advanceUntilIdle()
+
+            repository.getGroceries().test {
+                awaitItem().first { it.name == "Paper Towels" }.category shouldBe
+                    GroceryCategory.OTHER
+            }
         }
 }

@@ -46,3 +46,11 @@ fun RecipePickerDarkScreenshot() {
 fun RecipePickerLoadingScreenshot() {
     RecipePickerScreenshot(bloc = previewRecipePickerBlocLoading)
 }
+
+// Expanded width (unfolded foldable / tablet / desktop) — the list stays capped and centered.
+@PreviewTest
+@Preview(showBackground = true, widthDp = 1280, heightDp = 800)
+@Composable
+fun RecipePickerExpandedScreenshot() {
+    RecipePickerScreenshot(bloc = previewRecipePickerBloc)
+}

@@ -8,6 +8,7 @@ import com.android.tools.screenshot.PreviewTest
 import com.plusmobileapps.chefmate.recipe.core.detail.RecipeDetailScreen
 import com.plusmobileapps.chefmate.recipe.core.detail.previewRecipeDetailBloc
 import com.plusmobileapps.chefmate.recipe.core.detail.previewRecipeDetailBlocWithAiChat
+import com.plusmobileapps.chefmate.recipe.core.detail.previewRecipeDetailBlocWithLockedAiChat
 import com.plusmobileapps.chefmate.toast.LocalToastService
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -29,6 +30,15 @@ private fun RecipeDetailPreview(
 @Composable
 fun RecipeDetailAiChatButtonScreenshot() {
     RecipeDetailPreview(bloc = previewRecipeDetailBlocWithAiChat)
+}
+
+// Non-subscriber: the AI Chat button is still present but dimmed, since tapping it opens the
+// ChefMate Premium upsell rather than the chat.
+@PreviewTest
+@Preview(showBackground = true, heightDp = 1000)
+@Composable
+fun RecipeDetailAiChatButtonLockedScreenshot() {
+    RecipeDetailPreview(bloc = previewRecipeDetailBlocWithLockedAiChat)
 }
 
 @PreviewTest

@@ -30,6 +30,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
     fun onClearHistoryClicked()
 
+    fun onBookmarksClicked()
+
     fun onClearHistoryConfirmed()
 
     fun onClearHistoryDismissed()
@@ -44,6 +46,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
     fun onGroceryAutocompleteClicked()
 
+    fun onGroceryCategoryRulesClicked()
+
     data class Model(
         val isHistoryEnabled: Boolean = true,
         val showClearHistoryDialog: Boolean = false,
@@ -57,6 +61,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
         data object OpenBottomNavOrder : Output()
 
+        data object OpenBrowserBookmarks : Output()
+
         data object OpenImportRecipes : Output()
 
         data object OpenExportRecipes : Output()
@@ -64,6 +70,8 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
         data object OpenRecipeCategories : Output()
 
         data object OpenGroceryAutocomplete : Output()
+
+        data object OpenGroceryCategoryRules : Output()
     }
 
     fun interface Factory {

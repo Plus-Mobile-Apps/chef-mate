@@ -50,5 +50,43 @@ object FeatureFlagRegistry {
                     "option. When off, the add button opens the blank editor directly.",
         )
 
-    val all: List<FeatureFlag<*>> = listOf(CookModeV2, HomeBannerText, AiChat, ScanRecipeFromPhoto)
+    object ManageFamily :
+        BooleanFlag(
+            key = "manage_family",
+            defaultValue = false,
+            description = "Show the Manage Family entry in the More tab.",
+        )
+
+    object FamilyMealPlans :
+        BooleanFlag(
+            key = "family_meal_plans",
+            defaultValue = false,
+            description = "Let the meal planner switch between the personal plan and family plans.",
+        )
+
+    object FamilyGroceryLists :
+        BooleanFlag(
+            key = "family_grocery_lists",
+            defaultValue = false,
+            description = "Let families share grocery lists, managed from Manage Family.",
+        )
+
+    object FamilyRecipeBooks :
+        BooleanFlag(
+            key = "family_recipe_books",
+            defaultValue = false,
+            description = "Let families share recipe books, managed from Manage Family.",
+        )
+
+    val all: List<FeatureFlag<*>> =
+        listOf(
+            CookModeV2,
+            HomeBannerText,
+            AiChat,
+            ScanRecipeFromPhoto,
+            ManageFamily,
+            FamilyMealPlans,
+            FamilyGroceryLists,
+            FamilyRecipeBooks,
+        )
 }

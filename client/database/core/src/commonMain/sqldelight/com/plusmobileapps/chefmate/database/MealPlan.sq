@@ -11,47 +11,53 @@ CREATE TABLE MealPlan (
     clientId TEXT,
     isDirty INTEGER AS Boolean NOT NULL DEFAULT 0,
     ownerId TEXT,
+    -- The family's remote id when the meal is on a family's shared plan; NULL for a personal meal.
+    familyId TEXT,
     FOREIGN KEY (recipeId) REFERENCES Recipe(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_mealplan_date ON MealPlan(date);
 CREATE INDEX idx_mealplan_recipe ON MealPlan(recipeId);
+CREATE INDEX idx_mealplan_family_date ON MealPlan(familyId, date);
 
 getByDate:
 SELECT MealPlan.id, MealPlan.recipeId, MealPlan.date, MealPlan.mealType,
-       MealPlan.createdAt, MealPlan.updatedAt, MealPlan.remoteId,
+       MealPlan.createdAt, MealPlan.updatedAt, MealPlan.remoteId, MealPlan.familyId,
        Recipe.title AS recipeTitle, Recipe.imageUrl AS recipeImageUrl
 FROM MealPlan
 INNER JOIN Recipe ON MealPlan.recipeId = Recipe.id
 WHERE MealPlan.date = ?
+  AND MealPlan.familyId IS ?
 ORDER BY MealPlan.mealType ASC;
 
 getByDateRange:
 SELECT MealPlan.id, MealPlan.recipeId, MealPlan.date, MealPlan.mealType,
-       MealPlan.createdAt, MealPlan.updatedAt, MealPlan.remoteId,
+       MealPlan.createdAt, MealPlan.updatedAt, MealPlan.remoteId, MealPlan.familyId,
        Recipe.title AS recipeTitle, Recipe.imageUrl AS recipeImageUrl
 FROM MealPlan
 INNER JOIN Recipe ON MealPlan.recipeId = Recipe.id
 WHERE MealPlan.date >= ? AND MealPlan.date <= ?
+  AND MealPlan.familyId IS ?
 ORDER BY MealPlan.date ASC, MealPlan.mealType ASC;
 
 getById:
 SELECT * FROM MealPlan WHERE id = ?;
 
 insert:
-INSERT INTO MealPlan (recipeId, date, mealType, clientId, createdAt, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO MealPlan (recipeId, date, mealType, clientId, createdAt, updatedAt, familyId)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 insertWithRemoteId:
-INSERT INTO MealPlan (recipeId, date, mealType, clientId, createdAt, updatedAt, remoteId, ownerId)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO MealPlan (recipeId, date, mealType, clientId, createdAt, updatedAt, remoteId, ownerId, familyId)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(remoteId) DO UPDATE SET
     recipeId = excluded.recipeId,
     date = excluded.date,
     mealType = excluded.mealType,
     updatedAt = excluded.updatedAt,
     clientId = excluded.clientId,
-    ownerId = excluded.ownerId;
+    ownerId = excluded.ownerId,
+    familyId = excluded.familyId;
 
 delete:
 DELETE FROM MealPlan WHERE id = ?;
@@ -74,8 +80,16 @@ SELECT * FROM MealPlan WHERE clientId = ?;
 getUnsynced:
 SELECT * FROM MealPlan WHERE remoteId IS NULL;
 
+getSyncedRemoteIds:
+SELECT id, remoteId FROM MealPlan WHERE remoteId IS NOT NULL;
+
 updateRemoteId:
 UPDATE MealPlan SET remoteId = ?, isDirty = 0 WHERE id = ?;
 
 updateClientId:
 UPDATE MealPlan SET clientId = ? WHERE id = ?;
+
+-- The family's server-side membership of a meal changed (e.g. the family was deleted, which drops
+-- its meals back onto their creators' personal plans).
+updateFamilyId:
+UPDATE MealPlan SET familyId = ? WHERE id = ?;
