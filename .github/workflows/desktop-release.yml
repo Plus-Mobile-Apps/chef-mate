@@ -63,27 +63,7 @@ jobs:
             VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' client/composeApp/build.gradle.kts | head -n1)
           fi
 
-          # jpackage names the app image directory after the platform packageName, so glob for it
-          # instead of hardcoding a name the Gradle config could change out from under us.
-          APP_DIR=$(find client/composeApp/build/compose/binaries/main-release/app \
-            -mindepth 1 -maxdepth 1 -type d | head -n1)
-          if [ -z "$APP_DIR" ]; then echo "No app image produced" >&2; exit 1; fi
-
-          STAGE="${RUNNER_TEMP}/chef-mate-${VERSION}"
-          mkdir -p "$STAGE/icons"
-          cp -a "$APP_DIR" "$STAGE/app"
-          cp LICENSE "$STAGE/LICENSE"
-
-          # Flathub wants icons at the standard hicolor sizes; the source is 584x584, which is not
-          # one of them, so resize rather than shipping a mis-binned icon.
-          IM=$(command -v magick || command -v convert)
-          for size in 64 128 256 512; do
-            "$IM" client/composeApp/src/jvmMain/resources/app-icon.png \
-              -resize "${size}x${size}" "$STAGE/icons/${size}.png"
-          done
-
-          tar -czf "${RUNNER_TEMP}/chef-mate-${VERSION}-linux-x86_64.tar.gz" \
-            -C "${RUNNER_TEMP}" "chef-mate-${VERSION}"
+          packaging/linux/stage-tarball.sh "$VERSION" "${RUNNER_TEMP}"
 
       - name: Upload Flathub tarball (Linux)
         if: runner.os == 'Linux'
