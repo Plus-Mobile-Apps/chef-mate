@@ -1,20 +1,22 @@
 # Client Architecture
 
-The Chefmate+ client app is a highly modularized Kotlin Multiplatform (KMP) app targeting the JVM (Desktop), Android, & iOS. The architecture is based off a business logic component (BLoC) architecture by using Decompose. l
+The Chefmate+ client app is a highly modularized Kotlin Multiplatform (KMP) app targeting the JVM (Desktop), Android, & iOS. The architecture is based off a business logic component (BLoC) architecture by using Decompose. Dependency injection is handled by [Metro](https://github.com/ZacSweers/metro).
 
 ## Module Structure
 
-The feature modules are bundled into 3 different kinds of modules to help promote separation of concerns. 
+The feature modules are bundled into a few different kinds of modules to help promote separation of concerns. 
 
 ```mermaid
 flowchart TD
     I[impl] --> P[public]
     T[testing] --> P
+    R[impl-robots] --> P
 ```
 
 * `public` - the public facing API of a feature module. Public modules are allowed to depend on other public modules and should never depend on any `impl` modules.
 * `impl` - the production implementation of a feature module. The `impl` module can only depend on other `public` feature modules and should never depend on other feature `impl` modules. Anytime a new `impl` module is created, it should be added to the `client/composeApp/build.gradle.kts` under the `commonMain` source set so it can be registered in the dependency graph. 
 * `testing` - the test implementation of a feature module. This can be used in other `impl` feature modules for testing purposes. 
+* `impl-robots` - reusable Compose UI test robots for a feature's screens (`plusLibrary { uiTest = true }`), used by the multiplatform UI flow tests.
 
 ## Data Layer
 
@@ -22,13 +24,13 @@ The data layer is abstracted in the form of a repository to mediate any data fro
 
 ### Local Cache
 
-The app is offline first and all data is stored in a database using sql delight. All database related code lives in the `client/database` module, so any feature module that needs to interact with the database will import that module. 
+The app is offline first and all data is stored in a database using sql delight. All database related code lives in the `client/database/core` module, so any feature module that needs to interact with the database will import that module. 
 
 ```kotlin
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.client.database)
+            implementation(projects.client.database.core)
         }
     }
 }
@@ -56,7 +58,7 @@ interface GroceryListBloc {
     val state: StateFlow<Model>
 
     // Click listeners
-    fun onGroceryItemClicked(id: String)
+    fun onGroceryItemClicked(item: GroceryItem)
 
     // BLoC state
     data class Model(
@@ -81,20 +83,21 @@ interface GroceryListBloc {
 }
 ```
 
-The implementation of the BLoC interface uses the `Impl` suffix in the name. To bind the implementation to the assisted factory interface, the class is first annotated with `@Inject` followed by `@ContributesAssistedFactory` with the scope to bind it (`AppScope` is the usual scope) and the assisted factory interface. By using delegation, the `BlocContext` implementation is delegated to the assisted parameter to the class. The context gives an instance keeper and using a utility method can create a view model. 
+The implementation of the BLoC interface uses the `Impl` suffix in the name. To bind the implementation to the assisted factory interface, the class is first annotated with Metro's `@AssistedInject` followed by `@ContributesAssistedFactory` with the scope to bind it (`AppScope` is the usual scope) and the assisted factory interface. By using delegation, the `BlocContext` implementation is delegated to the assisted parameter to the class. The context gives an instance keeper and using a utility method can create a view model. 
 
 ```kotlin
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.getViewModel
 import com.plusmobileapps.chefmate.mapState
-import com.plusmobileapps.kotlin.inject.anvil.extensions.assistedfactory.runtime.ContributesAssistedFactory
+import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.Provider
 import kotlinx.coroutines.flow.StateFlow
-import me.tatarka.inject.annotations.Assisted
-import me.tatarka.inject.annotations.Inject
-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
-@Inject
+@AssistedInject
 @ContributesAssistedFactory(
     scope = AppScope::class,
     assistedFactory = GroceryListBloc.Factory::class,
@@ -102,7 +105,7 @@ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 class GroceryListBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val output: Consumer<GroceryListBloc.Output>,
-    viewModelFactory: () -> GroceryListViewModel,
+    viewModelFactory: Provider<GroceryListViewModel>,
 ) : GroceryListBloc,
     BlocContext by context {
     private val viewModel =
@@ -134,7 +137,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import me.tatarka.inject.annotations.Inject
+import dev.zacsweers.metro.Inject
 import kotlin.coroutines.CoroutineContext
 
 @Inject
@@ -234,16 +237,16 @@ import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.value.Value
 import com.plusmobileapps.chefmate.BlocContext
 import com.plusmobileapps.chefmate.Consumer
+import com.plusmobileapps.chefmate.di.AppScope
 import com.plusmobileapps.chefmate.recipe.core.detail.RecipeDetailBloc
 import com.plusmobileapps.chefmate.recipe.core.edit.EditRecipeBloc
 import com.plusmobileapps.chefmate.recipe.core.root.RecipeRootBloc
-import com.plusmobileapps.kotlin.inject.anvil.extensions.assistedfactory.runtime.ContributesAssistedFactory
+import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedInject
 import kotlinx.serialization.Serializable
-import me.tatarka.inject.annotations.Assisted
-import me.tatarka.inject.annotations.Inject
-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
-@Inject
+@AssistedInject
 @ContributesAssistedFactory(
     scope = AppScope::class,
     assistedFactory = RecipeRootBloc.Factory::class,
@@ -362,11 +365,11 @@ Every screen implements `ComposeScreen`, which exposes a single `@Composable fun
 
 ```kotlin
 @Composable
-fun RecipeRootScreen(bloc: RecipeRootBloc, modifier: Modifier = Modifier) {
+fun RecipeRootScreen(recipeRootBloc: RecipeRootBloc, modifier: Modifier = Modifier) {
     Children(
         modifier = modifier.fillMaxSize(),
-        stack = bloc.routerState,
-        animation = backAnimation(backHandler = bloc.backHandler, onBack = bloc::onBackClicked),
+        stack = recipeRootBloc.routerState,
+        animation = backAnimation(backHandler = recipeRootBloc.backHandler, onBack = recipeRootBloc::onBackClicked),
     ) { child ->
         child.instance.bloc.Content()
     }
@@ -375,7 +378,7 @@ fun RecipeRootScreen(bloc: RecipeRootBloc, modifier: Modifier = Modifier) {
 
 ### Navigation Animations & Shared Elements
 
-Navigation screens are rendered from a Decompose `ChildStack` with `Children` + `predictiveBackAnimation`, so the system predictive-back gesture and animation work across the whole stack. The shared `backAnimation` helper (`client/ui/public/.../BackAnimation.kt`) wraps `predictiveBackAnimation` with a `slide` fallback; `RootScreen` inlines it so modal children (Browser, Meal Planner, Cook Mode) can slide vertically instead.
+Navigation screens are rendered from a Decompose `ChildStack` with `Children` + `predictiveBackAnimation`, so the system predictive-back gesture and animation work across the whole stack. The shared `backAnimation` helper (`client/ui/public/.../BackAnimation.kt`) is an `expect` function that wraps `predictiveBackAnimation` with a `slide` fallback by default; `RootScreen` passes its own `fallbackAnimation` and `isModal` so modal children (Browser, Meal Planner, Cook Mode, AI Chat, Edit Recipe Book, Edit Grocery List) slide vertically instead.
 
 Predictive back takes priority over cross-screen morphs. A root-level `SharedTransitionLayout` + `AnimatedContent` would replace `Children` and disable predictive back, so it is intentionally **not** used. Shared-element transitions are scoped to **self-contained, in-screen morphs** that own their navigation and never cross the root stack — for example the recipe-detail full-screen image (`RecipeDetailScreen` hosts its own local `SharedTransitionLayout`) and the browser address bar (`BrowserRootScreen`). The helpers and composition locals for these live in `client/ui/public/.../SharedTransitionScopes.kt`; provide `LocalSharedTransitionScope` from a `SharedTransitionLayout` *inside the owning screen*, never from the root.
 

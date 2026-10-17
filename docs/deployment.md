@@ -179,8 +179,9 @@ releaseStorePassword=YOUR_STORE_PASSWORD
    UI. R8/ProGuard minification is disabled for the release build type in
    `client/composeApp/build.gradle.kts`, so the binary is functionally identical to the old debug
    packaging — it just carries the release marker.
-2. The `macos` job (tag pushes only) runs `fastlane mac release`, which builds a Store-signed `.pkg`
-   via `./gradlew :client:composeApp:packageReleasePkg` and uploads it to App Store Connect (see
+2. The `macos` job runs `fastlane mac release`, which builds a Store-signed `.pkg`
+   via `./gradlew :client:composeApp:packageReleasePkg` and, on tag pushes only, uploads it to App Store
+   Connect (a manual `workflow_dispatch` run builds + signs without uploading — see
    [macOS: Mac App Store](#macos-mac-app-store)).
 3. On Windows, also builds the app image (`createReleaseDistributable`) and packs an MSIX via `makeappx`
 4. Uploads the Windows/Linux packages (and the MSIX) as build artifacts. macOS emits no GitHub-Release
@@ -240,15 +241,15 @@ Windows ships through the **Microsoft Store** as an MSIX package. This is the re
 
 ### Packaging sketch
 
-jpackage / Compose Desktop does **not** emit MSIX, so we package the unpackaged *app image* ourselves. Compose Desktop's `createDistributable` task produces the app image (app + bundled JRE) at:
+jpackage / Compose Desktop does **not** emit MSIX, so we package the unpackaged *app image* ourselves. Compose Desktop's `createReleaseDistributable` task produces the app image (app + bundled JRE) at:
 
 ```
-client/composeApp/build/compose/binaries/main/app/Chef Mate/
+client/composeApp/build/compose/binaries/main-release/app/Chef Mate/
 ```
 
 The MSIX is then built by laying that directory next to an `AppxManifest.xml` and running `makeappx` (part of the Windows SDK, preinstalled on `windows-latest` runners). **This is wired into `desktop-release.yml`** — the manifest lives at `packaging/windows/AppxManifest.xml` and uses `__TOKEN__` placeholders that the workflow substitutes at build time.
 
-**`packaging/windows/AppxManifest.xml`** (the committed manifest uses tokens; the identity values come from Partner Center, and the version must be 4-part with a `.0` revision):
+**`packaging/windows/AppxManifest.xml`** (header comment omitted; the identity values come from Partner Center, and the version must be 4-part with a `.0` revision — the workflow appends `.0` to the tag version):
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -257,14 +258,14 @@ The MSIX is then built by laying that directory next to an `AppxManifest.xml` an
     xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
     xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
 
-  <Identity Name="[PACKAGE_IDENTITY_NAME]"
-            Publisher="[CN=PUBLISHER_ID]"
-            Version="1.7.1.0"
+  <Identity Name="__IDENTITY_NAME__"
+            Publisher="__PUBLISHER__"
+            Version="__VERSION__"
             ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Chef Mate</DisplayName>
-    <PublisherDisplayName>Plus Mobile Apps</PublisherDisplayName>
+    <DisplayName>Chef Mate+</DisplayName>
+    <PublisherDisplayName>Plus Mobile Apps LLC</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -282,7 +283,7 @@ The MSIX is then built by laying that directory next to an `AppxManifest.xml` an
                  Executable="Chef Mate.exe"
                  EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-          DisplayName="Chef Mate"
+          DisplayName="Chef Mate+"
           Description="Chef Mate - Your AI Cooking Assistant"
           BackgroundColor="transparent"
           Square150x150Logo="Assets\Square150x150Logo.png"
@@ -291,7 +292,7 @@ The MSIX is then built by laying that directory next to an `AppxManifest.xml` an
   </Applications>
 
   <Capabilities>
-    <!-- Win32 / Desktop Bridge apps require the runFullTrust restricted capability -->
+    <!-- Win32 (Desktop Bridge) apps with a bundled JRE must run unsandboxed -->
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 </Package>
@@ -435,12 +436,12 @@ sandbox-inherit + JVM exceptions), wired via `entitlementsFile` / `runtimeEntitl
    - At developer.apple.com → Certificates → ➕ → **Mac App Distribution**, upload the CSR, download
      the `.cer`, and double-click it to install.
 3. Import that cert + its key into the match repo (its key isn't there yet since you made it by hand).
-   The key must be a bare PKCS#1 PEM (same conversion the Developer ID cert used — see below), then:
+   The key must be a bare PKCS#1 PEM, then:
    ```bash
    unset APP_STORE_CONNECT_API_KEY APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID
    export MATCH_PASSWORD=<match repo passphrase>
    bundle exec fastlane match import --type appstore --platform macos \
-     --git_url git@github.com:Plus-Mobile-Apps/certificates.git
+     --git_url git@github.com:Plus-Mobile-Apps/certificates.git --git_branch macos
    # Certificate (.cer): the Mac App Distribution cert; Private Key (.p12): the converted key;
    # Provisioning Profile: leave empty (generated next).
    ```
@@ -523,7 +524,7 @@ Follow these steps in order to go from zero to automated Play Store deployments:
    git push origin v0.1.0
    ```
 
-9. **After first publish** — once the app is live on any track, update `release_status` in `fastlane/Fastfile` from `"draft"` to `"completed"` so future uploads go live automatically.
+9. **Before first publish** — `fastlane/Fastfile` currently uploads with `release_status: "completed"`. If your app has never been published on any track, temporarily set it to `"draft"` (see [Draft apps](#play-store-service-account)), then switch back to `"completed"` once the app is live.
 
 ### Generating the Android Keystore
 
@@ -560,7 +561,7 @@ Store the output as the `ANDROID_KEYSTORE_BASE64` secret.
 
 **Important:** The first AAB must be uploaded manually through the Play Console to create the app listing. Fastlane `supply` can only upload to an existing app.
 
-**Draft apps:** If your app has not yet been published on any track, the Play Store API requires uploads to have `release_status: "draft"`. This is configured in `fastlane/Fastfile`. Once the app is published for the first time (even to the internal track), you can change this to `"completed"` so releases go live automatically.
+**Draft apps:** If your app has not yet been published on any track, the Play Store API requires uploads to have `release_status: "draft"`. This is configured in `fastlane/Fastfile`, which is currently set to `"completed"` (the app is already published) so releases go live on the internal track automatically.
 
 ### Fastlane Match (iOS Certificates)
 
@@ -660,7 +661,7 @@ If you have a `keystore.properties` file at the project root, no environment var
 bundle exec fastlane ios release
 
 # Desktop — build release packages for your current OS (hides developer-only UI).
-# Output lands in build/compose/binaries/main-release/. Use the plain package* tasks
+# Output lands in client/composeApp/build/compose/binaries/main-release/. Use the plain package* tasks
 # only for local debug builds where you want the Developer Settings row visible.
 ./gradlew :client:composeApp:packageReleasePkg    # macOS (Mac App Store .pkg; unsigned without certs)
 ./gradlew :client:composeApp:packageReleaseMsi    # Windows

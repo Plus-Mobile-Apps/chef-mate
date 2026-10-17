@@ -77,6 +77,7 @@ erDiagram
         text status "pending | accepted | rejected"
         uuid invited_by FK
         timestamptz created_at
+        timestamptz updated_at
     }
 
     grocery_lists ||--o{ grocery_items : contains
@@ -106,7 +107,7 @@ sequenceDiagram
     Note over Supabase: RLS: only list owner can insert
 
     Invitee->>Supabase: Sync (SELECT grocery_lists)
-    Note over Supabase: RLS returns lists where<br/>user is owner OR accepted member
+    Note over Supabase: RLS returns lists where user is owner,<br/>accepted member, or pending invitee
     Supabase-->>Invitee: Shared list appears after accept
 
     Invitee->>Supabase: UPDATE grocery_list_members<br/>SET status = 'accepted'
@@ -153,24 +154,27 @@ The verified sending domain is `plusmobileapps.com` and the default sender is
 
 The existing offline-first sync is extended for collaboration:
 
-1. **Push phase** (owned lists only):
+1. **Pull phase** (all accessible lists, runs first):
+   - `fetchAccessibleGroceryLists()` uses a filter-less SELECT — RLS returns owned + shared lists
+   - Each pulled list is tagged locally with `ownerId`, `role`, and `isShared`; an unsynced local
+     list with the same name is linked instead of duplicated
+   - Local lists whose `remoteId` no longer comes back are pruned (deleted on another device)
+
+2. **Push phase** (owned lists only):
    - Push unsynced/dirty lists where `role = 'owner'`
    - Shared lists are never pushed as new creations
 
-2. **Pull phase** (all accessible lists):
-   - `fetchAccessibleGroceryLists()` uses a filter-less SELECT — RLS returns owned + shared lists
-   - Each pulled list is tagged locally with `ownerId`, `role`, and `isShared`
-   - Members are fetched and cached in `GroceryListMember`
+3. **Member sync**: members are fetched and cached in `GroceryListMember`
 
-3. **Item sync** (unchanged): items sync per-list; RLS authorizes shared-list items.
+4. **Item sync** (unchanged): items sync per-list; RLS authorizes shared-list items.
 
 ## RLS Policy Summary
 
 | Table | SELECT | INSERT | UPDATE | DELETE |
 |-------|--------|--------|--------|--------|
-| `grocery_lists` | owner OR accepted member | owner only | owner OR editor member | owner only |
+| `grocery_lists` | owner OR accepted member OR pending invitee | owner only | owner OR editor member | owner only |
 | `grocery_items` | user has list access | owner OR editor | owner OR editor | owner OR editor |
-| `grocery_list_members` | list members + owner | list owner only | invited user OR owner | owner OR self (leave) |
+| `grocery_list_members` | user has list access OR invited user | list owner only | invited user OR owner | owner OR self (leave / decline) |
 
 ## UI Components
 
@@ -188,14 +192,15 @@ The existing offline-first sync is extended for collaboration:
 | Concern | Path |
 |---------|------|
 | Supabase migration | `supabase/migrations/20260425_add_collaboration.sql` |
+| Pending-invite access + collaborator RPCs | `supabase/migrations/20260612_grocery_pending_invite_access.sql` |
 | Invite-email migration | `supabase/migrations/20260707_invite_email_notification.sql` |
 | Invite-email edge function | `supabase/functions/send-invite-email/index.ts` |
 | SQLDelight migration | `client/database/core/src/commonMain/sqldelight/.../database/6.sqm` |
 | Member queries | `client/database/core/src/commonMain/sqldelight/.../GroceryListMember.sq` |
 | Collaboration models | `client/grocery/data/public/.../CollaborationModels.kt` |
-| Remote member model | `client/grocery/data/impl/.../remote/RemoteGroceryListMember.kt` |
+| Remote member model | `client/grocery/data/public/.../remote/RemoteGroceryListMember.kt` |
 | Repository | `client/grocery/data/impl/.../GroceryRepositoryImpl.kt` |
 | List BLoC | `client/grocery/core/public/.../list/GroceryListBloc.kt` |
 | Edit BLoC | `client/grocery/core/public/.../edit/EditGroceryListBloc.kt` |
-| Edit screen | `client/grocery/core/impl/.../edit/ui/EditGroceryListScreen.kt` |
+| Edit screen | `client/grocery/core/public/.../edit/EditGroceryListScreen.kt` |
 | DI bindings | `client/database/core/.../di/DatabaseComponent.kt` |

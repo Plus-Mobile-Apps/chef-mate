@@ -9,6 +9,9 @@ A debug-only screen reachable from the bottom of the **More** tab that lets you 
 | **Environment** | Switches between `PROD`, `TESTING`, and `FAKE`. Persisted via `multiplatform-settings`. Selecting a new env signs you out, wipes the local DB (recipes, grocery, meal plans), seeds `Recipe.Samples` if `FAKE` is chosen, and prompts for an app restart so the Supabase client rebinds. |
 | **Login as test user** | Lists pre-baked users sourced from Gradle env vars / properties and signs in via the existing Supabase auth repo. Persists which user is selected so the screen can show "currently signed in as User N" across restarts. If the credentials are wrong, an error dialog surfaces the Supabase error message. |
 | **Sign out** | Visible only when authenticated. Signs the test user out **and** wipes the local DB so the next user starts from a clean cache. |
+| **Feature flags** | Opens the Feature Flags screen for forcing per-flag dev overrides (see [feature-flags.md](feature-flags.md#dev-overrides)). |
+| **Subscribed** | Toggles a fake premium entitlement (`DeveloperPreferences.isSubscribed`) that every premium gate observes, e.g. AI chat. |
+| **Reset coach marks** | Clears every "seen" coach mark so they show again on their screens. |
 
 ## Configuring the environment URLs
 
@@ -80,7 +83,7 @@ The build script in `client/shared/build.gradle.kts` collects every contiguous u
 
 ## Debug-build gating
 
-The "Developer Settings" row only appears when `BuildConfig.IS_DEBUG` is `true`. The flag is derived at configuration time from `gradle.startParameter.taskNames`: any task containing `Release` flips it to `false`. This is a UI-gate, not a security boundary — the dev-settings code itself ships in every binary.
+The "Developer Settings" row only appears when `BuildConfig.IS_DEBUG` is `true`. The flag is derived at configuration time from `gradle.startParameter.taskNames`: any task containing `Release` flips it to `false`. For Xcode-driven iOS builds (whose `embedAndSignAppleFrameworkForXcode` task never contains "Release"), a `CONFIGURATION=Release` env var also flips it to `false`. This is a UI-gate, not a security boundary — the dev-settings code itself ships in every binary.
 
 | Build path | `IS_DEBUG` |
 |---|---|
@@ -89,6 +92,7 @@ The "Developer Settings" row only appears when `BuildConfig.IS_DEBUG` is `true`.
 | `./gradlew :client:composeApp:packagePkg` (desktop debug package) | `true` |
 | `./gradlew :client:composeApp:bundleRelease` | `false` |
 | `./gradlew :client:composeApp:packageReleasePkg` (desktop release package) | `false` |
+| Xcode build with `CONFIGURATION=Release` | `false` |
 | IDE sync (no tasks) | `true` |
 
 > **Desktop packaging caveat:** the plain `packagePkg` / `packageMsi` / `packageDeb` tasks do **not**
@@ -99,7 +103,7 @@ The "Developer Settings" row only appears when `BuildConfig.IS_DEBUG` is `true`.
 ## Architecture notes
 
 - **`client/shared`** owns the `Environment` enum and the read-only `EnvironmentProvider` contract, so production code (e.g. `SupabaseModule`) doesn't depend on the dev-settings module.
-- **`client/developer-settings/public`** owns the `DeveloperSettingsBloc`, screen, and `DeveloperPreferences` interface (which extends `EnvironmentProvider`).
+- **`client/developer-settings/public`** owns the `DeveloperSettingsBloc`, screen, and `DeveloperPreferences` interface (which extends `EnvironmentProvider` and also holds the selected test user and fake subscription state).
 - **`client/developer-settings/impl`** provides `DeveloperPreferencesImpl` (russhwolf-`Settings`-backed), `TestUserProvider` (parses the BuildKonfig string), `FakeRecipeSeeder` (inserts `Recipe.Samples`), and the BLoC + ViewModel that orchestrate env changes.
 - The Supabase client is `@SingleIn(AppScope::class)` and binds the URL/key at first injection. **Switching env requires an app restart** — the screen surfaces a dialog telling the user to do so.
 
