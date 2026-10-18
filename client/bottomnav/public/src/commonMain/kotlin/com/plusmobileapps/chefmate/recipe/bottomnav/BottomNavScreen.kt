@@ -126,6 +126,7 @@ import com.plusmobileapps.chefmate.ui.components.glass.appBackdropSource
 import com.plusmobileapps.chefmate.ui.components.glass.rememberAppBackdrop
 import com.plusmobileapps.chefmate.ui.components.reportBottomNavInset
 import com.plusmobileapps.chefmate.ui.fadeScalePredictiveBackAnimatable
+import com.plusmobileapps.chefmate.ui.stableWindowInsets
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.StringResource
@@ -313,7 +314,12 @@ private fun MobileBottomNavContent(
         // used to — no tab root applies a top inset of its own, so without this every screen would
         // run under the status bar. windowInsetsPadding consumes what it applies, so nested
         // consumers don't double-pad. The bottom is deliberately left unpadded; screens clear the
-        // bar through LocalBottomNavBarInset instead.
+        // bar through LocalBottomNavBarInset instead. The insets go through stableWindowInsets() so
+        // popping a root screen (a movableContent move) doesn't crash iOS; see its KDoc.
+        val contentInsets =
+            WindowInsets.systemBars
+                .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                .stableWindowInsets()
         CompositionLocalProvider(
             LocalAppBackdrop provides backdrop,
             LocalBottomNavBarInset provides barInset,
@@ -322,11 +328,7 @@ private fun MobileBottomNavContent(
             content(
                 Modifier.fillMaxSize()
                     .appBackdropSource(backdrop)
-                    .windowInsetsPadding(
-                        WindowInsets.systemBars.only(
-                            WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                        )
-                    )
+                    .windowInsetsPadding(contentInsets)
                     .imePadding()
             )
         }
