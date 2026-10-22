@@ -138,6 +138,7 @@ import com.plusmobileapps.chefmate.ui.components.PlusLoadingIndicator
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
+import com.plusmobileapps.chefmate.ui.stableWindowInsets
 import com.plusmobileapps.chefmate.ui.text.parseListLine
 import com.plusmobileapps.chefmate.ui.text.toDisplayAnnotatedString
 import com.plusmobileapps.chefmate.ui.text.withoutLineBreakTags
@@ -1199,10 +1200,13 @@ private fun CookModeBottomBar(
 ) {
     BottomAppBar(
         modifier = modifier.fillMaxWidth(),
+        // Stable insets so closing Cook Mode (a movableContent move) doesn't crash iOS; see
+        // stableWindowInsets().
         windowInsets =
             WindowInsets.systemBars
                 .union(WindowInsets.displayCutout)
-                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                .stableWindowInsets(),
     ) {
         IconButton(onClick = onWhatsCookingClicked) {
             Icon(
