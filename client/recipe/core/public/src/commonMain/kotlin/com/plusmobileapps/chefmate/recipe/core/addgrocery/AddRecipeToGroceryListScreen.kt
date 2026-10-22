@@ -65,7 +65,10 @@ fun AddRecipeToGroceryListScreen(bloc: AddRecipeToGroceryListBloc, modifier: Mod
         scrollEnabled = false,
         floatingActionButton = {
             if (!state.isLoading && state.hasSelectedIngredients) {
-                ExtendedFloatingActionButton(onClick = bloc::onSaveClicked) {
+                ExtendedFloatingActionButton(
+                    onClick = bloc::onSaveClicked,
+                    modifier = Modifier.testTag(AddRecipeToGroceryListTestTags.ADD_BUTTON),
+                ) {
                     if (state.isAdding) {
                         PlusLoadingIndicator(
                             modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingSmall)

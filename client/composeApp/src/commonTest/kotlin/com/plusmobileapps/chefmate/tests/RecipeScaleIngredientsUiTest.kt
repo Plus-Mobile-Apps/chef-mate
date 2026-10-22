@@ -34,4 +34,12 @@ class RecipeScaleIngredientsUiTest {
             .assertIngredientScale("2×")
             .assertIngredientDisplayed("400g")
     }
+
+    @Test
+    fun adding_ingredients_from_recipe_detail_closes_the_sheet() = runRootBlocTest {
+        recipeList().clickRecipe(TestRecipes.fullyPopulated.title)
+        recipeDetail().awaitDisplayed().tapAddToGroceryList()
+        addRecipeToGroceryList().awaitDisplayed().tapAdd().awaitDismissed()
+        recipeDetail().awaitDisplayed()
+    }
 }
