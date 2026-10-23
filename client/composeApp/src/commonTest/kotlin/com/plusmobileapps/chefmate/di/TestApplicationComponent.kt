@@ -10,6 +10,7 @@ import com.plusmobileapps.chefmate.fakes.TestFamilyRecipeBookRepository
 import com.plusmobileapps.chefmate.fakes.TestFamilyRepository
 import com.plusmobileapps.chefmate.fakes.TestFeatureFlags
 import com.plusmobileapps.chefmate.fakes.TestSubscriptionRepository
+import com.plusmobileapps.chefmate.fakes.TestVoiceAssistantProvider
 
 interface TestApplicationComponent : ApplicationComponent {
     val fakeDatabase: FakeDatabase
@@ -21,6 +22,7 @@ interface TestApplicationComponent : ApplicationComponent {
     val testFamilyRecipeBookRepository: TestFamilyRecipeBookRepository
     val testSubscriptionRepository: TestSubscriptionRepository
     val browserBookmarkRepository: BrowserBookmarkRepository
+    val testVoiceAssistantProvider: TestVoiceAssistantProvider
 }
 
 expect fun createTestApplicationComponent(): TestApplicationComponent
