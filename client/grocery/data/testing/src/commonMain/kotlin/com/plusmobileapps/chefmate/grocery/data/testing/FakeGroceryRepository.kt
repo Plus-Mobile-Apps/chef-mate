@@ -35,6 +35,11 @@ class FakeGroceryRepository : GroceryRepository {
 
     override fun getGroceryLists(): Flow<List<GroceryListModel>> = _lists.asStateFlow()
 
+    /** Replace the lists outright, e.g. to seed family or shared lists. */
+    fun setGroceryLists(lists: List<GroceryListModel>) {
+        _lists.value = lists
+    }
+
     override suspend fun addGrocery(name: String) {
         val defaultListId = _lists.value.firstOrNull()?.id ?: 1L
         addGrocery(defaultListId, name)
