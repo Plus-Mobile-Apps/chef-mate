@@ -103,4 +103,42 @@ class InlineMarkdownTest {
         result.text shouldBe "see [Sauce] later"
         result.getLinkAnnotations(0, result.length).size shouldBe 0
     }
+
+    @Test
+    fun bareUrlWithHandlerIsLinked() {
+        var clicked: String? = null
+        val result =
+            "Adapted from https://example.com/recipes/green_sauce today"
+                .toInlineMarkdownAnnotatedString(onLinkClick = { clicked = it })
+
+        result.text shouldBe "Adapted from https://example.com/recipes/green_sauce today"
+        result.spanStyles.size shouldBe 0
+        val link = result.getLinkAnnotations(0, result.length).single()
+        link.start shouldBe 13
+        link.end shouldBe 52
+        val clickable = link.item as LinkAnnotation.Clickable
+        clickable.linkInteractionListener!!.onClick(clickable)
+        clicked shouldBe "https://example.com/recipes/green_sauce"
+    }
+
+    @Test
+    fun bareUrlDropsTrailingPunctuation() {
+        val result = "See http://example.com/a.".toInlineMarkdownAnnotatedString(onLinkClick = {})
+        val link = result.getLinkAnnotations(0, result.length).single()
+        (link.item as LinkAnnotation.Clickable).tag shouldBe "http://example.com/a"
+    }
+
+    @Test
+    fun bareUrlWithoutHandlerKeepsUnderscoresLiteral() {
+        val result = "via https://example.com/a_b_c".toInlineMarkdownAnnotatedString()
+        result.text shouldBe "via https://example.com/a_b_c"
+        result.spanStyles.size shouldBe 0
+        result.getLinkAnnotations(0, result.length).size shouldBe 0
+    }
+
+    @Test
+    fun schemeInsideWordIsNotLinked() {
+        val result = "xhttps://example.com".toInlineMarkdownAnnotatedString(onLinkClick = {})
+        result.getLinkAnnotations(0, result.length).size shouldBe 0
+    }
 }

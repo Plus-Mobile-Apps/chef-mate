@@ -21,15 +21,18 @@ const val ITALIC_MARKER: String = "_"
 
 /**
  * Parses a single line of lightweight inline markdown into an [AnnotatedString], supporting
- * `**bold**`, `_italic_` (nestable, e.g. `**bold _and italic_**`), and `[label](url)` links.
- * Markers without a matching partner are left as literal text, so plain recipe lines — and stray
- * `*` or `_` characters — render unchanged. This is intentionally inline-only: ingredients and
- * directions stay one item per line, so block markdown (headings, lists, etc.) is not interpreted.
+ * `**bold**`, `_italic_` (nestable, e.g. `**bold _and italic_**`), `[label](url)` links, and bare
+ * `http(s)://` URLs. Markers without a matching partner are left as literal text, so plain recipe
+ * lines — and stray `*` or `_` characters — render unchanged. This is intentionally inline-only:
+ * ingredients and directions stay one item per line, so block markdown (headings, lists, etc.) is
+ * not interpreted.
  *
  * A `[label](url)` link always renders as just its [label] (the raw markdown is never shown). When
  * [onLinkClick] is non-null the label is wrapped in a clickable [LinkAnnotation] — styled with
  * [linkStyle] — whose listener is invoked with the link's `url`; when it is null (read-only
- * surfaces like cook mode) the label renders as plain, inert text.
+ * surfaces like cook mode) the label renders as plain, inert text. A bare URL is linked the same
+ * way (its text is the label) and is otherwise kept verbatim, so `_` or `**` inside it is never
+ * read as a style marker.
  */
 fun String.toInlineMarkdownAnnotatedString(
     linkStyle: SpanStyle? = null,
@@ -51,6 +54,14 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(
             if (literalStart < i) append(text.substring(literalStart, i))
             appendLink(link, linkStyle, onLinkClick)
             i = link.end
+            literalStart = i
+            continue
+        }
+        val bareUrlEnd = bareUrlEndAt(text, i)
+        if (bareUrlEnd != null) {
+            if (literalStart < i) append(text.substring(literalStart, i))
+            appendBareUrl(text.substring(i, bareUrlEnd), linkStyle, onLinkClick)
+            i = bareUrlEnd
             literalStart = i
             continue
         }
@@ -95,6 +106,24 @@ private fun AnnotatedString.Builder.appendLink(
     withLink(annotation) { appendInlineMarkdown(link.label, linkStyle, onLinkClick) }
 }
 
+private fun AnnotatedString.Builder.appendBareUrl(
+    url: String,
+    linkStyle: SpanStyle?,
+    onLinkClick: ((String) -> Unit)?,
+) {
+    if (onLinkClick == null) {
+        append(url)
+        return
+    }
+    val annotation =
+        LinkAnnotation.Clickable(
+            tag = url,
+            styles = linkStyle?.let { TextLinkStyles(style = it) },
+            linkInteractionListener = { onLinkClick(url) },
+        )
+    withLink(annotation) { append(url) }
+}
+
 /** A parsed `[label](url)` link and the index just past its closing `)`. */
 private class InlineLink(val label: String, val url: String, val end: Int)
 
@@ -113,6 +142,27 @@ private fun linkAt(text: String, index: Int): InlineLink? {
     val url = text.substring(labelEnd + 2, urlEnd)
     if (label.isEmpty() || url.isEmpty()) return null
     return InlineLink(label = label, url = url, end = urlEnd + 1)
+}
+
+private val BARE_URL_SCHEMES = listOf("https://", "http://")
+
+/** Trailing characters that usually end the surrounding sentence rather than the URL itself. */
+private const val BARE_URL_TRAILING_PUNCTUATION = ".,;:!?'\")]}"
+
+/**
+ * Returns the end index of a bare `http(s)://` URL starting at [index], or null when there isn't
+ * one. The URL must start a word (so `xhttps://` isn't matched) and runs to the next whitespace,
+ * minus any trailing sentence punctuation (`see https://example.com.` links `https://example.com`).
+ */
+private fun bareUrlEndAt(text: String, index: Int): Int? {
+    if (index > 0 && text[index - 1].isLetterOrDigit()) return null
+    val scheme =
+        BARE_URL_SCHEMES.firstOrNull { text.startsWith(it, index, ignoreCase = true) }
+            ?: return null
+    var end = index + scheme.length
+    while (end < text.length && !text[end].isWhitespace()) end++
+    while (end > index + scheme.length && text[end - 1] in BARE_URL_TRAILING_PUNCTUATION) end--
+    return if (end > index + scheme.length) end else null
 }
 
 private fun markerAt(text: String, index: Int): String? =
