@@ -19,12 +19,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -96,12 +100,28 @@ fun PlusTextField(
         }
     }
 
+    // Swapping in a fresh OutputTransformation instance makes BasicTextField rebuild its internal
+    // selection state, which re-reads the clipboard — the only way to refresh the iOS native edit
+    // menu's Paste item after the clipboard changes (see rememberNativePasteRefreshKey). The
+    // wrapper delegates to the caller's transformation, so the visible text is unchanged.
+    var isFocused by remember { mutableStateOf(false) }
+    val pasteRefreshKey = rememberNativePasteRefreshKey(isFocused)
+    val refreshedOutputTransformation =
+        remember(outputTransformation, pasteRefreshKey) {
+            if (pasteRefreshKey == 0) {
+                outputTransformation
+            } else {
+                OutputTransformation { outputTransformation?.run { transformOutput() } }
+            }
+        }
+
     // Capture into a local so the null-check smart-casts inside the semantics lambda. The autofill
     // hint must land on the text field node itself (not the outer Column) so the platform autofill
     // service can identify the field and offer to save/fill credentials for it.
     val autofillContentType = contentType
     val fieldModifier =
         Modifier.fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused }
             .let { if (focusRequester != null) it.focusRequester(focusRequester) else it }
             .let {
                 if (autofillContentType != null) {
@@ -132,7 +152,7 @@ fun PlusTextField(
             trailingIcon = trailingIcon,
             isError = isError,
             lineLimits = lineLimits,
-            outputTransformation = outputTransformation,
+            outputTransformation = refreshedOutputTransformation,
             keyboardOptions = keyboardOptions.withNativeTextInput(),
             onKeyboardAction = keyboardActions.toKeyboardActionHandler(keyboardOptions.imeAction),
             shape = shape,

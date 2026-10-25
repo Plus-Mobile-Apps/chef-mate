@@ -31,7 +31,7 @@ class BrowserRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasTestTag(BrowserTestTags.engineOption(engine)) and
-                    hasAnyAncestor(hasTestTag(BrowserTestTags.SELECT_ENGINE_SCREEN))
+                    hasAnyAncestor(hasTestTag(BrowserTestTags.SELECT_ENGINE_SCREEN)),
             )
             .performClick()
     }
@@ -62,14 +62,16 @@ class BrowserRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasContentDescription(title, substring = true) and
-                    hasAnyAncestor(hasTestTag(BrowserTestTags.LANDING_BOOKMARKS))
+                    hasAnyAncestor(hasTestTag(BrowserTestTags.LANDING_BOOKMARKS)),
             )
             .performClick()
         test.onNodeWithTag(BrowserTestTags.BOOKMARK_DELETE).performClick()
     }
 
     fun awaitBookmarkGone(title: String): BrowserRobot = apply {
-        test.waitUntilDoesNotExist(bookmarkTitle(title))
+        // Deletion round-trips through the bookmark repository before the tile disappears; the
+        // 1s default timed out on a loaded CI runner, so allow more headroom.
+        test.waitUntilDoesNotExist(bookmarkTitle(title), timeoutMillis = 5_000)
     }
 
     private fun bookmarkTitle(title: String) =
