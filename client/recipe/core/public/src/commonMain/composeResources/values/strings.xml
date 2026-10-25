@@ -6,6 +6,9 @@
     <string name="recipe_add_to_grocery_list_no_ingredients">No ingredients available</string>
     <string name="recipe_add_to_grocery_list_select_list">Select grocery list</string>
     <string name="recipe_add_to_grocery_list_scale">Scale</string>
+    <string name="recipe_add_to_grocery_list_personal_lists">Personal</string>
+    <string name="recipe_add_to_grocery_list_family_lists_fallback">Family</string>
+    <string name="recipe_add_to_grocery_list_shared_lists">Shared with you</string>
     <string name="recipe_add_to_grocery_list_added">Ingredients added to grocery list</string>
     <string name="recipe_add_to_grocery_list_view">View</string>
     <string name="recipe_detail_back">Back</string>

@@ -1,6 +1,7 @@
 package com.plusmobileapps.chefmate.recipe.core.addgrocery
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -15,8 +16,10 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,13 +30,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import chefmate.client.recipe.core.public.generated.resources.Res
 import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list
 import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_add
+import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_family_lists_fallback
 import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_no_ingredients
+import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_personal_lists
 import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_scale
 import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_select_list
+import chefmate.client.recipe.core.public.generated.resources.recipe_add_to_grocery_list_shared_lists
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryDisplayGroup
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryDisplayItem
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryGroupedList
@@ -71,7 +79,7 @@ fun AddRecipeToGroceryListScreen(bloc: AddRecipeToGroceryListBloc, modifier: Mod
                 ) {
                     if (state.isAdding) {
                         PlusLoadingIndicator(
-                            modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingSmall)
+                            modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingSmall),
                         )
                     }
                     Text(stringResource(Res.string.recipe_add_to_grocery_list_add))
@@ -97,6 +105,7 @@ fun AddRecipeToGroceryListScreen(bloc: AddRecipeToGroceryListBloc, modifier: Mod
             else -> {
                 GroceryListSelector(
                     groceryLists = state.groceryLists,
+                    sections = state.groceryListSections,
                     selectedList = state.selectedGroceryList,
                     onListSelected = bloc::onGroceryListSelected,
                 )
@@ -166,6 +175,7 @@ private fun IngredientScaleRow(
 @Composable
 private fun GroceryListSelector(
     groceryLists: List<AddRecipeToGroceryListBloc.GroceryListItem>,
+    sections: List<AddRecipeToGroceryListBloc.GroceryListSection>,
     selectedList: AddRecipeToGroceryListBloc.GroceryListItem?,
     onListSelected: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -177,26 +187,80 @@ private fun GroceryListSelector(
         onExpandedChange = { expanded = it },
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
+        // Disabled rather than readOnly: a read-only field still takes focus, and on iOS a tap on
+        // a focused field pops the "Select All" text toolbar over the menu. The anchor handles the
+        // tap itself, so the field never needs focus; the colors keep it looking enabled.
+        val colors = MaterialTheme.colorScheme
         OutlinedTextField(
             value = selectedList?.name ?: "",
             onValueChange = {},
-            readOnly = true,
+            enabled = false,
             label = { Text(stringResource(Res.string.recipe_add_to_grocery_list_select_list)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = colors.onSurface,
+                    disabledBorderColor = if (expanded) colors.primary else colors.outline,
+                    disabledLabelColor = if (expanded) colors.primary else colors.onSurfaceVariant,
+                    disabledTrailingIconColor = colors.onSurfaceVariant,
+                ),
             modifier =
                 Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     .fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            groceryLists.forEach { list ->
-                DropdownMenuItem(
-                    text = { Text(list.name) },
-                    onClick = {
-                        onListSelected(list.id)
-                        expanded = false
-                    },
-                )
-            }
+            GroceryListSelectorMenuContent(
+                sections = sections,
+                onListSelected = { id ->
+                    onListSelected(id)
+                    expanded = false
+                },
+            )
         }
     }
 }
+
+/**
+ * Rows of the grocery list picker, grouped under Personal / family / Shared with you headers. The
+ * headers only show once there's more than one section, so a user with only personal lists sees a
+ * plain list. Public so screenshot tests can render it directly, since the dropdown's popup doesn't
+ * snapshot under the plugin.
+ */
+@Composable
+fun ColumnScope.GroceryListSelectorMenuContent(
+    sections: List<AddRecipeToGroceryListBloc.GroceryListSection>,
+    onListSelected: (Long) -> Unit,
+) {
+    val showHeaders = sections.size > 1
+    sections.forEachIndexed { index, section ->
+        if (showHeaders) {
+            if (index > 0) HorizontalDivider()
+            Text(
+                text = section.header.title(),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                // 12dp lines the header up with DropdownMenuItem's own text inset.
+                modifier =
+                    Modifier.padding(
+                            horizontal = 12.dp,
+                            vertical = ChefMateTheme.dimens.paddingSmall,
+                        )
+                        .semantics { heading() },
+            )
+        }
+        section.lists.forEach { list ->
+            DropdownMenuItem(text = { Text(list.name) }, onClick = { onListSelected(list.id) })
+        }
+    }
+}
+
+@Composable
+private fun AddRecipeToGroceryListBloc.GroceryListSection.Header.title(): String =
+    when (this) {
+        AddRecipeToGroceryListBloc.GroceryListSection.Header.Personal ->
+            stringResource(Res.string.recipe_add_to_grocery_list_personal_lists)
+        is AddRecipeToGroceryListBloc.GroceryListSection.Header.Family ->
+            name ?: stringResource(Res.string.recipe_add_to_grocery_list_family_lists_fallback)
+        AddRecipeToGroceryListBloc.GroceryListSection.Header.SharedWithYou ->
+            stringResource(Res.string.recipe_add_to_grocery_list_shared_lists)
+    }
