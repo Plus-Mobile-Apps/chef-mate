@@ -474,7 +474,7 @@ class RootBlocTest {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenDeveloperSettings)
         rootBloc.instance() should instanceOf<RootBloc.Child.DeveloperSettings>()
         developerSettingsOutput.onNext(
-            com.plusmobileapps.chefmate.devsettings.DeveloperSettingsBloc.Output.OpenFeatureFlags
+            com.plusmobileapps.chefmate.devsettings.DeveloperSettingsBloc.Output.OpenFeatureFlags,
         )
         rootBloc.instance() should instanceOf<RootBloc.Child.FeatureFlags>()
     }
@@ -633,6 +633,37 @@ class RootBlocTest {
         root.state.value.backStack.size shouldBe 1
         root.state.value.backStack.first().instance should
             instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_public_recipe_preview_is_gone_When_it_resolves_late_Then_bottom_nav_is_kept() {
+        // A late result used to drop whatever was on top — here the bottom nav itself — leaving the
+        // recipe as the only entry, so back did nothing.
+        val uuid = "315be76b-96d6-4155-8667-1a5d6019339a"
+        rootBloc.handleDeepLink("https://chefmate.plusmobileapps.com/recipe/$uuid")
+        val staleOutput = publicRecipeOutput
+        rootBloc.onBackClicked()
+
+        staleOutput.onNext(PublicRecipeBloc.Output.OpenRecipe(recipeId = 7L))
+
+        rootBloc.state.value.items.map { it.instance }.single() should
+            instanceOf<RootBloc.Child.BottomNavigation>()
+    }
+
+    @Test
+    fun Given_public_recipe_preview_is_covered_When_it_resolves_Then_only_the_preview_is_replaced() {
+        val uuid = "315be76b-96d6-4155-8667-1a5d6019339a"
+        rootBloc.handleDeepLink("https://chefmate.plusmobileapps.com/recipe/$uuid")
+        rootBloc.handleDeepLink("https://chefmate.plusmobileapps.com/notifications")
+
+        publicRecipeOutput.onNext(PublicRecipeBloc.Output.OpenRecipe(recipeId = 7L))
+
+        val stack = rootBloc.state.value.items.map { it.instance }
+        stack.size shouldBe 3
+        stack[0] should instanceOf<RootBloc.Child.BottomNavigation>()
+        stack[1] should instanceOf<RootBloc.Child.Notifications>()
+        stack[2] should instanceOf<RootBloc.Child.RecipeRoot>()
+        recipeProps shouldBe RecipeRootBloc.Props.Detail(recipeId = 7L)
     }
 
     @Test
