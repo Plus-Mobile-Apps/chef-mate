@@ -166,11 +166,11 @@ class RootBlocImpl(
             }
             DeepLink.SignIn ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignIn)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignIn),
                 )
             DeepLink.SignUp ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignUp)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignUp),
                 )
             DeepLink.None -> Unit
         }
@@ -207,7 +207,7 @@ class RootBlocImpl(
                                     isSignedIn = isSignedIn(),
                                 ),
                             output = ::handleOnboardingOutput,
-                        )
+                        ),
                 )
 
             Configuration.BottomNavigation ->
@@ -216,7 +216,7 @@ class RootBlocImpl(
                         context = context,
                         output = ::handleBottomNavOutput,
                         initialTab = initialBottomNavTab,
-                    )
+                    ),
                 )
 
             is Configuration.RecipeRoot ->
@@ -226,7 +226,7 @@ class RootBlocImpl(
                             context = context,
                             props = config.props,
                             output = ::handleRecipeRootOutput,
-                        )
+                        ),
                 )
 
             is Configuration.PublicRecipe ->
@@ -235,8 +235,8 @@ class RootBlocImpl(
                         publicRecipe.create(
                             context = context,
                             remoteId = config.remoteId,
-                            output = ::handlePublicRecipeOutput,
-                        )
+                            output = { handlePublicRecipeOutput(config, it) },
+                        ),
                 )
 
             is Configuration.Authentication ->
@@ -246,7 +246,7 @@ class RootBlocImpl(
                             context = context,
                             props = config.props,
                             output = ::handleAuthenticationOutput,
-                        )
+                        ),
                 )
 
             is Configuration.OtpVerification ->
@@ -256,7 +256,7 @@ class RootBlocImpl(
                             context = context,
                             props = OtpBloc.Props(email = config.email, flow = config.flow),
                             output = ::handleOtpOutput,
-                        )
+                        ),
                 )
 
             is Configuration.Browser ->
@@ -269,7 +269,7 @@ class RootBlocImpl(
                             showControls = false,
                             presentation =
                                 BrowserRootBloc.Presentation.Modal(onClose = { navigation.pop() }),
-                        )
+                        ),
                 )
 
             is Configuration.MealPlanner ->
@@ -279,7 +279,7 @@ class RootBlocImpl(
                             context = context,
                             props = config.props,
                             output = ::handleMealPlannerOutput,
-                        )
+                        ),
                 )
 
             is Configuration.SettingsRoot ->
@@ -289,7 +289,7 @@ class RootBlocImpl(
                             context = context,
                             props = config.props,
                             output = ::handleSettingsRootOutput,
-                        )
+                        ),
                 )
 
             Configuration.ManageProfile ->
@@ -298,7 +298,7 @@ class RootBlocImpl(
                         manageProfile.create(
                             context = context,
                             output = ::handleManageProfileOutput,
-                        )
+                        ),
                 )
 
             Configuration.Notifications ->
@@ -307,7 +307,7 @@ class RootBlocImpl(
                         notifications.create(
                             context = context,
                             output = ::handleNotificationsOutput,
-                        )
+                        ),
                 )
 
             Configuration.ManageFamily ->
@@ -316,7 +316,7 @@ class RootBlocImpl(
                         manageFamilyRoot.create(
                             context = context,
                             output = ::handleManageFamilyOutput,
-                        )
+                        ),
                 )
 
             Configuration.DeveloperSettings ->
@@ -325,7 +325,7 @@ class RootBlocImpl(
                         developerSettings.create(
                             context = context,
                             output = ::handleDeveloperSettingsOutput,
-                        )
+                        ),
                 )
 
             Configuration.FeatureFlags ->
@@ -334,7 +334,7 @@ class RootBlocImpl(
                         featureFlagsBlocFactory.create(
                             context = context,
                             output = ::handleFeatureFlagsOutput,
-                        )
+                        ),
                 )
 
             is Configuration.CookMode ->
@@ -344,7 +344,7 @@ class RootBlocImpl(
                             context = context,
                             initialRecipeId = config.recipeId,
                             output = ::handleCookModeOutput,
-                        )
+                        ),
                 )
 
             is Configuration.AiChat ->
@@ -354,7 +354,7 @@ class RootBlocImpl(
                             context = context,
                             recipeContextId = config.recipeContextId,
                             output = ::handleAiChatOutput,
-                        )
+                        ),
                 )
 
             is Configuration.ExportRecipes ->
@@ -366,7 +366,7 @@ class RootBlocImpl(
                                 config.recipeIds?.let { ExportRecipesBloc.Props.Selected(it) }
                                     ?: ExportRecipesBloc.Props.All,
                             output = ::handleExportRecipesOutput,
-                        )
+                        ),
                 )
 
             is Configuration.EditRecipeBook ->
@@ -378,7 +378,7 @@ class RootBlocImpl(
                                 config.bookId?.let { EditRecipeBookBloc.Props.Edit(it) }
                                     ?: EditRecipeBookBloc.Props.Create,
                             output = ::handleEditRecipeBookOutput,
-                        )
+                        ),
                 )
 
             is Configuration.EditGroceryList ->
@@ -388,7 +388,7 @@ class RootBlocImpl(
                             context = context,
                             listId = config.listId,
                             output = ::handleEditGroceryListOutput,
-                        )
+                        ),
                 )
         }
 
@@ -432,11 +432,11 @@ class RootBlocImpl(
             // the onboarding stack down for us.
             OnboardingRootBloc.Output.SignIn ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignIn)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignIn),
                 )
             OnboardingRootBloc.Output.SignUp ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignUp)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignUp),
                 )
         }
     }
@@ -457,20 +457,20 @@ class RootBlocImpl(
                         RecipeRootBloc.Props.CreateFromExtracted(
                             extracted = output.extracted,
                             consumePendingPhoto = output.consumePendingPhoto,
-                        )
-                    )
+                        ),
+                    ),
                 )
             }
 
             BottomNavBloc.Output.OpenSignIn -> {
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignIn)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignIn),
                 )
             }
 
             BottomNavBloc.Output.OpenSignUp -> {
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignUp)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignUp),
                 )
             }
 
@@ -500,7 +500,7 @@ class RootBlocImpl(
 
             BottomNavBloc.Output.OpenGroceryAutocompleteSettings -> {
                 navigation.bringToFront(
-                    Configuration.SettingsRoot(SettingsRootBloc.Props.GroceryAutocomplete)
+                    Configuration.SettingsRoot(SettingsRootBloc.Props.GroceryAutocomplete),
                 )
             }
 
@@ -561,11 +561,11 @@ class RootBlocImpl(
             EditGroceryListBloc.Output.Finished -> navigation.pop()
             EditGroceryListBloc.Output.OpenSignIn ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignIn)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignIn),
                 )
             EditGroceryListBloc.Output.OpenSignUp ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignUp)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignUp),
                 )
         }
     }
@@ -590,11 +590,11 @@ class RootBlocImpl(
             NotificationsBloc.Output.Back -> navigation.pop()
             NotificationsBloc.Output.OpenSignIn ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignIn)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignIn),
                 )
             NotificationsBloc.Output.OpenSignUp ->
                 navigation.bringToFront(
-                    Configuration.Authentication(AuthenticationBloc.Props.SignUp)
+                    Configuration.Authentication(AuthenticationBloc.Props.SignUp),
                 )
         }
     }
@@ -672,8 +672,8 @@ class RootBlocImpl(
                             extracted = output.extracted,
                             fromAi = true,
                             consumePendingPhoto = output.consumePendingPhoto,
-                        )
-                    )
+                        ),
+                    ),
                 )
         }
     }
@@ -684,33 +684,44 @@ class RootBlocImpl(
         }
     }
 
-    private fun handlePublicRecipeOutput(output: PublicRecipeBloc.Output) {
+    private fun handlePublicRecipeOutput(
+        preview: Configuration.PublicRecipe,
+        output: PublicRecipeBloc.Output,
+    ) {
         when (output) {
             PublicRecipeBloc.Output.Finished -> navigation.pop()
             // Replace the preview with the real detail screen — the recipe is now in the user's
             // library (either already owned, or just saved as a copy), so back shouldn't return to
             // the read-only preview.
             is PublicRecipeBloc.Output.OpenRecipe ->
-                replaceCurrentBringingToFront(RecipeRoot(Detail(output.recipeId)))
+                replacePreview(preview, RecipeRoot(Detail(output.recipeId)))
             is PublicRecipeBloc.Output.OpenUrl ->
                 navigation.bringToFront(Configuration.Browser(output.url))
         }
     }
 
     /**
-     * Drops the current top of the stack and brings [configuration] to the front, removing any
-     * existing entry of the same class first.
+     * Swaps [preview] for [destination] on top of the stack, removing any existing entry of the
+     * destination's class first.
      *
-     * Plain `replaceCurrent` can't be used here: the screen being replaced may be sitting directly
-     * on top of the very destination it resolves to (open recipe 18 → tap its share link → the
-     * read-only preview resolves back to recipe 18), and appending the destination a second time
-     * makes Decompose fail with "Configurations must be unique". Every other transition in this
-     * stack goes through [bringToFront], so at most one entry per configuration class is the
-     * invariant this preserves.
+     * The preview is removed by identity rather than by dropping whatever is on top. A cold-start
+     * share link resolves asynchronously, and if that result lands when the preview is no longer on
+     * top, dropping the top entry removed the bottom nav itself, which left the recipe as the only
+     * entry on the stack, so back did nothing. If the preview is already gone, the result is stale
+     * and ignored.
+     *
+     * Removing an existing destination entry matters too: the preview may sit directly on top of
+     * the very recipe it resolves to (open recipe 18 → tap its share link → the read-only preview
+     * resolves back to recipe 18), and appending it a second time makes Decompose fail with
+     * "Configurations must be unique".
      */
-    private fun replaceCurrentBringingToFront(configuration: Configuration) {
+    private fun replacePreview(
+        preview: Configuration.PublicRecipe,
+        destination: Configuration,
+    ) {
         navigation.navigate { stack ->
-            stack.dropLast(1).filterNot { it::class == configuration::class } + configuration
+            if (preview !in stack) return@navigate stack
+            stack.filterNot { it == preview || it::class == destination::class } + destination
         }
     }
 
@@ -724,18 +735,18 @@ class RootBlocImpl(
             AuthenticationBloc.Output.AuthenticationSuccess -> finishAuthentication()
             is AuthenticationBloc.Output.EmailVerificationRequired ->
                 navigation.bringToFront(
-                    Configuration.OtpVerification(email = output.email, flow = OtpFlow.SignUp)
+                    Configuration.OtpVerification(email = output.email, flow = OtpFlow.SignUp),
                 )
             is AuthenticationBloc.Output.EmailChangeRequired ->
                 navigation.bringToFront(
-                    Configuration.OtpVerification(email = output.email, flow = OtpFlow.EmailChange)
+                    Configuration.OtpVerification(email = output.email, flow = OtpFlow.EmailChange),
                 )
             is AuthenticationBloc.Output.PasswordlessOtpSent ->
                 navigation.bringToFront(
                     Configuration.OtpVerification(
                         email = output.email,
                         flow = OtpFlow.PasswordlessSignIn,
-                    )
+                    ),
                 )
             is AuthenticationBloc.Output.OpenUrl ->
                 navigation.bringToFront(Configuration.Browser(output.url))
@@ -807,7 +818,7 @@ class RootBlocImpl(
 
         @Serializable
         data class SettingsRoot(
-            val props: SettingsRootBloc.Props = SettingsRootBloc.Props.Default
+            val props: SettingsRootBloc.Props = SettingsRootBloc.Props.Default,
         ) : Configuration()
 
         @Serializable data object ManageProfile : Configuration()
