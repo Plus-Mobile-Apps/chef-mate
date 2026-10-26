@@ -25,6 +25,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.backhandler.BackDispatcher
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.plusmobileapps.chefmate.buildconfig.BuildConfig
@@ -165,6 +166,10 @@ fun main(args: Array<String>) {
                 }
             },
         ) {
+            // Drives the root lifecycle from this window (focus, minimize), the way the Activity
+            // does on Android. Without it the lifecycle never leaves INITIALIZED and every
+            // `doOnResume` in the bloc tree (e.g. the family list's load) never fires.
+            LifecycleController(lifecycle, windowState)
             // Deep links that arrive while the app is running (macOS Apple Events, or links
             // forwarded
             // from a second launch on Windows/Linux) route into the live RootBloc and raise the
