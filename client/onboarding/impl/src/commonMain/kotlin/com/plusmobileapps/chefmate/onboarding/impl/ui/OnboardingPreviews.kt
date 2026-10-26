@@ -21,6 +21,9 @@ import com.plusmobileapps.chefmate.onboarding.SaveRecipesScreen
 import com.plusmobileapps.chefmate.onboarding.ShareRecipesScreen
 import com.plusmobileapps.chefmate.onboarding.StartCookingBloc
 import com.plusmobileapps.chefmate.onboarding.StartCookingScreen
+import com.plusmobileapps.chefmate.onboarding.VoiceAssistant
+import com.plusmobileapps.chefmate.onboarding.VoiceGroceryBloc
+import com.plusmobileapps.chefmate.onboarding.VoiceGroceryScreen
 import com.plusmobileapps.chefmate.onboarding.WelcomeBloc
 import com.plusmobileapps.chefmate.onboarding.WelcomeScreen
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
@@ -53,6 +56,20 @@ val previewSaveRecipesBloc: SaveRecipesBloc =
 
 val previewAddToGroceryBloc: AddToGroceryBloc =
     object : AddToGroceryBloc {
+        override fun onNextClicked() = Unit
+    }
+
+val previewVoiceGrocerySiriBloc: VoiceGroceryBloc =
+    object : VoiceGroceryBloc {
+        override val assistant: VoiceAssistant = VoiceAssistant.SIRI
+
+        override fun onNextClicked() = Unit
+    }
+
+val previewVoiceGroceryGeminiBloc: VoiceGroceryBloc =
+    object : VoiceGroceryBloc {
+        override val assistant: VoiceAssistant = VoiceAssistant.GEMINI
+
         override fun onNextClicked() = Unit
     }
 
@@ -151,6 +168,18 @@ internal fun SaveRecipesScreenPreview() {
 @Composable
 internal fun AddToGroceryScreenPreview() {
     ChefMateTheme { AddToGroceryScreen(bloc = previewAddToGroceryBloc) }
+}
+
+@Preview
+@Composable
+internal fun VoiceGroceryScreenSiriPreview() {
+    ChefMateTheme { VoiceGroceryScreen(bloc = previewVoiceGrocerySiriBloc) }
+}
+
+@Preview
+@Composable
+internal fun VoiceGroceryScreenGeminiPreview() {
+    ChefMateTheme { VoiceGroceryScreen(bloc = previewVoiceGroceryGeminiBloc) }
 }
 
 @Preview

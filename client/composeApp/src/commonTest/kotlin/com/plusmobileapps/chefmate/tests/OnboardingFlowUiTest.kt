@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import com.plusmobileapps.chefmate.fixtures.TestRecipes
 import com.plusmobileapps.chefmate.harness.runRootBlocTest
+import com.plusmobileapps.chefmate.onboarding.VoiceAssistant
 import com.plusmobileapps.chefmate.onboarding.robots.onboarding
 import com.plusmobileapps.chefmate.recipe.list.robots.recipeList
 import kotlin.test.Test
@@ -41,6 +42,26 @@ class OnboardingFlowUiTest {
             // Finishing replaces the onboarding stack with the bottom nav (recipes tab).
             waitUntilExactlyOneExists(hasText(TestRecipes.fullyPopulated.title))
             recipeList().assertRecipeIsDisplayed(TestRecipes.fullyPopulated.title)
+        }
+
+    @Test
+    fun with_a_voice_assistant_the_voice_step_follows_add_to_grocery() =
+        runRootBlocTest(
+            showOnboarding = true,
+            beforeContent = { it.testVoiceAssistantProvider.assistant = VoiceAssistant.SIRI },
+        ) {
+            onboarding()
+                .assertWelcomeDisplayed()
+                .clickGetStarted()
+                .assertShareRecipesDisplayed()
+                .clickShareRecipesNext()
+                .assertSaveRecipesDisplayed()
+                .clickSaveRecipesNext()
+                .assertAddToGroceryDisplayed()
+                .clickAddToGroceryNext()
+                .assertVoiceGroceryDisplayed()
+                .clickVoiceGroceryNext()
+                .assertMealPlanningDisplayed()
         }
 
     @Test
