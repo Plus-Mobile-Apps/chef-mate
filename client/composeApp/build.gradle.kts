@@ -1,3 +1,4 @@
+import com.plusmobileapps.chefmate.ios.GenerateIosStringCatalogTask
 import java.util.Properties
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
@@ -573,3 +574,25 @@ if (isMacBuildHost) {
             files.from(extractJavaFxMacDylibs.map { fileTree(it.destinationDir) })
         }
 }
+
+// SwiftUI redesign: mirror every module's Compose `strings.xml` into an Xcode String Catalog so
+// native screens resolve TextData synchronously. Runs before the framework is embedded, which the
+// Xcode build phase does ahead of compiling resources, and also standalone for committing.
+val generateIosStringCatalog by
+    tasks.registering(GenerateIosStringCatalogTask::class) {
+        strings.from(
+            rootProject.fileTree("client") {
+                include("**/src/commonMain/composeResources/values/strings.xml")
+                exclude("**/build/**")
+            },
+        )
+        outputFile.set(
+            rootProject.layout.projectDirectory.file(
+                "iosApp/iosApp/Generated/ComposeStrings.xcstrings",
+            ),
+        )
+    }
+
+tasks
+    .matching { it.name == "embedAndSignAppleFrameworkForXcode" }
+    .configureEach { dependsOn(generateIosStringCatalog) }
