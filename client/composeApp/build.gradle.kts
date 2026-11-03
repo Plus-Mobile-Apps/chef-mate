@@ -62,9 +62,15 @@ kotlin {
             export(libs.essenty.backhandler)
             export(projects.client.root.public)
             export(projects.client.shared)
+            // SwiftUI redesign (docs/ios-swiftui-redesign.md): each natively rebuilt screen exports
+            // its feature's public module so Swift sees the BLoC interface and Model.
+            export(projects.client.text.public)
+            export(projects.client.bottomnav.public)
+            export(projects.client.settings.public)
+            export(projects.client.recipe.list.public)
         }
         iosTarget.binaries.withType(
-            org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable::class.java
+            org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable::class.java,
         ) {
             linkerOpts.add("-lsqlite3")
         }
@@ -170,6 +176,11 @@ kotlin {
             implementation("org.openjfx:javafx-web:$fxVersion:$fxClassifier")
         }
         iosMain.dependencies {
+            // Exported to Swift for the SwiftUI redesign — `export` needs an api dependency.
+            api(projects.client.text.public)
+            api(projects.client.bottomnav.public)
+            api(projects.client.settings.public)
+            api(projects.client.recipe.list.public)
             implementation(libs.ktor.client.darwin)
             implementation(libs.bugsnag.kmp)
             implementation(libs.kermit.bugsnag)
@@ -234,7 +245,7 @@ android {
                 file(
                     System.getenv("ANDROID_KEYSTORE_FILE")
                         ?: keystoreProperties.getProperty("releaseKeyStore")
-                        ?: "release.keystore"
+                        ?: "release.keystore",
                 )
             storePassword =
                 System.getenv("ANDROID_KEYSTORE_PASSWORD")
@@ -408,7 +419,7 @@ compose.desktop {
                 // selected files); the runtime inherits the sandbox so the JVM stays contained.
                 entitlementsFile.set(rootProject.file("packaging/macos/entitlements.plist"))
                 runtimeEntitlementsFile.set(
-                    rootProject.file("packaging/macos/runtime-entitlements.plist")
+                    rootProject.file("packaging/macos/runtime-entitlements.plist"),
                 )
 
                 // Mac App Store provisioning profiles. Fetched by Fastlane match in CI and passed
