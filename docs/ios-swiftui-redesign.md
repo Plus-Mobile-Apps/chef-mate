@@ -50,12 +50,11 @@ native.
 No new compiler plugins. Kotlin `iosMain` exposes:
 
 - `FlowWatcher` — subscribes to a `StateFlow` on the main thread and returns a cancel handle.
-- `TextDataResolver` — resolves a `TextData` to a `String` off the composition (via
-  `getString`/`getPluralString`).
+- `TextDataLocalizer` — resolves a `TextData` synchronously through a Swift-provided
+  `StringLookup` (see Strings below).
 
 Swift wraps these in `ObservedFlow<T>` (an `ObservableObject`) and `ObservedValue<T>` (for
-Decompose `Value`, e.g. `ChildStack`), and a `LocalizedText` view that resolves `TextData`
-(`Redesign/Interop.swift`). Bindings whose setter calls the BLoC read `ObservedFlow.current` (the
+Decompose `Value`, e.g. `ChildStack`) in `Redesign/Interop.swift`. Bindings whose setter calls the BLoC read `ObservedFlow.current` (the
 live StateFlow value) rather than `value`, which publishes a beat later, so SwiftUI never snaps back
 to a stale value.
 
@@ -67,6 +66,37 @@ Each screen PR adds `export(projects.client.<feature>.public)` to the iOS framew
 > SKIE would remove the hand-written bridge (Flows → `AsyncSequence`, sealed classes → Swift enums)
 > but pins us to its supported Kotlin versions; we're on Kotlin 2.4.20. Revisit if the bridge gets
 > painful.
+
+### Strings
+
+Compose resources stay the single source of truth. Swift reads them synchronously from an Xcode
+String Catalog generated from them, rather than through moko-resources or a second copy of the
+strings.
+
+- `:client:composeApp:generateIosStringCatalog` (`build-logic/.../ios/GenerateIosStringCatalogTask.kt`)
+  merges every module's `composeResources/values/strings.xml` into
+  `iosApp/iosApp/Generated/ComposeStrings.xcstrings`. It runs before every Xcode build (hooked to
+  `embedAndSignAppleFrameworkForXcode`) and is configuration-cache safe.
+- **Naming:** one table keyed by resource name. The ~930 names are already unique app-wide; a name
+  defined twice with different text fails the build.
+- **Conversion:** escapes are unwrapped like Compose resources does (`\'`, `\n`, `\uXXXX`, XML
+  entities), and Android specifiers become Foundation ones (`%1$s` → `%1$@`, `%d` → `%lld`).
+- **Plurals:** become catalog plural variations. Xcode requires every variant to reference the number,
+  so `{quantity}` becomes `%lld`, and a variant without `{quantity}` fails the build. Verified:
+  0/1/2/5 → "0 items", "1 item", "2 items", "5 items".
+- **Swift API** (`Redesign/ComposeStrings.swift`): `ComposeStrings["sign_in"]` for native screens;
+  `textData.localized` / `LocalizedText(text:)` for BLoC `TextData`. `TextData` subclasses aren't
+  visible to Swift, so Kotlin's `TextDataLocalizer` walks the tree and calls back into
+  `ComposeStrings` for each key and plural.
+- **Committed, not gitignored.** Xcode plans resources before the Gradle build phase runs, so a
+  fresh clone without the file would build without strings. Edit `strings.xml` and the next iOS
+  build rewrites the catalog; commit it alongside.
+
+Known gaps:
+- A missing key returns the key itself (`ComposeStrings["typo"]` shows `typo`). Next step: have
+  the generator also emit typed Swift accessors (`ComposeStrings.signIn`) so typos fail to compile.
+- English only today. Adding a locale means reading `values-<lang>/` into the same catalog.
+- No CI check that the committed catalog matches `strings.xml` yet.
 
 ### Navigation
 
