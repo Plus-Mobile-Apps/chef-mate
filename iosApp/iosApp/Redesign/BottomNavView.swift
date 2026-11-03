@@ -64,11 +64,11 @@ private struct TabChildView: View {
 private extension BottomNavBlocTab {
     var title: String {
         switch self {
-        case .recipes: "Recipes"
-        case .groceries: "Grocery"
-        case .meals: "Meals"
-        case .browser: "Browser"
-        default: "More"
+        case .recipes: ComposeStrings["tab_recipes"]
+        case .groceries: ComposeStrings["tab_grocery"]
+        case .meals: ComposeStrings["tab_meals"]
+        case .browser: ComposeStrings["tab_browser"]
+        default: ComposeStrings["tab_more"]
         }
     }
 

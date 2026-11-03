@@ -34,17 +34,11 @@ final class ObservedValue<T: AnyObject>: ObservableObject {
     deinit { cancellation?.cancel() }
 }
 
-/// Renders a Kotlin `TextData`, resolving resource strings asynchronously.
+/// Renders a Kotlin `TextData`, resolved synchronously from the `ComposeStrings` catalog.
 struct LocalizedText: View {
     let text: TextData
-    @State private var resolved: String = ""
 
     var body: some View {
-        Text(resolved)
-            .task(id: ObjectIdentifier(text)) {
-                resolved = await withCheckedContinuation { continuation in
-                    TextDataResolver.shared.resolve(text: text) { continuation.resume(returning: $0) }
-                }
-            }
+        Text(text.localized)
     }
 }

@@ -21,10 +21,10 @@ struct MoreView: View {
             Section {
                 if hasProfile {
                     ProfileHeader(state: state, onTap: bloc.onManageProfileClicked)
-                    MoreRow("Manage Profile", systemImage: "person.crop.circle", action: bloc.onManageProfileClicked)
+                    MoreRow(ComposeStrings["manage_profile"], systemImage: "person.crop.circle", action: bloc.onManageProfileClicked)
                 } else {
                     if state.isAnonymous {
-                        Text("You’re using ChefMate as a guest. Sign up to back up your recipes across devices.")
+                        Text(ComposeStrings["settings_guest_banner"])
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else if let message = state.verificationMessage {
@@ -38,15 +38,15 @@ struct MoreView: View {
 
             Section {
                 if hasProfile {
-                    MoreRow("Notifications", systemImage: "bell", action: bloc.onNotificationsClicked)
+                    MoreRow(ComposeStrings["settings_notifications"], systemImage: "bell", action: bloc.onNotificationsClicked)
                 }
                 if state.isManageFamilyEnabled {
-                    MoreRow("Manage Family", systemImage: "person.2", action: bloc.onManageFamilyClicked)
+                    MoreRow(ComposeStrings["settings_manage_family"], systemImage: "person.2", action: bloc.onManageFamilyClicked)
                 }
-                MoreRow("Settings", systemImage: "gearshape", action: bloc.onAppSettingsClicked)
-                MoreRow("View Onboarding Again", systemImage: "arrow.counterclockwise", action: bloc.onReplayOnboardingClicked)
+                MoreRow(ComposeStrings["settings"], systemImage: "gearshape", action: bloc.onAppSettingsClicked)
+                MoreRow(ComposeStrings["settings_replay_onboarding"], systemImage: "arrow.counterclockwise", action: bloc.onReplayOnboardingClicked)
                 if state.isAiChatEnabled {
-                    MoreRow("AI Chat", systemImage: "sparkles", action: bloc.onAiChatClicked) {
+                    MoreRow(ComposeStrings["settings_ai_chat"], systemImage: "sparkles", action: bloc.onAiChatClicked) {
                         if !state.isSubscribed {
                             Image(systemName: "lock.fill")
                                 .foregroundStyle(ChefTheme.primary)
@@ -56,32 +56,32 @@ struct MoreView: View {
             }
 
             Section {
-                MoreRow("Privacy Policy", systemImage: "hand.raised") {
+                MoreRow(ComposeStrings["privacy_policy"], systemImage: "hand.raised") {
                     bloc.onUrlClicked(url: "https://chefmate.plusmobileapps.com/privacy-policy/")
                 }
-                MoreRow("Terms of Use", systemImage: "doc.text") {
+                MoreRow(ComposeStrings["terms_of_use"], systemImage: "doc.text") {
                     bloc.onUrlClicked(url: "https://chefmate.plusmobileapps.com/terms-of-use/")
                 }
-                MoreRow("About", systemImage: "info.circle") {
+                MoreRow(ComposeStrings["about"], systemImage: "info.circle") {
                     bloc.onUrlClicked(url: "https://chefmate.plusmobileapps.com/about/")
                 }
-                MoreRow("Contact Us", systemImage: "envelope") {
+                MoreRow(ComposeStrings["contact_us"], systemImage: "envelope") {
                     if let url = URL(string: "mailto:support@plusmobileapps.com") { openURL(url) }
                 }
                 if state.isDebugBuild {
-                    MoreRow("Developer Settings", systemImage: "chevron.left.forwardslash.chevron.right", action: bloc.onDeveloperSettingsClicked)
+                    MoreRow(ComposeStrings["developer_settings"], systemImage: "chevron.left.forwardslash.chevron.right", action: bloc.onDeveloperSettingsClicked)
                 }
             }
 
             if hasProfile {
                 Section {
-                    Button("Sign Out", role: .destructive, action: bloc.onSignOutClicked)
+                    Button(ComposeStrings["sign_out"], role: .destructive, action: bloc.onSignOutClicked)
                         .frame(maxWidth: .infinity)
                 }
             }
 
             Section {
-                Text("Version \(state.versionName)")
+                Text(ComposeStrings["version_label"].replacingOccurrences(of: "{version}", with: state.versionName))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
@@ -89,30 +89,30 @@ struct MoreView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("More")
+        .navigationTitle(ComposeStrings["tab_more"])
         .confirmationDialog(
-            "Sign Out",
+            ComposeStrings["sign_out_confirmation_title"],
             isPresented: Binding(
                 get: { model.current.showSignOutConfirmationDialog },
                 set: { if !$0 { bloc.onSignOutDismissed() } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Sign Out", role: .destructive, action: bloc.onSignOutConfirmed)
-            Button("Cancel", role: .cancel, action: bloc.onSignOutDismissed)
+            Button(ComposeStrings["sign_out_confirmation_confirm"], role: .destructive, action: bloc.onSignOutConfirmed)
+            Button(ComposeStrings["sign_out_confirmation_cancel"], role: .cancel, action: bloc.onSignOutDismissed)
         } message: {
-            Text("Are you sure you want to sign out?")
+            Text(ComposeStrings["sign_out_confirmation_message"])
         }
         .alert(
-            "ChefMate Premium",
+            ComposeStrings["premium_required_title"],
             isPresented: Binding(
                 get: { model.current.showPremiumRequiredDialog },
                 set: { if !$0 { bloc.onPremiumRequiredDismissed() } }
             )
         ) {
-            Button("OK", action: bloc.onPremiumRequiredDismissed)
+            Button(ComposeStrings["premium_required_confirm"], action: bloc.onPremiumRequiredDismissed)
         } message: {
-            Text("AI Chat is part of ChefMate Premium.")
+            Text(ComposeStrings["premium_required_message"])
         }
     }
 }
@@ -165,9 +165,9 @@ private struct AuthButtons: View {
 
     var body: some View {
         HStack(spacing: ChefTheme.Spacing.normal) {
-            Button("Sign In", action: onSignIn)
+            Button(ComposeStrings["sign_in"], action: onSignIn)
                 .buttonStyle(.bordered)
-            Button("Sign Up", action: onSignUp)
+            Button(ComposeStrings["sign_up"], action: onSignUp)
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity)
