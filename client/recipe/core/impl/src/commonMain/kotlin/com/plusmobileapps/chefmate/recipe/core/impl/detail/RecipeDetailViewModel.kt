@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 @AssistedInject
 class RecipeDetailViewModel(
     @Assisted private val recipeId: Long,
+    @Assisted initialTitle: String?,
     @Main mainContext: CoroutineContext,
     private val repository: RecipeRepository,
     private val coachMarkController: CoachMarkController,
@@ -50,7 +51,11 @@ class RecipeDetailViewModel(
     private val _shareLink = Channel<String>(Channel.BUFFERED)
     val shareLink: Flow<String> = _shareLink.receiveAsFlow()
 
-    private val _state = MutableStateFlow(State())
+    // Seed the known title so the header isn't blank while the full recipe loads.
+    private val _state =
+        MutableStateFlow(
+            State(recipe = initialTitle?.let { Recipe.Empty.copy(title = it) } ?: Recipe.Empty),
+        )
 
     private val showAiChat = featureFlags.isEnabled(FeatureFlagRegistry.AiChat)
 
@@ -230,6 +235,6 @@ class RecipeDetailViewModel(
 
     @AssistedFactory
     fun interface Factory {
-        fun create(recipeId: Long): RecipeDetailViewModel
+        fun create(recipeId: Long, initialTitle: String?): RecipeDetailViewModel
     }
 }

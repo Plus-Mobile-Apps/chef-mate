@@ -193,7 +193,11 @@ interface RecipeListBloc : ComposeScreen {
     }
 
     sealed class Output {
-        data class OpenRecipe(val recipeId: Long) : Output()
+        /**
+         * Open a recipe's detail. [title] is what the list already shows, handed on so the detail
+         * screen can show it while the full recipe loads.
+         */
+        data class OpenRecipe(val recipeId: Long, val title: String? = null) : Output()
 
         object AddNewRecipe : Output()
 

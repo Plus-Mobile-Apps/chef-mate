@@ -448,7 +448,7 @@ class RootBlocImpl(
             }
 
             is BottomNavBloc.Output.OpenRecipe -> {
-                navigation.bringToFront(RecipeRoot(Detail(output.recipeId)))
+                navigation.bringToFront(RecipeRoot(Detail(output.recipeId, output.title)))
             }
 
             is BottomNavBloc.Output.OpenExtractedRecipe -> {

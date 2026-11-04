@@ -15,6 +15,7 @@ import com.plusmobileapps.chefmate.featureflag.testing.FakeFeatureFlags
 import com.plusmobileapps.chefmate.recipe.core.addgrocery.AddRecipeToGroceryListBloc
 import com.plusmobileapps.chefmate.recipe.core.detail.RecipeDetailBloc
 import com.plusmobileapps.chefmate.recipe.data.Recipe
+import com.plusmobileapps.chefmate.recipe.data.RecipeRepository
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeIngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
 import com.plusmobileapps.chefmate.subscription.testing.FakeSubscriptionRepository
@@ -28,6 +29,7 @@ import com.plusmobileapps.chefmate.util.testing.FakeDateTimeUtil
 import com.russhwolf.settings.MapSettings
 import dev.mokkery.answering.returns
 import dev.mokkery.every
+import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -37,6 +39,7 @@ import kotlin.test.Test
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -77,17 +80,20 @@ class RecipeDetailBlocImplTest {
         cookModeTooltipSeen: Boolean = false,
         aiChatEnabled: Boolean = false,
         subscribed: Boolean = false,
+        initialTitle: String? = null,
+        recipeRepository: RecipeRepository = repository,
     ): RecipeDetailBlocImpl {
         if (recipe != null) recipes.value = listOf(recipe)
         coachMarkController = CoachMarkController(MapSettings())
         if (cookModeTooltipSeen) coachMarkController.dismiss(CoachMarkId.RECIPE_DETAIL_COOK_MODE)
         val featureFlags = FakeFeatureFlags(mapOf(FeatureFlagRegistry.AiChat to aiChatEnabled))
         subscriptionRepository = FakeSubscriptionRepository(subscribed)
-        val viewModelFactory = RecipeDetailViewModel.Factory { id ->
+        val viewModelFactory = RecipeDetailViewModel.Factory { id, initialTitle ->
             RecipeDetailViewModel(
                 recipeId = id,
+                initialTitle = initialTitle,
                 mainContext = context.mainContext,
-                repository = repository,
+                repository = recipeRepository,
                 coachMarkController = coachMarkController,
                 toastService = toastService,
                 scalePreferences = scalePreferences,
@@ -111,6 +117,7 @@ class RecipeDetailBlocImplTest {
         return RecipeDetailBlocImpl(
             context = context,
             recipeId = recipe?.id ?: 1L,
+            initialTitle = initialTitle,
             output = output,
             viewModelFactory = viewModelFactory,
             dateTimeUtil = dateTimeUtil,
@@ -118,6 +125,26 @@ class RecipeDetailBlocImplTest {
             addToGroceryList = groceryFactory,
             toastService = FakeToastService(),
         )
+    }
+
+    @Test
+    fun When_created_with_initial_title_Then_title_shows_while_recipe_loads() {
+        // A repository whose recipe hasn't arrived yet keeps the screen in its loading state.
+        val loadingRepository =
+            mock<RecipeRepository> { everySuspend { getRecipe(any()) } returns MutableSharedFlow() }
+
+        val bloc = createBloc(initialTitle = "Pancakes", recipeRepository = loadingRepository)
+
+        bloc.state.value.isLoading shouldBe true
+        bloc.state.value.recipe.title shouldBe "Pancakes"
+    }
+
+    @Test
+    fun When_recipe_loads_Then_it_replaces_the_initial_title() {
+        val bloc = createBloc(initialTitle = "Old list title")
+
+        bloc.state.value.isLoading shouldBe false
+        bloc.state.value.recipe.title shouldBe sampleRecipe.title
     }
 
     @Test

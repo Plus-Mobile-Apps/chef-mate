@@ -299,6 +299,14 @@ class RootBlocTest {
     }
 
     @Test
+    fun When_bottom_nav_outputs_open_recipe_with_title_Then_detail_props_carry_it() {
+        bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L, title = "Pancakes"))
+        val props = recipeProps as RecipeRootBloc.Props.Detail
+        props.recipeId shouldBe 123L
+        props.initialTitle shouldBe "Pancakes"
+    }
+
+    @Test
     fun When_bottom_nav_outputs_open_recipe_Then_recipe_root_shown_with_detail_props() {
         bottomNavOutput.onNext(BottomNavBloc.Output.OpenRecipe(123L))
         rootBloc.instance() should instanceOf<RootBloc.Child.RecipeRoot>()
