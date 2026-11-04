@@ -111,8 +111,11 @@ Known gaps:
   yet: they push for now.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
-  flattened into the same root path: each entry records its owning stack, and a pop routes to the
-  deepest owner's `onBackClicked`. Nested `NavigationStack`s are not allowed.
+  flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
+  subscribes to each flattened child's own `routerState`). Each `StackEntry` records which BLoC pops
+  it: a nested child pops through its stack's `onBackClicked`, except the nested stack's first
+  child, which pops the whole root child through `RootBloc.onBackClicked` (a Decompose stack can't
+  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
@@ -133,7 +136,15 @@ type scale (`.title2`, `.headline`, `.body`) and SF Symbols for Material icons.
 ### Global hosts
 
 The Compose `ToastScaffold` and the in-app review host only exist inside `App.kt`. The SwiftUI shell
-needs native equivalents that watch `ToastService` and `InAppReviewService` (PR 1).
+has native equivalents in `Redesign/GlobalHosts.swift`, applied once at the root:
+
+- **Toasts** — a glass card at the bottom (lifted over the tab bar while it shows) that drains
+  `ToastService.queue` through Kotlin's `ToastBridge`. Each toast ends exactly once (timer: short 4s,
+  long 10s, indefinite never; swipe down; or its action), and `ToastBridge.finish` runs the matching
+  `onAction` / `onDismiss` and dequeues it. Hosted Compose screens only get `LocalToastService`, not
+  a `ToastScaffold`, so they never race the native host for the same queue.
+- **Store review** — watches `InAppReviewService.isPromptRequested` and calls SwiftUI's
+  `requestReview`.
 
 ## PR sequence
 
@@ -147,8 +158,8 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 1 | Shell + interop | Root stack, `TabView`, hosted fallback, theme, `.chefGlass()`, flow bridge | Done (first cut). |
 | 2 | More tab | `SettingsScreen` | Done (first cut): keeps Dev settings → Feature flags reachable. |
 | 3 | Recipe list | `RecipeListScreen` | Done (first cut): search, list/grid, favorite, delete, add. Selection mode, filter sheet, book picker, scan from photo still to do. |
-| 4 | Toast + review hosts | — | Native toast overlay on `ToastService`. |
-| 5 | Recipe detail | `RecipeDetailScreen`, `RecipeImageFullScreenScreen` | First nested-stack flattening (RecipeRoot). Zoom transition for the image. |
+| 4 | Toast + review hosts | — | Done (first cut): native toast overlay on `ToastService`, StoreKit review prompt. |
+| 5 | Recipe detail | `RecipeDetailScreen`, `RecipeImageFullScreenScreen` | Done (first cut): RecipeRoot flattened (Edit stays hosted), hero + pinned ingredient/direction sections, scale menu, links, share/edit/delete, bottom glass toolbar, zoom transition into a pinch-zoom image. Text parsing reuses Kotlin via `RecipeTextFormatter`. Coach marks and the tablet two-column layout still to do; the add-to-grocery sheet hosts Compose until PR 7. |
 | 6 | Edit recipe | `EditRecipeScreen` | Rich text (bold/italic markdown), image picker. |
 | 7 | Recipe → grocery / meal flows | `AddRecipeToGroceryListScreen`, `RecipePickerScreen`, `ChooseDateScreen`, `ChooseMealTypeScreen`, `MealPlannerRootScreen` | MealPlanner becomes a sheet. |
 | 8 | Grocery list | `GroceryListScreen` | Swipe to delete with undo, add row, sections. |
