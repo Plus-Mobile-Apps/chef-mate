@@ -55,7 +55,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CBF9AFC8E8726D886BBB926C"
             BuildableName = "ChefMateWatch.app"
-            BlueprintName = "ChefMateWatch"
             ReferencedContainer = "container:iosApp.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -72,7 +71,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CBF9AFC8E8726D886BBB926C"
             BuildableName = "ChefMateWatch.app"
-            BlueprintName = "ChefMateWatch"
             ReferencedContainer = "container:iosApp.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

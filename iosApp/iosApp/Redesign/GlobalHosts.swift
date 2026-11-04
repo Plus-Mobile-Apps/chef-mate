@@ -5,9 +5,54 @@ import ComposeApp
 extension View {
     /// The app-wide hosts that the Compose `App` composable provides on the other UI path: the
     /// `ToastService` overlay and the in-app review prompt. Apply once, at the root of the shell.
-    /// `bottomInset` lifts toasts over the tab bar while it is showing.
+    /// `bottomInset` lifts toasts over the tab bar while it is showing; screens with their own
+    /// bottom toolbar add theirs with `toastClearance(_:)`.
     func globalHosts(toastService: ToastService, reviewService: InAppReviewService, bottomInset: CGFloat) -> some View {
         modifier(GlobalHosts(toastService: toastService, reviewService: reviewService, bottomInset: bottomInset))
+    }
+}
+
+extension View {
+    /// Keeps toasts above this screen's bottom-anchored chrome (e.g. a `.bottomBar` toolbar) while
+    /// the screen is on screen — the native counterpart of Compose's `snackbarAnchor()`.
+    func toastClearance(_ height: CGFloat) -> some View {
+        modifier(ToastClearance(height: height))
+    }
+}
+
+/// The bottom clearances registered by the screens currently showing. Toasts float above the
+/// tallest one. Keyed per registering view, so overlapping appear/disappear during a push or pop
+/// can't drop or double-count a clearance.
+final class ToastClearances: ObservableObject {
+    @Published private var heights: [UUID: CGFloat] = [:]
+
+    var inset: CGFloat { heights.values.max() ?? 0 }
+
+    func set(_ height: CGFloat?, for key: UUID) {
+        heights[key] = height
+    }
+}
+
+private struct ToastClearancesKey: EnvironmentKey {
+    static let defaultValue: ToastClearances? = nil
+}
+
+extension EnvironmentValues {
+    var toastClearances: ToastClearances? {
+        get { self[ToastClearancesKey.self] }
+        set { self[ToastClearancesKey.self] = newValue }
+    }
+}
+
+private struct ToastClearance: ViewModifier {
+    let height: CGFloat
+    @SwiftUI.Environment(\.toastClearances) private var clearances
+    @State private var key = UUID()
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { clearances?.set(height, for: key) }
+            .onDisappear { clearances?.set(nil, for: key) }
     }
 }
 
@@ -15,12 +60,15 @@ private struct GlobalHosts: ViewModifier {
     let toastService: ToastService
     let reviewService: InAppReviewService
     let bottomInset: CGFloat
+    @StateObject private var clearances = ToastClearances()
 
     func body(content: Content) -> some View {
         content
+            .environment(\.toastClearances, clearances)
             .overlay(alignment: .bottom) {
                 ToastHost(service: toastService)
-                    .padding(.bottom, bottomInset)
+                    .padding(.bottom, max(bottomInset, clearances.inset))
+                    .animation(.snappy, value: clearances.inset)
             }
             .background {
                 ReviewHost(service: reviewService)

@@ -158,8 +158,9 @@ private struct RecipeRow: View {
 
     var body: some View {
         HStack(spacing: ChefTheme.Spacing.normal) {
-            RecipeImage(url: recipe.imageUrl)
+            Color.clear
                 .frame(width: 80, height: 80)
+                .overlay { RecipeImage(url: recipe.imageUrl) }
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: ChefTheme.Spacing.extraSmall) {
                 HStack(spacing: ChefTheme.Spacing.small) {
@@ -193,15 +194,18 @@ private struct RecipeGridCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ChefTheme.Spacing.small) {
-            RecipeImage(url: recipe.imageUrl)
-                .frame(height: 120)
+            // A fixed-size box with the photo center-cropped into it, so the image's own aspect
+            // ratio can never widen or heighten the card.
+            Color.clear
                 .frame(maxWidth: .infinity)
+                .frame(height: 120)
+                .overlay { RecipeImage(url: recipe.imageUrl) }
                 .clipped()
             VStack(alignment: .leading, spacing: ChefTheme.Spacing.extraSmall) {
-                HStack {
+                HStack(alignment: .top) {
                     Text(recipe.title)
                         .font(.headline)
-                        .lineLimit(2)
+                        .lineLimit(2, reservesSpace: true)
                     Spacer(minLength: 0)
                     if recipe.isFavorite {
                         Image(systemName: "heart.fill")
@@ -214,6 +218,9 @@ private struct RecipeGridCard: View {
             }
             .padding([.horizontal, .bottom], ChefTheme.Spacing.small)
         }
+        // Fill the grid row so cards beside each other match heights even when one has a rating
+        // or more info than the other.
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
@@ -255,7 +262,8 @@ private struct RecipeInfo: View {
     let recipe: RecipeListItem
 
     var body: some View {
-        HStack(spacing: ChefTheme.Spacing.small + 4) {
+        // Wraps instead of overflowing, so a narrow grid card never grows wider than its column.
+        FlowLayout(spacing: ChefTheme.Spacing.small + 4) {
             if let time = recipe.formattedTotalTime {
                 Label { LocalizedText(text: time) } icon: { Image(systemName: "clock") }
             }

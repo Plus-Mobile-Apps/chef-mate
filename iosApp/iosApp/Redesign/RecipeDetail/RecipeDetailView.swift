@@ -49,6 +49,8 @@ struct RecipeDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar { navigationActions(recipe) }
         .toolbar { bottomActions(state) }
+        // Keep toasts (e.g. "added to grocery list") above the bottom toolbar instead of over it.
+        .toastClearance(56)
         .tint(ChefTheme.primary)
         .alert(
             ComposeStrings["recipe_detail_delete_title"],
