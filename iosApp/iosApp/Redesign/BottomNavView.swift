@@ -33,7 +33,7 @@ struct BottomNavView: View {
                             }
                         }
                         .navigationDestination(for: StackEntry.self) { entry in
-                            RootChildView(child: entry.child)
+                            StackEntryView(entry: entry)
                                 .toolbar(.hidden, for: .tabBar)
                         }
                     }
