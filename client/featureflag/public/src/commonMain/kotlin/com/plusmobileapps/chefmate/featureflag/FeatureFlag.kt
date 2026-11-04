@@ -78,6 +78,15 @@ object FeatureFlagRegistry {
             description = "Let families share recipe books, managed from Manage Family.",
         )
 
+    object IosSwiftUiRedesign :
+        BooleanFlag(
+            key = "ios_swiftui_redesign",
+            defaultValue = false,
+            description =
+                "iOS only: launch the native SwiftUI shell instead of the Compose UI. Read once " +
+                    "at launch, so a change takes effect on the next cold start.",
+        )
+
     val all: List<FeatureFlag<*>> =
         listOf(
             CookModeV2,
@@ -88,5 +97,6 @@ object FeatureFlagRegistry {
             FamilyMealPlans,
             FamilyGroceryLists,
             FamilyRecipeBooks,
+            IosSwiftUiRedesign,
         )
 }

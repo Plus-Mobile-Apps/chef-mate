@@ -2,6 +2,8 @@ package com.plusmobileapps.chefmate
 
 import com.arkivanov.decompose.ComponentContext
 import com.plusmobileapps.chefmate.di.IosApplicationComponent
+import com.plusmobileapps.chefmate.featureflag.FeatureFlagRegistry
+import com.plusmobileapps.chefmate.featureflag.isEnabled
 import com.plusmobileapps.chefmate.review.InAppReviewService
 import com.plusmobileapps.chefmate.root.DeepLink
 import com.plusmobileapps.chefmate.root.RootBloc
@@ -43,6 +45,15 @@ object RootBlocProvider {
     val watchDataBridgeOrNull: WatchDataBridge?
         get() = if (::watchDataBridge.isInitialized) watchDataBridge else null
 
+    /**
+     * Whether Swift should launch the native SwiftUI shell instead of the Compose UI
+     * ([FeatureFlagRegistry.IosSwiftUiRedesign]). Snapshotted once by [buildRootBloc] from the
+     * cached flag rows and dev overrides, so the shell never swaps mid-session; a remote change
+     * lands on the next cold start.
+     */
+    var useSwiftUiRedesign: Boolean = false
+        private set
+
     fun buildRootBloc(
         componentContext: ComponentContext,
         application: UIApplication,
@@ -53,6 +64,10 @@ object RootBlocProvider {
         toastService = applicationComponent.toastService
         inAppReviewService = applicationComponent.inAppReviewService
         watchDataBridge = applicationComponent.watchDataBridge
+        useSwiftUiRedesign =
+            applicationComponent.featureFlags
+                .isEnabled(FeatureFlagRegistry.IosSwiftUiRedesign)
+                .value
         return applicationComponent.rootBlocFactory.create(
             context = DefaultBlocContext(componentContext = componentContext),
             deepLink = DeepLink.parse(deepLinkUrl),
