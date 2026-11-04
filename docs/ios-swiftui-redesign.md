@@ -119,12 +119,13 @@ Known gaps:
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
-- **The tab bar stays visible through pushes** (iOS convention), unlike Android where pushed
-  screens cover the bottom nav. Hiding it per destination also made it pop back in abruptly on
-  swipe-back. Only the full-screen flows (`StackEntry.hidesTabBar`, the Android modal set) hide
-  it. Hosted Compose screens under a visible tab bar stop above it. A screen's bottom actions
-  can't use a `.bottomBar` toolbar (UIKit puts it in the tab bar's slot, hidden behind it), so
-  they float in a `safeAreaInset` above the tab bar instead (see recipe detail).
+- **The tab bar only shows on tab roots**, like the Android bottom nav. The system `TabView` bar is
+  hidden and `ChefTabBar` (a glass capsule styled after the iOS 26 bar) is drawn in each tab's
+  root screen with `safeAreaInset`, so it slides out with a push and back in with a pop, tracking
+  the swipe-back gesture. Two alternatives didn't work: `.toolbar(.hidden, for: .tabBar)` per
+  pushed screen snaps the bar back only after the pop finishes, and SwiftUI's tab controller
+  ignores UIKit's `hidesBottomBarWhenPushed`. Trade-off: no system tab-bar extras (minimize on
+  scroll, search tab) until we revisit.
 - **Web links** in native screens open in an `SFSafariViewController` sheet instead of the in-app
   Browser screen.
 

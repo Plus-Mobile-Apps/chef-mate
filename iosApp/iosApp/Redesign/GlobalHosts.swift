@@ -67,8 +67,9 @@ private struct GlobalHosts: ViewModifier {
             .environment(\.toastClearances, clearances)
             .overlay(alignment: .bottom) {
                 ToastHost(service: toastService)
-                    // Screen chrome (e.g. a bottom toolbar) stacks on top of the tab bar.
-                    .padding(.bottom, bottomInset + clearances.inset)
+                    // The tab bar only shows on tab roots, which register no clearance of their
+                    // own, so the two never stack.
+                    .padding(.bottom, max(bottomInset, clearances.inset))
                     .animation(.snappy, value: clearances.inset)
             }
             .background {

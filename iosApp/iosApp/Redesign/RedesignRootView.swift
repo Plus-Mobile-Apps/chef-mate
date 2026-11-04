@@ -43,8 +43,8 @@ struct RedesignRootView: View {
             .globalHosts(
                 toastService: RootBlocProvider.shared.toastService,
                 reviewService: RootBlocProvider.shared.inAppReviewService,
-                // Toasts clear the tab bar whenever it shows: on tab content and ordinary pushes.
-                bottomInset: bottomNav != nil && !(pushed.last?.hidesTabBar ?? false) ? 56 : 0
+                // Pushed entries hide the tab bar; only the bare tab content shows it.
+                bottomInset: bottomNav != nil && pushed.isEmpty ? ChefTabBar.height : 0
             )
         }
     }
@@ -132,18 +132,6 @@ struct StackEntry: Hashable {
     let content: Content
     let popper: Popper
 
-    /// Full-screen flows — the Android `isModal` set — hide the tab bar while pushed. They become
-    /// covers/sheets in later PRs (docs/ios-swiftui-redesign.md, Navigation).
-    var hidesTabBar: Bool {
-        guard case .root(let child) = content else { return false }
-        return child is RootBlocChild.Browser
-            || child is RootBlocChild.MealPlanner
-            || child is RootBlocChild.CookMode
-            || child is RootBlocChild.AiChat
-            || child is RootBlocChild.EditRecipeBook
-            || child is RootBlocChild.EditGroceryList
-    }
-
     var rootChild: RootBlocChild? {
         if case .root(let child) = content { child } else { nil }
     }
@@ -162,20 +150,16 @@ struct StackEntry: Hashable {
 /// Native view for a navigation entry, or its Compose screen until that screen is redesigned.
 struct StackEntryView: View {
     let entry: StackEntry
-    /// Whether the tab bar shows under this entry; hosted Compose then stops above it instead of
-    /// drawing underneath.
-    var showsTabBar = false
 
     var body: some View {
-        let hostedEdges: Edge.Set = showsTabBar ? .top : .all
         switch entry.content {
         case .root(let child):
-            ComposeScreenHost(screen: child.bloc, edges: hostedEdges)
+            ComposeScreenHost(screen: child.bloc)
         case .recipe(let child):
             if let detail = child as? RecipeRootBlocChild.Detail {
                 RecipeDetailView(bloc: detail.bloc)
             } else {
-                ComposeScreenHost(screen: child.bloc, edges: hostedEdges)
+                ComposeScreenHost(screen: child.bloc)
             }
         }
     }
