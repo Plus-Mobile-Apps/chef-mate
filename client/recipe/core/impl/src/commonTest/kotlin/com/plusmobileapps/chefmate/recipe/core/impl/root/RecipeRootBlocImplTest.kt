@@ -22,12 +22,13 @@ class RecipeRootBlocImplTest {
     private var detailOutput: Consumer<RecipeDetailBloc.Output> = Consumer {}
     private var editOutput: Consumer<EditRecipeBloc.Output> = Consumer {}
     private var lastEditRecipeId: Long? = null
+    private var lastDetailInitialTitle: String? = null
     private var lastEditExtractedRecipe: ExtractedRecipeData? = null
     private var lastEditFromAi: Boolean? = null
     private var lastEditConsumePendingPhoto: Boolean? = null
 
     private fun createBloc(
-        props: RecipeRootBloc.Props = RecipeRootBloc.Props.Detail(1L)
+        props: RecipeRootBloc.Props = RecipeRootBloc.Props.Detail(1L),
     ): RecipeRootBlocImpl =
         RecipeRootBlocImpl(
             context = context,
@@ -38,9 +39,11 @@ class RecipeRootBlocImplTest {
                     override fun create(
                         context: BlocContext,
                         recipeId: Long,
+                        initialTitle: String?,
                         output: Consumer<RecipeDetailBloc.Output>,
                     ): RecipeDetailBloc {
                         detailOutput = output
+                        lastDetailInitialTitle = initialTitle
                         return mock()
                     }
                 },
@@ -65,6 +68,20 @@ class RecipeRootBlocImplTest {
     fun When_created_with_detail_props_Then_detail_child_is_shown() {
         val bloc = createBloc(RecipeRootBloc.Props.Detail(42L))
         bloc.routerState.value.active.instance.shouldBeInstanceOf<RecipeRootBloc.Child.Detail>()
+    }
+
+    @Test
+    fun When_created_with_detail_props_initial_title_Then_detail_receives_it() {
+        createBloc(RecipeRootBloc.Props.Detail(42L, initialTitle = "Pancakes"))
+        lastDetailInitialTitle shouldBe "Pancakes"
+    }
+
+    @Test
+    fun Detail_props_equality_ignores_the_initial_title() {
+        // bringToFront dedupes on equality: the same recipe opened with or without a title is the
+        // same destination.
+        RecipeRootBloc.Props.Detail(42L, initialTitle = "Pancakes") shouldBe
+            RecipeRootBloc.Props.Detail(42L)
     }
 
     @Test

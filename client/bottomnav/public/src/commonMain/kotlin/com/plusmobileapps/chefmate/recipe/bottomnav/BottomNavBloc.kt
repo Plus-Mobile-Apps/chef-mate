@@ -81,7 +81,8 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
     }
 
     sealed class Output {
-        data class OpenRecipe(val recipeId: Long) : Output()
+        /** Open a recipe's detail; [title], when known, shows while the recipe loads. */
+        data class OpenRecipe(val recipeId: Long, val title: String? = null) : Output()
 
         data class OpenExtractedRecipe(
             val extracted: ExtractedRecipeData,

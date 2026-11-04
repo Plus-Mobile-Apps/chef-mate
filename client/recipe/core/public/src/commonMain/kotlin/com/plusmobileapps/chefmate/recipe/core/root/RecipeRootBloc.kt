@@ -48,7 +48,21 @@ interface RecipeRootBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
 
     @Serializable
     sealed class Props {
-        @Serializable data class Detail(val recipeId: Long) : Props()
+        /**
+         * The detail of the recipe with [recipeId]. [initialTitle] is the title the opener already
+         * knows (e.g. from the recipe list), shown while the full recipe loads so the header isn't
+         * blank.
+         *
+         * Equality is by [recipeId] alone: [initialTitle] is only a loading hint, so opening the
+         * same recipe with or without one must still match (and reuse) the same stack entry.
+         */
+        @Serializable
+        data class Detail(val recipeId: Long, val initialTitle: String? = null) : Props() {
+            override fun equals(other: Any?): Boolean =
+                other is Detail && other.recipeId == recipeId
+
+            override fun hashCode(): Int = recipeId.hashCode()
+        }
 
         @Serializable data object Create : Props()
 

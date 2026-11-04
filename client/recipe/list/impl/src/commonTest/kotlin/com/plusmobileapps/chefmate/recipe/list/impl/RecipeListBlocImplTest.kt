@@ -135,9 +135,9 @@ class RecipeListBlocImplTest {
         )
 
     @Test
-    fun When_recipe_clicked_Then_OpenRecipe_output_emitted() {
-        bloc.onRecipeClicked(listItem(id = 42))
-        output.lastValue shouldBe RecipeListBloc.Output.OpenRecipe(42)
+    fun When_recipe_clicked_Then_OpenRecipe_output_emitted_with_title() {
+        bloc.onRecipeClicked(listItem(id = 42, title = "Pancakes"))
+        output.lastValue shouldBe RecipeListBloc.Output.OpenRecipe(42, "Pancakes")
     }
 
     @Test

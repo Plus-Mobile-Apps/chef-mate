@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.redesign
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -19,6 +20,18 @@ class FlowWatcher<T : Any>(private val flow: StateFlow<T>) {
         get() = flow.value
 
     /** Delivers every value (the current one first) on the main thread until cancelled. */
+    fun watch(onEach: (T) -> Unit): Cancellable {
+        val job = CoroutineScope(Dispatchers.Main.immediate).launch { flow.collect { onEach(it) } }
+        return Cancellable { job.cancel() }
+    }
+}
+
+/**
+ * Lets the SwiftUI redesign collect a one-shot event [Flow] (e.g. a BLoC's share links), which has
+ * no current value to read. Swift holds the returned [Cancellable] for the view's lifetime.
+ */
+class EventWatcher<T : Any>(private val flow: Flow<T>) {
+    /** Delivers every emitted event on the main thread until cancelled. */
     fun watch(onEach: (T) -> Unit): Cancellable {
         val job = CoroutineScope(Dispatchers.Main.immediate).launch { flow.collect { onEach(it) } }
         return Cancellable { job.cancel() }

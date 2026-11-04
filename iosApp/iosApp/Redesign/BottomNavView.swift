@@ -1,9 +1,15 @@
 import SwiftUI
 import ComposeApp
 
-/// The redesigned bottom navigation: a native `TabView`, which gets the Liquid Glass tab bar on
-/// iOS 26. Tab order and selection come from `BottomNavBloc`. Each tab owns the `NavigationStack`
-/// that root-stack children push onto, so they slide over the tab bar like on Android.
+/// The redesigned bottom navigation. Tab order and selection come from `BottomNavBloc`; each tab
+/// owns the `NavigationStack` that root-stack children push onto.
+///
+/// Like the Android bottom nav, the tab bar only shows on the tab roots. A `TabView` keeps the
+/// tabs, but its system bar is hidden and `ChefTabBar` is drawn inside each tab's root screen
+/// instead, so it slides out with a push and back in with a pop, tracking the swipe-back gesture
+/// (UIKit's `hidesBottomBarWhenPushed` look). Hiding the system bar per pushed screen with
+/// `.toolbar(.hidden, for: .tabBar)` made it snap back only after the pop finished, and SwiftUI's
+/// tab controller ignores `hidesBottomBarWhenPushed`.
 struct BottomNavView: View {
     let bloc: BottomNavBloc
     @Binding var path: [StackEntry]
@@ -32,16 +38,79 @@ struct BottomNavView: View {
                                 Color.clear
                             }
                         }
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            ChefTabBar(
+                                tabs: model.value.tabs,
+                                selected: selectedTab,
+                                notificationCount: Int(model.value.notificationCount),
+                                onSelect: { bloc.onTabSelected(tab: $0) }
+                            )
+                        }
+                        .toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: StackEntry.self) { entry in
-                            RootChildView(child: entry.child)
-                                .toolbar(.hidden, for: .tabBar)
+                            StackEntryView(entry: entry)
                         }
                     }
                 }
-                .badge(tab == .settings ? Int(model.value.notificationCount) : 0)
             }
         }
         .tint(ChefTheme.primary)
+    }
+}
+
+/// The tab bar drawn inside each tab's root screen: a glass capsule of tab buttons, styled after the
+/// iOS 26 tab bar.
+struct ChefTabBar: View {
+    /// The space the bar takes above the bottom safe area, for content that must clear it.
+    static let height: CGFloat = 72
+
+    let tabs: [BottomNavBlocTab]
+    let selected: BottomNavBlocTab
+    let notificationCount: Int
+    let onSelect: (BottomNavBlocTab) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(tabs, id: \.self) { tab in
+                let isSelected = tab == selected
+                Button { onSelect(tab) } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 20, weight: .medium))
+                            .frame(height: 26)
+                            .overlay(alignment: .topTrailing) {
+                                if tab == .settings && notificationCount > 0 {
+                                    Text("\(notificationCount)")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 5)
+                                        .background(.red, in: Capsule())
+                                        .offset(x: 10, y: -4)
+                                }
+                            }
+                        Text(tab.title)
+                            .font(.caption2.weight(.medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(isSelected ? ChefTheme.primary : Color.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background {
+                        if isSelected {
+                            Capsule().fill(Color.primary.opacity(0.08))
+                        }
+                    }
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                .accessibilityValue(tab == .settings && notificationCount > 0 ? "\(notificationCount)" : "")
+            }
+        }
+        .padding(4)
+        .chefGlass()
+        .padding(.horizontal, ChefTheme.Spacing.normal + 4)
+        .padding(.bottom, ChefTheme.Spacing.extraSmall)
     }
 }
 
