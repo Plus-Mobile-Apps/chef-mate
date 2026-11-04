@@ -3,7 +3,8 @@ import ComposeApp
 
 /// The redesigned bottom navigation: a native `TabView`, which gets the Liquid Glass tab bar on
 /// iOS 26. Tab order and selection come from `BottomNavBloc`. Each tab owns the `NavigationStack`
-/// that root-stack children push onto, so they slide over the tab bar like on Android.
+/// that root-stack children push onto; the tab bar stays put through pushes (iOS convention),
+/// except for the full-screen flows in `StackEntry.hidesTabBar`.
 struct BottomNavView: View {
     let bloc: BottomNavBloc
     @Binding var path: [StackEntry]
@@ -33,8 +34,10 @@ struct BottomNavView: View {
                             }
                         }
                         .navigationDestination(for: StackEntry.self) { entry in
-                            StackEntryView(entry: entry)
-                                .toolbar(.hidden, for: .tabBar)
+                            // Pushes keep the tab bar, as is usual on iOS; only full-screen flows
+                            // (the Android modal set) hide it.
+                            StackEntryView(entry: entry, showsTabBar: !entry.hidesTabBar)
+                                .toolbar(entry.hidesTabBar ? .hidden : .visible, for: .tabBar)
                         }
                     }
                 }

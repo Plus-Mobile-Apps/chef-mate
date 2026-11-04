@@ -1,4 +1,5 @@
 import SwiftUI
+import SafariServices
 import ComposeApp
 
 /// The redesigned recipe detail, mirroring the Android `RecipeDetailScreen` compact layout: a hero
@@ -15,6 +16,8 @@ struct RecipeDetailView: View {
     @StateObject private var sheet: ObservedValue<ChildSlot<AnyObject, RecipeDetailBlocSheet>>
     @StateObject private var fullImage: ObservedValue<ChildSlot<AnyObject, RecipeDetailBlocFullImage>>
     @State private var shareWatch: Cancellable?
+    /// A web page shown in the Safari sheet (source link or a link inside the recipe text).
+    @State private var webPage: WebPage?
     @Namespace private var imageNamespace
 
     init(bloc: RecipeDetailBloc) {
@@ -36,7 +39,7 @@ struct RecipeDetailView: View {
                     state: state,
                     imageNamespace: imageNamespace,
                     onImageClicked: bloc.onImageClicked,
-                    onSourceClicked: { bloc.onSourceUrlClicked(url: $0) },
+                    onSourceClicked: { url in URL(string: url).map(handleLink) },
                     onScaleChanged: { bloc.onScaleChanged(scale: $0) }
                 )
             }
@@ -48,9 +51,11 @@ struct RecipeDetailView: View {
         .navigationTitle(recipe.title)
         .navigationBarTitleDisplayMode(.large)
         .toolbar { navigationActions(recipe) }
-        .toolbar { bottomActions(state) }
-        // Keep toasts (e.g. "added to grocery list") above the bottom toolbar instead of over it.
-        .toastClearance(56)
+        .safeAreaInset(edge: .bottom) {
+            if !state.isLoading { actionBar(state) }
+        }
+        // Keep toasts (e.g. "added to grocery list") above the action bar instead of over it.
+        .toastClearance(64)
         .tint(ChefTheme.primary)
         .alert(
             ComposeStrings["recipe_detail_delete_title"],
@@ -94,6 +99,10 @@ struct RecipeDetailView: View {
                 RecipeImageFullScreenView(imageUrl: active.imageUrl, title: active.title, onDismiss: bloc.onCloseFullImage)
                     .navigationTransition(.zoom(sourceID: RecipeHero.imageTransitionId, in: imageNamespace))
             }
+        }
+        .sheet(item: $webPage) { page in
+            SafariView(url: page.url)
+                .ignoresSafeArea()
         }
         .onAppear {
             // Share links arrive once the recipe has been made public; hand each to the share sheet.
@@ -146,36 +155,51 @@ struct RecipeDetailView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private func bottomActions(_ state: RecipeDetailBlocModel) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            Button { bloc.onAddToGroceryListClicked() } label: {
-                Label(ComposeStrings["recipe_detail_add_to_grocery"], systemImage: "cart.badge.plus")
-            }
-            Button { bloc.onFavoriteToggled() } label: {
-                Label(
+    /// The recipe actions as a floating glass bar above the tab bar — the Android `PlusToolbar`
+    /// with its Cook mode FAB. A `.bottomBar` toolbar can't be used: UIKit puts it in the tab
+    /// bar's slot, hidden behind it while the tab bar shows.
+    private func actionBar(_ state: RecipeDetailBlocModel) -> some View {
+        HStack(spacing: ChefTheme.Spacing.normal) {
+            HStack(spacing: ChefTheme.Spacing.extraSmall) {
+                ActionButton(ComposeStrings["recipe_detail_add_to_grocery"], systemImage: "cart.badge.plus") {
+                    bloc.onAddToGroceryListClicked()
+                }
+                ActionButton(
                     ComposeStrings[state.recipe.isFavorite ? "recipe_detail_remove_favorite" : "recipe_detail_add_favorite"],
                     systemImage: state.recipe.isFavorite ? "heart.fill" : "heart"
-                )
-            }
-            Button { bloc.onAddToMealPlanClicked() } label: {
-                Label(ComposeStrings["recipe_detail_add_to_meal_plan"], systemImage: "calendar.badge.plus")
-            }
-            if state.showAiChat {
-                // Still tappable for a non-subscriber: the BLoC opens the premium upsell instead.
-                Button { bloc.onAiChatClicked() } label: {
-                    Label(
+                ) {
+                    bloc.onFavoriteToggled()
+                }
+                ActionButton(ComposeStrings["recipe_detail_add_to_meal_plan"], systemImage: "calendar.badge.plus") {
+                    bloc.onAddToMealPlanClicked()
+                }
+                if state.showAiChat {
+                    // Still tappable for a non-subscriber: the BLoC opens the premium upsell instead.
+                    ActionButton(
                         ComposeStrings[state.isSubscribed ? "recipe_detail_ai_chat" : "recipe_detail_ai_chat_premium"],
                         systemImage: state.isSubscribed ? "sparkles" : "lock.fill"
-                    )
+                    ) {
+                        bloc.onAiChatClicked()
+                    }
                 }
             }
-            Spacer()
+            .padding(.horizontal, ChefTheme.Spacing.small)
+            .chefGlass()
+
+            Spacer(minLength: 0)
+
             Button { bloc.onCookModeClicked() } label: {
-                Label(ComposeStrings["recipe_detail_cook_mode"], systemImage: "frying.pan.fill")
+                Image(systemName: "frying.pan.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(ChefTheme.primary, in: Circle())
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .accessibilityLabel(ComposeStrings["recipe_detail_cook_mode"])
         }
+        .padding(.horizontal, ChefTheme.Spacing.normal)
+        .padding(.bottom, ChefTheme.Spacing.small)
     }
 
     // MARK: Bindings
@@ -212,11 +236,14 @@ struct RecipeDetailView: View {
         )
     }
 
-    /// A `chefmate://recipe/<clientId>` link opens that recipe in-app; any other URL opens like the
-    /// source link.
+    /// A `chefmate://recipe/<clientId>` link opens that recipe in-app; a web link opens in a Safari
+    /// sheet over the recipe (the iOS convention, instead of the Android in-app browser screen);
+    /// anything else goes to the BLoC like before.
     private func handleLink(_ url: URL) {
         if let clientId = ChefMateUrls.shared.recipeLinkClientId(url: url.absoluteString) {
             bloc.onRecipeLinkClicked(clientId: clientId)
+        } else if ["http", "https"].contains(url.scheme?.lowercased()) {
+            webPage = WebPage(url: url)
         } else {
             bloc.onSourceUrlClicked(url: url.absoluteString)
         }
@@ -534,5 +561,48 @@ private struct DeletingOverlay: View {
             .padding(ChefTheme.Spacing.large)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
+    }
+}
+
+private struct WebPage: Identifiable {
+    let url: URL
+    var id: URL { url }
+}
+
+/// `SFSafariViewController` for SwiftUI: Safari's reader, sign-ins and share sheet, presented as a
+/// sheet over the screen.
+private struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let controller = SFSafariViewController(url: url)
+        controller.preferredControlTintColor = UIColor(ChefTheme.primary)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}
+
+private struct ActionButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    init(_ title: String, systemImage: String, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .frame(width: 48, height: 48)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(ChefTheme.primary)
+        .accessibilityLabel(title)
     }
 }

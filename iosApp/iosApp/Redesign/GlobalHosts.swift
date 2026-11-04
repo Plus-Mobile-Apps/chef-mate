@@ -67,7 +67,8 @@ private struct GlobalHosts: ViewModifier {
             .environment(\.toastClearances, clearances)
             .overlay(alignment: .bottom) {
                 ToastHost(service: toastService)
-                    .padding(.bottom, max(bottomInset, clearances.inset))
+                    // Screen chrome (e.g. a bottom toolbar) stacks on top of the tab bar.
+                    .padding(.bottom, bottomInset + clearances.inset)
                     .animation(.snappy, value: clearances.inset)
             }
             .background {
