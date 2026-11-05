@@ -107,15 +107,21 @@ Known gaps:
   (minus the bottom-nav root). A user swipe-back or system back button shrinks the path, and the
   binding's setter calls `RootBloc.onBackClicked()` so Decompose stays the source of truth.
 - **Modal children** (the Android `isModal` set: Browser, MealPlanner, CookMode, AiChat,
-  EditRecipeBook, EditGroceryList) → `.fullScreenCover` / `.sheet` instead of a push. Not done
-  yet: they push for now.
+  EditRecipeBook, EditGroceryList) → `.fullScreenCover` instead of a push, once native. The
+  flattened entries split at the first modal root child (`RootStackModel.mainEntries` /
+  `modalEntries`): everything from it up is presented in one full-screen cover with its own
+  `NavigationStack`, so screens a modal opens (AI chat → "Add recipe" → recipe editor) push inside
+  the cover. The cover is keyed by the modal's root child, so a nested stack replacing its own root
+  (AI chat "New conversation") swaps the cover's root view instead of re-presenting it. Dismissal
+  only goes through the BLoC (the close button), and toasts move to an overlay inside the cover
+  while it shows. Native so far: AiChat; the hosted ones still push.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
   flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
   subscribes to each flattened child's own `routerState`). Each `StackEntry` records which BLoC pops
   it: a nested child pops through its stack's `onBackClicked`, except the nested stack's first
   child, which pops the whole root child through `RootBloc.onBackClicked` (a Decompose stack can't
-  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot.
+  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
@@ -179,7 +185,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | |
 | 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
 | 15 | Browser | `BrowserRootScreen`, landing, bookmarks, edit query, select engine | Native `WKWebView`. |
-| 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | |
+| 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | |
 | 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | |
 | 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | |
