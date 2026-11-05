@@ -132,6 +132,10 @@ Known gaps:
   pushed screen snaps the bar back only after the pop finishes, and SwiftUI's tab controller
   ignores UIKit's `hidesBottomBarWhenPushed`. Trade-off: no system tab-bar extras (minimize on
   scroll, search tab) until we revisit.
+- **The tab bar hides while the keyboard is up.** `ChefTabBar` is a `safeAreaInset`, which SwiftUI
+  lays out above the keyboard, so it would otherwise ride up on top of it. `BottomNavView` drops it
+  on `keyboardWillShow` and brings it back on `keyboardWillHide`, matching the system tab bar and
+  the Android nav pill, which both stay behind the keyboard.
 - **Web links** in native screens open in an `SFSafariViewController` sheet instead of the in-app
   Browser screen.
 
@@ -177,7 +181,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 5 | Recipe detail | `RecipeDetailScreen`, `RecipeImageFullScreenScreen` | Done (first cut): RecipeRoot flattened (Edit stays hosted), hero + pinned ingredient/direction sections, scale menu, links, share/edit/delete, bottom glass toolbar, zoom transition into a pinch-zoom image. Text parsing reuses Kotlin via `RecipeTextFormatter`. Coach marks and the tablet two-column layout still to do; the add-to-grocery sheet hosts Compose until PR 7. |
 | 6 | Edit recipe | `EditRecipeScreen` | Done (first cut): every field bound to the BLoC's StateFlows; books and category chips with a native category picker (create/rename/delete); rating; PhotosPicker + square crop; markdown editors with selection-aware bold/italic/list buttons, recipe-link insertion at the caret, and a preview. Back and swipe-back go through the BLoC's discard prompt (`SwipeBackGate`). WYSIWYG rich-text mode, coach marks and the wide layout still to do; the recipe-link picker hosts Compose until PR 7. |
 | 7 | Recipe → grocery / meal flows | `AddRecipeToGroceryListScreen`, `RecipePickerScreen`, `ChooseDateScreen`, `ChooseMealTypeScreen`, `MealPlannerRootScreen` | MealPlanner becomes a sheet. |
-| 8 | Grocery list | `GroceryListScreen` | Swipe to delete with undo, add row, sections. |
+| 8 | Grocery list | `GroceryListScreen` | Done (first cut): pinned aisle sections, check-off, swipe to delete (Undo via the native toast host) and swipe to check, floating glass add row with autocomplete above it, list picker as the title menu, sort & filter sheet, delete/create dialogs, invite banners, sync popover tip. The item detail sheet hosts Compose until PR 9. |
 | 9 | Grocery detail + edit list | `GroceryDetailScreen`, `EditGroceryListScreen` | |
 | 10 | Meal plan | `MealPlanScreen` | |
 | 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
