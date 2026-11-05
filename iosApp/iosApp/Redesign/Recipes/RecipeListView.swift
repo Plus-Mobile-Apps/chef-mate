@@ -366,7 +366,7 @@ struct RecipeListView: View {
     private func scan(_ item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
-        bloc.onScanRecipePhotoPicked(bytes: ByteArrayBridge.shared.fromData(data: jpeg), fileExtension: "jpg")
+        bloc.onScanRecipePhotoPicked(bytes: NativeBytes.shared.fromData(data: jpeg), fileExtension: "jpg")
     }
 }
 
@@ -484,7 +484,7 @@ private struct RecipeRow: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
-                    SyncStatusIcon(status: recipe.syncStatus)
+                    SyncStatusIcon(status: recipe.syncStatus.name)
                 }
                 if let description = recipe.description_, !description.isEmpty {
                     Text(RecipeTextFormatter.shared.inlineRuns(text: description).attributed)
@@ -503,16 +503,18 @@ private struct RecipeRow: View {
 
 /// Compose's `SyncStatusIcon`: a muted cloud for synced, a slashed cloud for not synced.
 private struct SyncStatusIcon: View {
-    let status: SyncStatus
+    /// The Kotlin `SyncStatus` entry's `name`. Several exported modules declare their own
+    /// `SyncStatus`, so its Swift type name (`SyncStatus`, `SyncStatus_`, …) depends on export order.
+    let status: String
 
     var body: some View {
         switch status {
-        case .synced:
+        case "SYNCED":
             Image(systemName: "checkmark.icloud")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .accessibilityLabel(ComposeStrings["recipe_sync_synced"])
-        case .notSynced:
+        case "NOT_SYNCED":
             Image(systemName: "icloud.slash")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -559,22 +561,6 @@ private struct RecipeGridCard: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-}
-
-private struct RecipeImage: View {
-    let url: String?
-
-    var body: some View {
-        AsyncImage(url: url.flatMap(URL.init(string:))) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            ZStack {
-                Color(.tertiarySystemFill)
-                Image(systemName: "fork.knife")
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 }
 

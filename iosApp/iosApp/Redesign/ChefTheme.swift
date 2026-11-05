@@ -8,6 +8,13 @@ enum ChefTheme {
             ? UIColor(red: 0xBB / 255, green: 0x86 / 255, blue: 0xFC / 255, alpha: 1)
             : UIColor(red: 0x62 / 255, green: 0x00 / 255, blue: 0xEE / 255, alpha: 1)
     })
+    /// `onPrimary`: white in light, Material 3's dark default (#381E72) in dark, where `primary` is
+    /// too light for white text.
+    static let onPrimary = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0x38 / 255, green: 0x1E / 255, blue: 0x72 / 255, alpha: 1)
+            : .white
+    })
     /// `secondary`: teal200.
     static let secondary = Color(red: 0x03 / 255, green: 0xDA / 255, blue: 0xC5 / 255)
 
