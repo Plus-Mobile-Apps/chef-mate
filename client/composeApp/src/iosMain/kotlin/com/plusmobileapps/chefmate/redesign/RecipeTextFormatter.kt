@@ -6,6 +6,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.plusmobileapps.chefmate.recipe.categories.pickerLabelRes
 import com.plusmobileapps.chefmate.recipe.data.BuiltinCategory
+import com.plusmobileapps.chefmate.recipe.data.Category
 import com.plusmobileapps.chefmate.recipe.data.IngredientScaler
 import com.plusmobileapps.chefmate.recipe.data.IngredientSection
 import com.plusmobileapps.chefmate.recipe.data.Recipe
@@ -59,6 +60,19 @@ object RecipeTextFormatter {
             }
         }
 
+    /** Free-form editor text as display lines (directions rules), for the editor's preview. */
+    fun lines(text: String): List<RecipeTextLine> =
+        splitLines(text).map { line ->
+            if (IngredientSection.isHeader(line)) {
+                RecipeTextLine(isHeader = true, runs = listOf(plainRun(line)))
+            } else {
+                RecipeTextLine(
+                    isHeader = false,
+                    runs = parseListLine(line).toDisplayAnnotatedString(onLinkClick = {}).toRuns(),
+                )
+            }
+        }
+
     /** A single paragraph of inline markdown, such as the recipe description. */
     fun inlineRuns(text: String): List<TextRun> =
         text.toInlineMarkdownAnnotatedString(onLinkClick = {}).toRuns()
@@ -70,6 +84,19 @@ object RecipeTextFormatter {
                 lookup.string(it.pickerLabelRes().key)
             } ?: category.name
         }
+
+    /** Every built-in category, in picker order. */
+    val builtinCategories: List<BuiltinCategory>
+        get() = BuiltinCategory.entries
+
+    /** The localized picker label of a built-in category. */
+    fun builtinLabel(builtin: BuiltinCategory, lookup: StringLookup): String =
+        lookup.string(builtin.pickerLabelRes().key)
+
+    /** A category's display name: the localized label for a built-in one, else its own name. */
+    fun categoryLabel(category: Category, lookup: StringLookup): String =
+        BuiltinCategory.fromId(category.builtinId)?.let { builtinLabel(it, lookup) }
+            ?: category.name
 
     /** The factors the ingredient scale menu offers (½× through 4×). */
     val scaleOptions: List<Double>

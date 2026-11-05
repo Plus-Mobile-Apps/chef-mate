@@ -127,6 +127,7 @@ final class RootStackModel: ObservableObject {
             switch entry.popper {
             case .root: root.onBackClicked()
             case .recipeRoot(let bloc): bloc.onBackClicked()
+            case .editor(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -150,9 +151,19 @@ final class RootStackModel: ObservableObject {
                     nestedCancellations[key] = bloc.routerState.subscribe(observer_: { [weak self] _ in self?.rebuild() })
                 }
                 for (index, nested) in bloc.routerState.value.items.enumerated() {
-                    // The nested stack's own root can't pop itself; the root stack removes the
-                    // whole RecipeRoot instead.
-                    result.append(StackEntry(content: .recipe(nested.instance), popper: index == 0 ? .root : .recipeRoot(bloc)))
+                    let popper: StackEntry.Popper
+                    if let edit = nested.instance as? RecipeRootBlocChild.Edit {
+                        // The editor decides: discard prompt when there are changes, else it
+                        // closes itself (popping, or finishing a create flow).
+                        popper = .editor(edit.bloc)
+                    } else if index == 0 {
+                        // The nested stack's own root can't pop itself; the root stack removes the
+                        // whole RecipeRoot instead.
+                        popper = .root
+                    } else {
+                        popper = .recipeRoot(bloc)
+                    }
+                    result.append(StackEntry(content: .recipe(nested.instance), popper: popper))
                 }
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root))
@@ -176,6 +187,7 @@ struct StackEntry: Hashable {
     enum Popper {
         case root
         case recipeRoot(RecipeRootBloc)
+        case editor(EditRecipeBloc)
     }
 
     let content: Content
@@ -217,6 +229,8 @@ struct StackEntryView: View {
         case .recipe(let child):
             if let detail = child as? RecipeRootBlocChild.Detail {
                 RecipeDetailView(bloc: detail.bloc)
+            } else if let edit = child as? RecipeRootBlocChild.Edit {
+                EditRecipeView(bloc: edit.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
