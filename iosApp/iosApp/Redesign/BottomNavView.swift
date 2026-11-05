@@ -15,6 +15,10 @@ struct BottomNavView: View {
     @Binding var path: [StackEntry]
     @StateObject private var model: ObservedFlow<BottomNavBlocModel>
     @StateObject private var content: ObservedValue<ChildStack<AnyObject, BottomNavBlocChild>>
+    /// True while the software keyboard is up. The bar is a `safeAreaInset`, which SwiftUI lays
+    /// out above the keyboard, so it would otherwise ride up on top of it; like the system tab bar
+    /// (and the Android nav pill) it should stay behind the keyboard instead.
+    @State private var keyboardVisible = false
 
     init(bloc: BottomNavBloc, path: Binding<[StackEntry]>) {
         self.bloc = bloc
@@ -39,12 +43,14 @@ struct BottomNavView: View {
                             }
                         }
                         .safeAreaInset(edge: .bottom, spacing: 0) {
-                            ChefTabBar(
-                                tabs: model.value.tabs,
-                                selected: selectedTab,
-                                notificationCount: Int(model.value.notificationCount),
-                                onSelect: { bloc.onTabSelected(tab: $0) }
-                            )
+                            if !keyboardVisible {
+                                ChefTabBar(
+                                    tabs: model.value.tabs,
+                                    selected: selectedTab,
+                                    notificationCount: Int(model.value.notificationCount),
+                                    onSelect: { bloc.onTabSelected(tab: $0) }
+                                )
+                            }
                         }
                         .toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: StackEntry.self) { entry in
@@ -55,6 +61,12 @@ struct BottomNavView: View {
             }
         }
         .tint(ChefTheme.primary)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
     }
 }
 
