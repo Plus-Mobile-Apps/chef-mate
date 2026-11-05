@@ -134,6 +134,8 @@ private struct TabChildView: View {
         switch child {
         case let recipes as BottomNavBlocChild.RecipeList:
             RecipeListView(bloc: recipes.bloc)
+        case let grocery as BottomNavBlocChild.GroceryList:
+            GroceryListView(bloc: grocery.bloc)
         case let settings as BottomNavBlocChild.Settings:
             MoreView(bloc: settings.bloc)
         default:
