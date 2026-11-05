@@ -11,6 +11,14 @@ final class ComposeStrings: NSObject, StringLookup {
     /// The string named `key` in the Compose resources, e.g. `ComposeStrings["sign_in"]`.
     static subscript(_ key: String) -> String { shared.string(key: key) }
 
+    /// The string named `key` with its Compose `{name}` placeholders filled from `args`, e.g.
+    /// `ComposeStrings.format("recipe_list_selection_count", ["count": "3"])`.
+    static func format(_ key: String, _ args: [String: String]) -> String {
+        args.reduce(shared.string(key: key)) { result, arg in
+            result.replacingOccurrences(of: "{\(arg.key)}", with: arg.value)
+        }
+    }
+
     func string(key: String) -> String {
         NSLocalizedString(key, tableName: Self.table, comment: "")
     }
