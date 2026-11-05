@@ -11,6 +11,10 @@ final class ComposeStrings: NSObject, StringLookup {
     /// The string named `key` in the Compose resources, e.g. `ComposeStrings["sign_in"]`.
     static subscript(_ key: String) -> String { shared.string(key: key) }
 
+    /// The string named `key` with each `{name}` placeholder filled from `args`, like a Kotlin
+    /// `PhraseModel`: `ComposeStrings["import_recipes_import_button", ["count": "3"]]`.
+    static subscript(_ key: String, _ args: [String: String]) -> String { format(key, args) }
+
     /// The string named `key` with its Compose `{name}` placeholders filled from `args`, e.g.
     /// `ComposeStrings.format("recipe_list_selection_count", ["count": "3"])`.
     static func format(_ key: String, _ args: [String: String]) -> String {

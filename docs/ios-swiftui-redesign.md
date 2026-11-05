@@ -98,6 +98,14 @@ Known gaps:
 - English only today. Adding a locale means reading `values-<lang>/` into the same catalog.
 - No CI check that the committed catalog matches `strings.xml` yet.
 
+### Images
+
+Compose drawables stay the single source too. The Kotlin framework build already copies every
+module's `composeResources` into the app bundle (`compose-resources/composeResources/<package>/`),
+so `ComposeDrawables.image("onboarding_app_icon", package: "chefmate.client.onboarding.public.generated.resources")`
+(`Redesign/ComposeDrawables.swift`) loads the same PNG Compose's `painterResource` does, cached. No
+asset-catalog copies. A `_dark` sibling is picked by the caller from `colorScheme`.
+
 ### Navigation
 
 - **Hosted screens hide the navigation bar** (they draw their own app bar). A
@@ -120,15 +128,21 @@ Known gaps:
   content stays while the sheet animates away), and a swipe-down calls `RootBloc.onBackClicked`
   to pop the whole child. Inside the sheet, its nested stack gets its own `NavigationStack`
   mirroring `routerState` (a sheet is a new presentation, so this isn't a nested stack).
+  A native modal can also opt in with `StackEntry.presentsAsSheet`: when it is the top entry,
+  `RedesignRootView` leaves it out of the path and presents it in a `.sheet` with its own
+  `NavigationStack`; a swipe-down pops it through its BLoC. So far: EditRecipeBook.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
   flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
   subscribes to each flattened child's own `routerState`). Each `StackEntry` records which BLoC pops
   it: a nested child pops through its stack's `onBackClicked`, except the nested stack's first
   child, which pops the whole root child through `RootBloc.onBackClicked` (a Decompose stack can't
-  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat, ManageFamily.
+  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat, ManageFamily,
+  SettingsRoot (its other children stay hosted until PR 12).
   Browser is the exception: its screens replace one another in place (a crossfade) rather than
   push, and the tab bar stays visible, so `BrowserRootView` renders its active child itself.
+  Onboarding is the exception: its steps are pages of one `TabView(.page)` rather than pushes (see
+  PR 14), so it stays a single root entry.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
@@ -183,7 +197,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 0 | Flag + launch switch | — | Done. |
 | 1 | Shell + interop | Root stack, `TabView`, hosted fallback, theme, `.chefGlass()`, flow bridge | Done (first cut). |
 | 2 | More tab | `SettingsScreen` | Done (first cut): keeps Dev settings → Feature flags reachable. |
-| 3 | Recipe list | `RecipeListScreen` | Done: search, list/grid, overflow menu (view mode, sync, select, export all, collaborate), sort & filter sheet, grouped book picker with edit, selection mode with bulk export / add to book / add to category, scan from photo (`PhotosPicker` → `ByteArrayBridge`), invite banners, continue / done cooking, search / filter / empty states, sync status, inline-markdown descriptions. Swipe and context-menu delete confirm first. Coach marks and the tablet filter rail still to do. |
+| 3 | Recipe list | `RecipeListScreen` | Done: search, list/grid, overflow menu (view mode, sync, select, export all, collaborate), sort & filter sheet, grouped book picker with edit, selection mode with bulk export / add to book / add to category, scan from photo (`PhotosPicker` → `NativeBytes`), invite banners, continue / done cooking, search / filter / empty states, sync status, inline-markdown descriptions. Swipe and context-menu delete confirm first. Coach marks and the tablet filter rail still to do. |
 | 4 | Toast + review hosts | — | Done (first cut): native toast overlay on `ToastService`, StoreKit review prompt. |
 | 5 | Recipe detail | `RecipeDetailScreen`, `RecipeImageFullScreenScreen` | Done (first cut): RecipeRoot flattened (Edit stays hosted), hero + pinned ingredient/direction sections, scale menu, links, share/edit/delete, bottom glass toolbar, zoom transition into a pinch-zoom image. Text parsing reuses Kotlin via `RecipeTextFormatter`. Coach marks and the tablet two-column layout still to do; the add-to-grocery sheet hosts Compose until PR 7. |
 | 6 | Edit recipe | `EditRecipeScreen` | Done (first cut): every field bound to the BLoC's StateFlows; books and category chips with a native category picker (create/rename/delete); rating; PhotosPicker + square crop; markdown editors with selection-aware bold/italic/list buttons, recipe-link insertion at the caret, and a preview. Back and swipe-back go through the BLoC's discard prompt (`SwipeBackGate`). WYSIWYG rich-text mode, coach marks and the wide layout still to do; the recipe-link picker hosts Compose until PR 7. |
@@ -194,12 +208,12 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
 | 12 | Settings root | `SettingsRootScreen`, `AppSettingsScreen`, `BottomNavOrderScreen`, grocery autocomplete + category rules | |
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | Done (first cut): email/password with iOS autofill hints (`.username`/`.password`, `.oneTimeCode` for the code), forgot-password / email-me-a-code, mode switch, guest-data discard alert, glass submit button above the keyboard, resend countdown. Swipe-back pops through each BLoC's own `onBackClicked` (`StackEntry.Popper.child`) so abandoning sign-in still clears the gated destination. Privacy/terms open in a Safari sheet. |
-| 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
+| 14 | Onboarding | `OnboardingRootScreen` + pages | Done (first cut): one root entry, every visited step a page of a `TabView(.page)` under a native toolbar (back, progress dots, Skip). The BLoC stack only holds visited steps, so there's no page ahead and swiping only goes back; a settled swipe or the back arrow pops through `OnboardingRootBloc.onBackClicked`. Previews and copy load from Compose resources (`ComposeDrawables`, `ComposeStrings`). Re-entered from More it pushes; the pager owns horizontal swipes, so the edge swipe pages back like any swipe and does nothing on the first step, where the back arrow exits (Dismissed). Not yet: `#Preview`s (the step fakes live in `onboarding:impl`, which isn't exported). |
 | 15 | Browser | `BrowserRootScreen`, landing, edit query, select engine, browser | Done (first cut): native `WKWebView` kept in the BLoC's `InstanceKeeper` (page and history survive tab switches), crossfade between the browser's own screens with the address bar morphing via `matchedGeometryEffect`, edge-swipe page history, engine picker, bookmarks grid, search coach mark as a popover. The root-stack browser (links opened from elsewhere) pushes the same view with a nav bar. The Settings → Bookmarks screen (`BrowserBookmarksScreen`) stays hosted until PR 12. |
 | 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | |
 | 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | Done (first cut): ManageFamily flattened into the root stack, both screens native. Form dialogs (new/rename family, invite, create/rename shared grocery list or recipe book) are sheets; confirmations are alerts; member and collection actions are menus. |
-| 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | |
+| 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | Done (first cut): SettingsRoot flattened, EditRecipeBook as the first native sheet (Form: name, collaborators by role, invite, delete/leave), categories with inline create, context menu / swipe rename-delete and bulk selection, import/export via `fileImporter` / `fileExporter` (bytes cross through `NativeBytes`), public recipe with a floating Save. Export opened from the recipe list is native too. |
 | 20 | Dev tools | `DeveloperSettingsScreen`, `FeatureFlagsScreen` | Last on purpose: hosted Compose keeps the flag toggle working throughout. |
 | 21 | Rollout + cleanup | — | Ramp the flag; once at 100%, delete the hosted fallback and the Compose iOS path. |
 
