@@ -22,14 +22,17 @@ struct RedesignRootView: View {
     var body: some View {
         let entries = stack.mainEntries
         if let base = entries.first {
-            let pushed = Array(entries.dropFirst())
+            // A trailing sheet entry (e.g. the recipe book form) is presented over the stack
+            // instead of pushed onto it, like the Android modal slide-up.
+            let sheetEntry = entries.count > 1 && entries.last?.presentsAsSheet == true ? entries.last : nil
+            let pushed = Array(entries.dropFirst().dropLast(sheetEntry == nil ? 0 : 1))
             let isModalShown = stack.modal != nil
             let path = Binding<[StackEntry]>(
                 get: { pushed },
                 set: { newPath in
                     // Only pops originate from SwiftUI; pushes always come from the BLoCs. The
-                    // stack under a modal can't be popped from the UI while it is covered.
-                    guard !isModalShown else { return }
+                    // stack under a modal or sheet can't be popped from the UI while it is covered.
+                    guard !isModalShown, sheetEntry == nil else { return }
                     stack.pop(count: pushed.count - newPath.count)
                 }
             )
@@ -53,6 +56,18 @@ struct RedesignRootView: View {
                 }
             )) { modal in
                 MealPlannerSheet(bloc: modal.bloc)
+            }
+            .sheet(item: Binding(
+                get: { sheetEntry },
+                set: { newValue in
+                    // A swipe-down dismisses natively; pop it through its BLoC. Skip if the BLoC
+                    // already removed it (e.g. after Save), so nothing else gets popped.
+                    if newValue == nil, let sheetEntry, stack.entries.last == sheetEntry { stack.pop(count: 1) }
+                }
+            )) { entry in
+                NavigationStack {
+                    StackEntryView(entry: entry)
+                }
             }
             .globalHosts(
                 toastService: RootBlocProvider.shared.toastService,
@@ -103,8 +118,8 @@ struct ModalPresentation: Identifiable {
 }
 
 /// The Decompose root stack flattened into navigation entries. Most root children are one entry.
-/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`, `ManageFamily`) contributes one entry per
-/// nested child instead, so its screens push and swipe back natively rather than inside a hosted
+/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`, `ManageFamily`,
+/// `SettingsRoot`) contributes one entry per nested child instead, so its screens push and swipe back natively rather than inside a hosted
 /// Compose stack. Each entry remembers which BLoC pops it.
 ///
 /// The entries split at the first modal root child (the Android `isModal` set; so far
@@ -150,6 +165,7 @@ final class RootStackModel: ObservableObject {
             case .editor(let bloc): bloc.onBackClicked()
             case .manageFamily(let bloc): bloc.onBackClicked()
             case .child(let bloc): bloc.onBackClicked()
+            case .settingsRoot(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -219,6 +235,11 @@ final class RootStackModel: ObservableObject {
                 // Auth screens pop through their own BLoC: its back output also abandons whatever
                 // the sign-in was gating (RootBlocImpl.destinationAfterAuth).
                 result.append(StackEntry(content: .root(child), popper: .child(bloc), owner: child))
+            } else if let settingsRoot = child as? RootBlocChild.SettingsRoot {
+                let bloc = settingsRoot.bloc
+                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .settings($0) }) { index, _ in
+                    return index == 0 ? .root : .settingsRoot(bloc)
+                }
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root, owner: child))
             }
@@ -256,6 +277,7 @@ struct StackEntry: Hashable {
         case recipe(RecipeRootBlocChild)
         case aiChat(AiChatRootBlocChild)
         case family(ManageFamilyRootBlocChild)
+        case settings(SettingsRootBlocChild)
     }
 
     enum Popper {
@@ -266,6 +288,7 @@ struct StackEntry: Hashable {
         case manageFamily(ManageFamilyRootBloc)
         /// A root child whose own back handler pops it (and may do more than a plain pop).
         case child(BackClickBloc)
+        case settingsRoot(SettingsRootBloc)
     }
 
     let content: Content
@@ -283,11 +306,22 @@ struct StackEntry: Hashable {
         case .recipe(let child): child
         case .aiChat(let child): child
         case .family(let child): child
+        case .settings(let child): child
         }
+    }
+
+    /// Presented as a sheet over the stack rather than pushed (see `RedesignRootView`). Only
+    /// native modal screens; hosted ones still push until their own PR.
+    var presentsAsSheet: Bool {
+        rootChild is RootBlocChild.EditRecipeBook
     }
 
     static func == (lhs: StackEntry, rhs: StackEntry) -> Bool { lhs.instance === rhs.instance }
     func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(instance)) }
+}
+
+extension StackEntry: Identifiable {
+    var id: ObjectIdentifier { ObjectIdentifier(instance) }
 }
 
 /// Native view for a navigation entry, or its Compose screen until that screen is redesigned.
@@ -307,6 +341,12 @@ struct StackEntryView: View {
                 OtpView(bloc: otp.bloc)
             } else if let onboarding = child as? RootBlocChild.Onboarding {
                 OnboardingView(bloc: onboarding.bloc)
+            } else if let publicRecipe = child as? RootBlocChild.PublicRecipe {
+                PublicRecipeView(bloc: publicRecipe.bloc)
+            } else if let export = child as? RootBlocChild.ExportRecipes {
+                ExportRecipesView(bloc: export.bloc)
+            } else if let editBook = child as? RootBlocChild.EditRecipeBook {
+                EditRecipeBookView(bloc: editBook.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
@@ -331,6 +371,17 @@ struct StackEntryView: View {
                 FamilyListView(bloc: list.bloc)
             } else if let detail = child as? ManageFamilyRootBlocChild.FamilyDetail {
                 FamilyDetailView(bloc: detail.bloc)
+            }
+        case .settings(let child):
+            switch child {
+            case let categories as SettingsRootBlocChild.RecipeCategories:
+                RecipeCategoriesView(bloc: categories.bloc)
+            case let export as SettingsRootBlocChild.ExportRecipes:
+                ExportRecipesView(bloc: export.bloc)
+            case let importRecipes as SettingsRootBlocChild.ImportRecipes:
+                ImportRecipesView(bloc: importRecipes.bloc)
+            default:
+                ComposeScreenHost(screen: child.bloc)
             }
         }
     }
