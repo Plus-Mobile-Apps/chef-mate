@@ -71,6 +71,7 @@ kotlin {
             export(projects.client.recipe.list.public)
             export(projects.client.recipe.core.public)
             export(projects.client.recipe.data.public)
+            export(projects.client.aichat.public)
             // Global hosts: the native toast overlay and store-review prompt.
             export(projects.client.toast.public)
             export(projects.client.review.public)
