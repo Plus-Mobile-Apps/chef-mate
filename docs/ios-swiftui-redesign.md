@@ -107,8 +107,14 @@ Known gaps:
   (minus the bottom-nav root). A user swipe-back or system back button shrinks the path, and the
   binding's setter calls `RootBloc.onBackClicked()` so Decompose stays the source of truth.
 - **Modal children** (the Android `isModal` set: Browser, MealPlanner, CookMode, AiChat,
-  EditRecipeBook, EditGroceryList) → `.fullScreenCover` / `.sheet` instead of a push. Not done
-  yet: they push for now.
+  EditRecipeBook, EditGroceryList) → `.fullScreenCover` instead of a push, once native.
+  `StackEntry.isModal` marks them (so far CookMode); the rest still push while hosted, since they
+  draw their own close button. `RootStackModel` splits the entries at the first modal one: the
+  entries below drive the main `NavigationStack`, and the modal entry plus everything opened above
+  it (e.g. AI chat or recipe detail from Cook Mode) drive a second `NavigationStack` inside the
+  cover (`ModalStackView`). The cover is a separate presentation, so that isn't a nested stack. It
+  dismisses when the BLoCs pop the modal entry. Toasts don't show over a cover yet, because the
+  toast host lives under it.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
   flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
@@ -174,7 +180,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 8 | Grocery list | `GroceryListScreen` | Swipe to delete with undo, add row, sections. |
 | 9 | Grocery detail + edit list | `GroceryDetailScreen`, `EditGroceryListScreen` | |
 | 10 | Meal plan | `MealPlanScreen` | |
-| 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Full-screen cover, glass controls. |
+| 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
 | 12 | Settings root | `SettingsRootScreen`, `AppSettingsScreen`, `BottomNavOrderScreen`, grocery autocomplete + category rules | |
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | |
 | 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
