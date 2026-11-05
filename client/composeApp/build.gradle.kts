@@ -79,6 +79,8 @@ kotlin {
             export(projects.client.browser.public)
             export(projects.client.family.manage.public)
             export(projects.client.family.data.public)
+            export(projects.client.auth.ui.public)
+            export(projects.client.auth.data.public)
             // Global hosts: the native toast overlay and store-review prompt.
             export(projects.client.toast.public)
             export(projects.client.review.public)
@@ -111,6 +113,7 @@ kotlin {
             api(projects.client.auth.data.impl)
             api(projects.client.auth.data.public)
             api(projects.client.auth.ui.impl)
+            api(projects.client.auth.ui.public)
             api(projects.client.auth.usecase.impl)
             api(projects.client.cook.impl)
             api(projects.client.cook.public)
