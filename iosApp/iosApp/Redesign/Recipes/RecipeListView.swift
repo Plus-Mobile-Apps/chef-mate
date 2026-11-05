@@ -366,7 +366,7 @@ struct RecipeListView: View {
     private func scan(_ item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
-        bloc.onScanRecipePhotoPicked(bytes: ByteArrayBridge.shared.fromData(data: jpeg), fileExtension: "jpg")
+        bloc.onScanRecipePhotoPicked(bytes: NativeBytes.shared.fromData(data: jpeg), fileExtension: "jpg")
     }
 }
 
@@ -561,22 +561,6 @@ private struct RecipeGridCard: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-}
-
-private struct RecipeImage: View {
-    let url: String?
-
-    var body: some View {
-        AsyncImage(url: url.flatMap(URL.init(string:))) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            ZStack {
-                Color(.tertiarySystemFill)
-                Image(systemName: "fork.knife")
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 }
 

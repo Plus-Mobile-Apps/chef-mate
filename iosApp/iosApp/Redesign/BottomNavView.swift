@@ -140,6 +140,8 @@ private struct TabChildView: View {
             MoreView(bloc: settings.bloc)
         case let browser as BottomNavBlocChild.Browser:
             BrowserRootView(bloc: browser.bloc)
+        case let meals as BottomNavBlocChild.Meals:
+            MealPlanView(bloc: meals.bloc)
         default:
             ComposeScreenHost(screen: child.bloc, edges: .top)
         }
