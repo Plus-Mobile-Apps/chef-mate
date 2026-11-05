@@ -98,6 +98,14 @@ Known gaps:
 - English only today. Adding a locale means reading `values-<lang>/` into the same catalog.
 - No CI check that the committed catalog matches `strings.xml` yet.
 
+### Images
+
+Compose drawables stay the single source too. The Kotlin framework build already copies every
+module's `composeResources` into the app bundle (`compose-resources/composeResources/<package>/`),
+so `ComposeDrawables.image("onboarding_app_icon", package: "chefmate.client.onboarding.public.generated.resources")`
+(`Redesign/ComposeDrawables.swift`) loads the same PNG Compose's `painterResource` does, cached. No
+asset-catalog copies. A `_dark` sibling is picked by the caller from `colorScheme`.
+
 ### Navigation
 
 - **Hosted screens hide the navigation bar** (they draw their own app bar). A
@@ -129,6 +137,8 @@ Known gaps:
   pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat, ManageFamily.
   Browser is the exception: its screens replace one another in place (a crossfade) rather than
   push, and the tab bar stays visible, so `BrowserRootView` renders its active child itself.
+  Onboarding is the exception: its steps are pages of one `TabView(.page)` rather than pushes (see
+  PR 14), so it stays a single root entry.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
@@ -194,7 +204,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
 | 12 | Settings root | `SettingsRootScreen`, `AppSettingsScreen`, `BottomNavOrderScreen`, grocery autocomplete + category rules | |
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | Done (first cut): email/password with iOS autofill hints (`.username`/`.password`, `.oneTimeCode` for the code), forgot-password / email-me-a-code, mode switch, guest-data discard alert, glass submit button above the keyboard, resend countdown. Swipe-back pops through each BLoC's own `onBackClicked` (`StackEntry.Popper.child`) so abandoning sign-in still clears the gated destination. Privacy/terms open in a Safari sheet. |
-| 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
+| 14 | Onboarding | `OnboardingRootScreen` + pages | Done (first cut): one root entry, every visited step a page of a `TabView(.page)` under a native toolbar (back, progress dots, Skip). The BLoC stack only holds visited steps, so there's no page ahead and swiping only goes back; a settled swipe or the back arrow pops through `OnboardingRootBloc.onBackClicked`. Previews and copy load from Compose resources (`ComposeDrawables`, `ComposeStrings`). Re-entered from More it pushes; the pager owns horizontal swipes, so the edge swipe pages back like any swipe and does nothing on the first step, where the back arrow exits (Dismissed). Not yet: `#Preview`s (the step fakes live in `onboarding:impl`, which isn't exported). |
 | 15 | Browser | `BrowserRootScreen`, landing, edit query, select engine, browser | Done (first cut): native `WKWebView` kept in the BLoC's `InstanceKeeper` (page and history survive tab switches), crossfade between the browser's own screens with the address bar morphing via `matchedGeometryEffect`, edge-swipe page history, engine picker, bookmarks grid, search coach mark as a popover. The root-stack browser (links opened from elsewhere) pushes the same view with a nav bar. The Settings → Bookmarks screen (`BrowserBookmarksScreen`) stays hosted until PR 12. |
 | 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | |
