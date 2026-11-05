@@ -93,7 +93,7 @@ struct ModalPresentation: Identifiable {
 }
 
 /// The Decompose root stack flattened into navigation entries. Most root children are one entry.
-/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`) contributes one entry per
+/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`, `ManageFamily`) contributes one entry per
 /// nested child instead, so its screens push and swipe back natively rather than inside a hosted
 /// Compose stack. Each entry remembers which BLoC pops it.
 ///
@@ -135,6 +135,7 @@ final class RootStackModel: ObservableObject {
             case .recipeRoot(let bloc): bloc.onBackClicked()
             case .aiChatRoot(let bloc): bloc.onBackClicked()
             case .editor(let bloc): bloc.onBackClicked()
+            case .manageFamily(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -190,6 +191,11 @@ final class RootStackModel: ObservableObject {
                 flatten(child, bloc: bloc, stack: bloc.routerState, content: { .aiChat($0) }) { index, _ in
                     return index == 0 ? .root : .aiChatRoot(bloc)
                 }
+            } else if let manageFamily = child as? RootBlocChild.ManageFamily {
+                let bloc = manageFamily.bloc
+                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .family($0) }) { index, _ in
+                    return index == 0 ? .root : .manageFamily(bloc)
+                }
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root, owner: child))
             }
@@ -219,6 +225,7 @@ struct StackEntry: Hashable {
         case root(RootBlocChild)
         case recipe(RecipeRootBlocChild)
         case aiChat(AiChatRootBlocChild)
+        case family(ManageFamilyRootBlocChild)
     }
 
     enum Popper {
@@ -226,6 +233,7 @@ struct StackEntry: Hashable {
         case recipeRoot(RecipeRootBloc)
         case aiChatRoot(AiChatRootBloc)
         case editor(EditRecipeBloc)
+        case manageFamily(ManageFamilyRootBloc)
     }
 
     let content: Content
@@ -242,6 +250,7 @@ struct StackEntry: Hashable {
         case .root(let child): child
         case .recipe(let child): child
         case .aiChat(let child): child
+        case .family(let child): child
         }
     }
 
@@ -278,6 +287,12 @@ struct StackEntryView: View {
                 AiChatHistoryView(bloc: history.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
+            }
+        case .family(let child):
+            if let list = child as? ManageFamilyRootBlocChild.FamilyList {
+                FamilyListView(bloc: list.bloc)
+            } else if let detail = child as? ManageFamilyRootBlocChild.FamilyDetail {
+                FamilyDetailView(bloc: detail.bloc)
             }
         }
     }

@@ -121,7 +121,7 @@ Known gaps:
   subscribes to each flattened child's own `routerState`). Each `StackEntry` records which BLoC pops
   it: a nested child pops through its stack's `onBackClicked`, except the nested stack's first
   child, which pops the whole root child through `RootBloc.onBackClicked` (a Decompose stack can't
-  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat.
+  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat, ManageFamily.
   Browser is the exception: its screens replace one another in place (a crossfade) rather than
   push, and the tab bar stays visible, so `BrowserRootView` renders its active child itself.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
@@ -193,7 +193,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 15 | Browser | `BrowserRootScreen`, landing, edit query, select engine, browser | Done (first cut): native `WKWebView` kept in the BLoC's `InstanceKeeper` (page and history survive tab switches), crossfade between the browser's own screens with the address bar morphing via `matchedGeometryEffect`, edge-swipe page history, engine picker, bookmarks grid, search coach mark as a popover. The root-stack browser (links opened from elsewhere) pushes the same view with a nav bar. The Settings → Bookmarks screen (`BrowserBookmarksScreen`) stays hosted until PR 12. |
 | 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | |
-| 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | |
+| 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | Done (first cut): ManageFamily flattened into the root stack, both screens native. Form dialogs (new/rename family, invite, create/rename shared grocery list or recipe book) are sheets; confirmations are alerts; member and collection actions are menus. |
 | 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | |
 | 20 | Dev tools | `DeveloperSettingsScreen`, `FeatureFlagsScreen` | Last on purpose: hosted Compose keeps the flag toggle working throughout. |
 | 21 | Rollout + cleanup | — | Ramp the flag; once at 100%, delete the hosted fallback and the Compose iOS path. |
