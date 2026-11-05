@@ -174,7 +174,7 @@ private struct CollaboratorSections<FocusValue: Hashable>: View {
 
                 Picker(ComposeStrings["edit_recipe_book_role_editor"], selection: Binding(
                     get: { model.current.inviteRole },
-                    set: { bloc.onInviteRoleChanged(role: $0) }
+                    set: { bloc.onInviteRoleChanged(role__: $0) }
                 )) {
                     Text(ComposeStrings["edit_recipe_book_role_editor"]).tag(RecipeBookRole.editor)
                     Text(ComposeStrings["edit_recipe_book_role_viewer"]).tag(RecipeBookRole.viewer)

@@ -1,25 +1,4 @@
 import SwiftUI
-import SafariServices
-
-/// A web page shown in a `SafariView` sheet.
-struct WebPage: Identifiable {
-    let url: URL
-    var id: URL { url }
-}
-
-/// `SFSafariViewController` for SwiftUI: Safari's reader, sign-ins and share sheet, presented as a
-/// sheet over the screen. Native screens open web links here instead of the in-app Browser screen.
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.preferredControlTintColor = UIColor(ChefTheme.primary)
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
-}
 
 /// A recipe photo filling its frame, with a fork-and-knife placeholder while loading or when the
 /// recipe has none.
