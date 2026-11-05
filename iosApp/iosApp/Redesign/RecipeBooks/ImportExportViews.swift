@@ -65,7 +65,7 @@ struct ImportRecipesView: View {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url) else { return }
             bloc.onArchiveSelected(
-                bytes: ByteArrayBridge.shared.fromData(data: data),
+                bytes: NativeBytes.shared.fromData(data: data),
                 fileName: url.lastPathComponent
             )
         }
@@ -215,7 +215,7 @@ struct ExportRecipesView: View {
         guard let pending, pending.token != exportToken else { return }
         exportToken = pending.token
         exportDocument = ZipDocument(
-            data: ByteArrayBridge.shared.toData(bytes: pending.archive),
+            data: NativeBytes.shared.toData(bytes: pending.archive),
             fileName: pending.fileName
         )
     }

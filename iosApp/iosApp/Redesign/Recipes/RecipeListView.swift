@@ -366,7 +366,7 @@ struct RecipeListView: View {
     private func scan(_ item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
-        bloc.onScanRecipePhotoPicked(bytes: ByteArrayBridge.shared.fromData(data: jpeg), fileExtension: "jpg")
+        bloc.onScanRecipePhotoPicked(bytes: NativeBytes.shared.fromData(data: jpeg), fileExtension: "jpg")
     }
 }
 
