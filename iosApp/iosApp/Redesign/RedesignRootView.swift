@@ -19,14 +19,14 @@ struct RedesignRootView: View {
     }
 
     var body: some View {
-        let entries = stack.entries
+        let entries = stack.mainEntries
         if let base = entries.first {
             let pushed = Array(entries.dropFirst())
             let path = Binding<[StackEntry]>(
                 get: { pushed },
                 set: { newPath in
                     // Only pops originate from SwiftUI; pushes always come from the BLoCs.
-                    stack.pop(count: pushed.count - newPath.count)
+                    stack.pop(Array(pushed.suffix(pushed.count - newPath.count)))
                 }
             )
             let bottomNav = base.rootChild as? RootBlocChild.BottomNavigation
@@ -40,12 +40,48 @@ struct RedesignRootView: View {
                     }
                 }
             }
+            .fullScreenCover(isPresented: modalBinding) {
+                ModalStackView(stack: stack)
+            }
             .globalHosts(
                 toastService: RootBlocProvider.shared.toastService,
                 reviewService: RootBlocProvider.shared.inAppReviewService,
                 // Pushed entries hide the tab bar; only the bare tab content shows it.
                 bottomInset: bottomNav != nil && pushed.isEmpty ? ChefTabBar.height : 0
             )
+        }
+    }
+
+    /// A full-screen cover shows while the stack holds a modal entry. The cover has no swipe to
+    /// dismiss, so this only flips to false after the BLoCs already popped the modal entries.
+    private var modalBinding: Binding<Bool> {
+        Binding(
+            get: { !stack.modalEntries.isEmpty },
+            set: { shown in
+                if !shown { stack.pop(stack.modalEntries) }
+            }
+        )
+    }
+}
+
+/// The modal part of the root stack (see `RootStackModel.modalEntries`) inside the full-screen
+/// cover: its own `NavigationStack` whose root is the modal screen, with everything opened above it
+/// (e.g. AI chat from Cook Mode) pushed on top. A cover is a separate presentation, so this is not
+/// a nested `NavigationStack`.
+private struct ModalStackView: View {
+    @ObservedObject var stack: RootStackModel
+
+    var body: some View {
+        let entries = stack.modalEntries
+        if let base = entries.first {
+            let pushed = Array(entries.dropFirst())
+            NavigationStack(path: Binding(
+                get: { pushed },
+                set: { newPath in stack.pop(Array(pushed.suffix(pushed.count - newPath.count))) }
+            )) {
+                StackEntryView(entry: base)
+                    .navigationDestination(for: StackEntry.self) { StackEntryView(entry: $0) }
+            }
         }
     }
 }
@@ -71,10 +107,23 @@ final class RootStackModel: ObservableObject {
         nestedCancellations.values.forEach { $0.cancel() }
     }
 
-    /// Pops the top `count` entries, newest first, each through the BLoC that owns it.
-    func pop(count: Int) {
-        guard count > 0 else { return }
-        for entry in entries.suffix(count).reversed() {
+    /// Entries below the first modal one: the main navigation stack.
+    var mainEntries: [StackEntry] {
+        guard let index = entries.firstIndex(where: \.isModal) else { return entries }
+        return Array(entries[..<index])
+    }
+
+    /// The first modal entry (e.g. Cook Mode) and everything above it, shown in a full-screen
+    /// cover instead of being pushed — the Android `isModal` slide-up screens.
+    var modalEntries: [StackEntry] {
+        guard let index = entries.firstIndex(where: \.isModal) else { return [] }
+        return Array(entries[index...])
+    }
+
+    /// Pops `popped` (the top entries of the stack), newest first, each through the BLoC that
+    /// owns it.
+    func pop(_ popped: [StackEntry]) {
+        for entry in popped.reversed() {
             switch entry.popper {
             case .root: root.onBackClicked()
             case .recipeRoot(let bloc): bloc.onBackClicked()
@@ -136,6 +185,12 @@ struct StackEntry: Hashable {
         if case .root(let child) = content { child } else { nil }
     }
 
+    /// Presented as a full-screen cover rather than pushed. Grows as modal screens go native;
+    /// hosted ones keep pushing (they draw their own close button).
+    var isModal: Bool {
+        rootChild is RootBlocChild.CookMode
+    }
+
     private var instance: AnyObject {
         switch content {
         case .root(let child): child
@@ -154,7 +209,11 @@ struct StackEntryView: View {
     var body: some View {
         switch entry.content {
         case .root(let child):
-            ComposeScreenHost(screen: child.bloc)
+            if let cookMode = child as? RootBlocChild.CookMode {
+                CookModeView(bloc: cookMode.bloc)
+            } else {
+                ComposeScreenHost(screen: child.bloc)
+            }
         case .recipe(let child):
             if let detail = child as? RecipeRootBlocChild.Detail {
                 RecipeDetailView(bloc: detail.bloc)
