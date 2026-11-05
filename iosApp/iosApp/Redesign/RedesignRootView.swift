@@ -7,7 +7,7 @@ import ComposeApp
 ///
 /// Renders the Decompose root stack, with redesigned nested stacks flattened into it (see
 /// `RootStackModel`), as one `NavigationStack`: the first entry is the stack's root (normally the
-/// tab bar), every later entry is pushed. A modal root child (so far `AiChat`) and everything above
+/// tab bar), every later entry is pushed. A modal root child (so far `AiChat`, `CookMode`) and everything above
 /// it go into a full-screen cover with its own `NavigationStack` instead. Decompose stays the source
 /// of truth — a native swipe-back or back button only asks the entry's owning BLoC to pop.
 struct RedesignRootView: View {
@@ -58,6 +58,7 @@ struct RedesignRootView: View {
             }
         }
     }
+
 }
 
 /// The navigation stack inside the full-screen cover: the modal root child's entries plus anything
@@ -96,8 +97,8 @@ struct ModalPresentation: Identifiable {
 /// nested child instead, so its screens push and swipe back natively rather than inside a hosted
 /// Compose stack. Each entry remembers which BLoC pops it.
 ///
-/// The entries split at the first modal root child (the Android `isModal` set; so far only
-/// `AiChat` is native): those below it are the main navigation stack, the rest are presented in a
+/// The entries split at the first modal root child (the Android `isModal` set; so far
+/// `AiChat` and `CookMode` are native): those below it are the main navigation stack, the rest are presented in a
 /// full-screen cover.
 final class RootStackModel: ObservableObject {
     @Published private(set) var entries: [StackEntry] = []
@@ -209,7 +210,7 @@ private extension RootBlocChild {
     /// Root children presented as a full-screen cover once redesigned — the Android `isModal` set
     /// (Browser, MealPlanner, CookMode, AiChat, EditRecipeBook, EditGroceryList). Only the native
     /// ones are listed; hosted ones still push.
-    var isModal: Bool { self is RootBlocChild.AiChat }
+    var isModal: Bool { self is RootBlocChild.AiChat || self is RootBlocChild.CookMode }
 }
 
 /// One navigation entry, identified by its (stable) Decompose child instance.
@@ -255,7 +256,11 @@ struct StackEntryView: View {
     var body: some View {
         switch entry.content {
         case .root(let child):
-            ComposeScreenHost(screen: child.bloc)
+            if let cookMode = child as? RootBlocChild.CookMode {
+                CookModeView(bloc: cookMode.bloc)
+            } else {
+                ComposeScreenHost(screen: child.bloc)
+            }
         case .recipe(let child):
             if let detail = child as? RecipeRootBlocChild.Detail {
                 RecipeDetailView(bloc: detail.bloc)

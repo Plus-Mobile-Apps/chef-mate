@@ -428,7 +428,7 @@ private struct ScanningOverlay: View {
 // MARK: - Invites
 
 private struct InviteBanner: View {
-    let invite: PublicRecipeBookInvite
+    let invite: RecipeBookInvite
     let onAccept: () -> Void
     let onDecline: () -> Void
 

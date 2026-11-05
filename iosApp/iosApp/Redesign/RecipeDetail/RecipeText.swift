@@ -95,3 +95,65 @@ enum SharePresenter {
         top.present(controller, animated: true)
     }
 }
+
+/// One ingredient line; tap to cross it off. Shared by recipe detail and cook mode.
+struct IngredientLine: View {
+    let line: RecipeTextLine
+    let isCrossedOut: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        if line.isHeader {
+            SubsectionHeader(line: line)
+        } else {
+            Text(line.attributed)
+                .strikethrough(isCrossedOut)
+                .foregroundStyle(isCrossedOut ? .secondary : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, ChefTheme.Spacing.extraSmall)
+                .padding(.horizontal, ChefTheme.Spacing.normal)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onTap)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityValue(isCrossedOut ? "Crossed off" : "")
+        }
+    }
+}
+
+/// One direction step; tap to highlight it. Shared by recipe detail and cook mode.
+struct DirectionLine: View {
+    let line: RecipeTextLine
+    let isHighlighted: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        if line.isHeader {
+            SubsectionHeader(line: line)
+        } else {
+            Text(line.attributed)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(ChefTheme.Spacing.extraSmall)
+                .background(
+                    isHighlighted ? Color(.secondarySystemFill) : .clear,
+                    in: RoundedRectangle(cornerRadius: ChefTheme.Spacing.small)
+                )
+                .padding(.horizontal, ChefTheme.Spacing.normal - ChefTheme.Spacing.extraSmall)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onTap)
+                .accessibilityAddTraits(isHighlighted ? [.isButton, .isSelected] : .isButton)
+        }
+    }
+}
+
+/// "For the sauce:" — bold, not tappable.
+struct SubsectionHeader: View {
+    let line: RecipeTextLine
+
+    var body: some View {
+        Text(line.attributed)
+            .font(.subheadline.weight(.bold))
+            .padding(.top, ChefTheme.Spacing.small)
+            .padding(.bottom, ChefTheme.Spacing.extraSmall)
+            .padding(.horizontal, ChefTheme.Spacing.normal)
+    }
+}

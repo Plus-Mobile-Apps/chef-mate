@@ -114,7 +114,7 @@ Known gaps:
   the cover. The cover is keyed by the modal's root child, so a nested stack replacing its own root
   (AI chat "New conversation") swaps the cover's root view instead of re-presenting it. Dismissal
   only goes through the BLoC (the close button), and toasts move to an overlay inside the cover
-  while it shows. Native so far: AiChat; the hosted ones still push.
+  while it shows. Native so far: AiChat, CookMode; the hosted ones still push.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
   flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
@@ -180,7 +180,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 8 | Grocery list | `GroceryListScreen` | Swipe to delete with undo, add row, sections. |
 | 9 | Grocery detail + edit list | `GroceryDetailScreen`, `EditGroceryListScreen` | |
 | 10 | Meal plan | `MealPlanScreen` | |
-| 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Full-screen cover, glass controls. |
+| 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
 | 12 | Settings root | `SettingsRootScreen`, `AppSettingsScreen`, `BottomNavOrderScreen`, grocery autocomplete + category rules | |
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | |
 | 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |

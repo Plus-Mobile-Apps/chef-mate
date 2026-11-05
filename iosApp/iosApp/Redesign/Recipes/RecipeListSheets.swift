@@ -35,15 +35,15 @@ extension BuiltinCategory {
 /// Books grouped the way Compose's `RecipeBookSections` groups them: the user's own, books shared
 /// with them, then one section per family.
 struct RecipeBookGroups {
-    let mine: [PublicRecipeBook]
-    let shared: [PublicRecipeBook]
-    let families: [(name: String, books: [PublicRecipeBook])]
+    let mine: [RecipeBook]
+    let shared: [RecipeBook]
+    let families: [(name: String, books: [RecipeBook])]
 
-    init(_ books: [PublicRecipeBook]) {
+    init(_ books: [RecipeBook]) {
         mine = books.filter { $0.isOwnedByCurrentUser && !$0.isFamily }
         shared = books.filter { !$0.isOwnedByCurrentUser && !$0.isFamily }
         var order: [String] = []
-        var byFamily: [String: [PublicRecipeBook]] = [:]
+        var byFamily: [String: [RecipeBook]] = [:]
         for book in books where book.isFamily {
             let key = book.familyId ?? ""
             if byFamily[key] == nil { order.append(key) }
@@ -103,7 +103,7 @@ struct RecipeBookPickerSheet: View {
         .tint(ChefTheme.primary)
     }
 
-    private func bookRow(_ book: PublicRecipeBook, editable: Bool, badge: Bool = false) -> some View {
+    private func bookRow(_ book: RecipeBook, editable: Bool, badge: Bool = false) -> some View {
         let selected = !state.isAllRecipesSelected && state.activeBook?.id == book.id
         return row(book.name, selected: selected, badge: badge) {
             bloc.onBookSelected(bookId: book.id)
@@ -150,7 +150,7 @@ struct RecipeBookPickerSheet: View {
 
 /// Picks the book to file the selected recipes under (Compose `BulkAddToBookSheet`).
 struct BulkAddToBookSheet: View {
-    let books: [PublicRecipeBook]
+    let books: [RecipeBook]
     let onSelect: (Int64) -> Void
     @SwiftUI.Environment(\.dismiss) private var dismiss
 
@@ -186,7 +186,7 @@ struct BulkAddToBookSheet: View {
         .tint(ChefTheme.primary)
     }
 
-    private func row(_ book: PublicRecipeBook) -> some View {
+    private func row(_ book: RecipeBook) -> some View {
         Button(book.name) { onSelect(book.id) }
             .foregroundStyle(Color.primary)
     }
