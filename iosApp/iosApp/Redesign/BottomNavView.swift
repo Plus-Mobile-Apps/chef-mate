@@ -138,6 +138,8 @@ private struct TabChildView: View {
             GroceryListView(bloc: grocery.bloc)
         case let settings as BottomNavBlocChild.Settings:
             MoreView(bloc: settings.bloc)
+        case let browser as BottomNavBlocChild.Browser:
+            BrowserRootView(bloc: browser.bloc)
         default:
             ComposeScreenHost(screen: child.bloc, edges: .top)
         }

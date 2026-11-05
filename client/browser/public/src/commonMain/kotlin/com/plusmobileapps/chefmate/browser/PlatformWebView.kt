@@ -46,8 +46,10 @@ expect fun PlatformWebView(
  * at. That last part isn't just tidiness: most of a modern recipe page's weight is ad and analytics
  * script, and the result has to cross the platform's JavaScript bridge in one piece. Returns an
  * empty string rather than throwing, so the caller always gets an answer.
+ *
+ * Public so the native iOS browser (`iosApp/.../Redesign/Browser`) runs the same script.
  */
-internal const val CAPTURE_HTML_SCRIPT: String =
+const val CAPTURE_HTML_SCRIPT: String =
     """
     (function () {
       try {

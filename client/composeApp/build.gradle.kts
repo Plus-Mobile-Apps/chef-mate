@@ -76,6 +76,7 @@ kotlin {
             export(projects.client.aichat.public)
             export(projects.client.grocery.core.public)
             export(projects.client.grocery.data.public)
+            export(projects.client.browser.public)
             // Global hosts: the native toast overlay and store-review prompt.
             export(projects.client.toast.public)
             export(projects.client.review.public)
@@ -196,6 +197,7 @@ kotlin {
             api(projects.client.recipe.data.public)
             api(projects.client.recipebook.data.public)
             api(projects.client.grocery.data.public)
+            api(projects.client.browser.public)
             implementation(projects.client.recipe.categories.public)
             implementation(libs.ktor.client.darwin)
             implementation(libs.bugsnag.kmp)
