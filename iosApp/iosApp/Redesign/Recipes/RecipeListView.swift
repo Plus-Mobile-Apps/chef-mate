@@ -564,22 +564,6 @@ private struct RecipeGridCard: View {
     }
 }
 
-private struct RecipeImage: View {
-    let url: String?
-
-    var body: some View {
-        AsyncImage(url: url.flatMap(URL.init(string:))) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            ZStack {
-                Color(.tertiarySystemFill)
-                Image(systemName: "fork.knife")
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
 private struct StarRating: View {
     let rating: Int?
 
