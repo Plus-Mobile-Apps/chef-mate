@@ -258,6 +258,8 @@ struct StackEntryView: View {
         case .root(let child):
             if let cookMode = child as? RootBlocChild.CookMode {
                 CookModeView(bloc: cookMode.bloc)
+            } else if let browser = child as? RootBlocChild.Browser {
+                BrowserRootView(bloc: browser.bloc, isModal: true)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
