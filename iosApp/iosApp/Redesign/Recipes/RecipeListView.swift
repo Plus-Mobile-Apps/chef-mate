@@ -1,14 +1,19 @@
 import SwiftUI
+import PhotosUI
 import ComposeApp
 
 /// The redesigned Recipes tab, mirroring the Android `RecipeListScreen`: searchable list or grid of
-/// recipe cards, a recipe-book picker, and the continue-cooking button.
+/// recipe cards, recipe-book picker, sort & filter sheet, selection mode with bulk actions, scan from
+/// photo, pending book invites, and the continue / done cooking buttons.
 ///
-/// Not yet ported (docs/ios-swiftui-redesign.md, PR 3): selection mode and bulk actions, the
-/// sort/filter sheet, scan from photo, invite banner, export, and coach marks.
+/// Not yet ported (docs/ios-swiftui-redesign.md, PR 3): coach marks and the tablet filter rail.
 struct RecipeListView: View {
     let bloc: RecipeListBloc
     @StateObject private var model: ObservedFlow<RecipeListBlocModel>
+    @State private var showSortFilter = false
+    @State private var showPhotoPicker = false
+    @State private var pickedPhoto: PhotosPickerItem?
+    @State private var pendingDelete: RecipeListItem?
 
     init(bloc: RecipeListBloc) {
         self.bloc = bloc
@@ -18,80 +23,302 @@ struct RecipeListView: View {
     var body: some View {
         let state = model.value
         content(state)
-            .navigationTitle(state.isAllRecipesSelected ? "All recipes" : (state.activeBook?.name ?? "Recipes"))
+            .navigationTitle(title(state))
             .searchable(
                 text: Binding(get: { model.current.searchQuery }, set: { bloc.onSearchQueryChanged(query: $0) }),
-                prompt: "Search recipes…"
+                prompt: ComposeStrings["recipe_list_search_placeholder"]
             )
             .refreshable { bloc.onSyncClicked() }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    BookMenu(state: state, bloc: bloc)
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        bloc.onToggleViewMode()
-                    } label: {
-                        Image(systemName: state.isGridView ? "list.bullet" : "square.grid.2x2")
-                    }
-                    Button(action: bloc.onAddRecipeClicked) {
-                        Image(systemName: "plus")
-                    }
+                if state.isSelectionMode {
+                    selectionToolbar(state)
+                } else {
+                    browseToolbar(state)
                 }
             }
-            .overlay(alignment: .bottom) {
-                if state.cookingRecipeCount > 0 {
-                    Button(action: bloc.onContinueCookingClicked) {
-                        Label("Continue cooking", systemImage: "frying.pan")
-                            .font(.headline)
-                            .padding(.horizontal, ChefTheme.Spacing.large)
-                            .padding(.vertical, ChefTheme.Spacing.normal - 2)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !state.pendingInvites.isEmpty {
+                    VStack(spacing: ChefTheme.Spacing.small) {
+                        ForEach(state.pendingInvites, id: \.memberId) { invite in
+                            InviteBanner(
+                                invite: invite,
+                                onAccept: { bloc.onAcceptInvite(memberId: invite.memberId) },
+                                onDecline: { bloc.onDeclineInvite(memberId: invite.memberId) }
+                            )
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(ChefTheme.primary)
-                    .chefGlass()
-                    .padding(.bottom, ChefTheme.Spacing.normal)
+                    .padding(.horizontal, ChefTheme.Spacing.normal)
+                    .padding(.vertical, ChefTheme.Spacing.small)
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if state.cookingRecipeCount > 0 && !state.isSelectionMode {
+                    CookingSessionButtons(
+                        onDone: bloc.onDoneCookingClicked,
+                        onContinue: bloc.onContinueCookingClicked
+                    )
+                }
+            }
+            .overlay {
+                if state.isScanning { ScanningOverlay() }
+            }
+            .alert(
+                ComposeStrings["recipe_list_done_cooking_title"],
+                isPresented: blocFlag(state.showDoneCookingDialog, onDismiss: bloc.onDoneCookingDismissed)
+            ) {
+                Button(ComposeStrings["recipe_list_done_cooking_confirm"], role: .destructive) {
+                    bloc.onDoneCookingConfirmed()
+                }
+                Button(ComposeStrings["recipe_list_done_cooking_cancel"], role: .cancel) {
+                    bloc.onDoneCookingDismissed()
+                }
+            } message: {
+                Text(ComposeStrings["recipe_list_done_cooking_message"])
+            }
+            .alert(
+                ComposeStrings["recipe_list_scan_failed_title"],
+                isPresented: blocFlag(state.scanError != nil, onDismiss: bloc.onScanErrorDismissed)
+            ) {
+                Button("OK", role: .cancel) { bloc.onScanErrorDismissed() }
+            } message: {
+                if let error = state.scanError { LocalizedText(text: error) }
+            }
+            .confirmationDialog(
+                pendingDelete.map { "Delete “\($0.title)”?" } ?? "",
+                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let recipe = pendingDelete { bloc.onDeleteRecipe(recipe: recipe) }
+                    pendingDelete = nil
+                }
+            }
+            .sheet(isPresented: $showSortFilter) {
+                SortFilterSheet(state: state) { sort, filters, categories, userCategoryIds in
+                    bloc.onApplySortAndFilters(
+                        sort: sort,
+                        filters: filters,
+                        categories: categories,
+                        userCategoryIds: Set(userCategoryIds.map { KotlinLong(value: $0) })
+                    )
+                    showSortFilter = false
+                }
+            }
+            .sheet(isPresented: blocFlag(state.isBookPickerOpen, onDismiss: bloc.onBookPickerDismissed)) {
+                RecipeBookPickerSheet(state: state, bloc: bloc)
+            }
+            .sheet(isPresented: blocFlag(state.isBulkBookPickerOpen, onDismiss: bloc.onBulkBookPickerDismissed)) {
+                BulkAddToBookSheet(books: state.recipeBooks, onSelect: { bloc.onAddSelectedToBook(bookId: $0) })
+            }
+            .sheet(isPresented: blocFlag(state.isBulkCategoryPickerOpen, onDismiss: bloc.onBulkCategoryPickerDismissed)) {
+                BulkAddToCategorySheet(
+                    userCategories: state.availableUserCategories,
+                    onBuiltin: { bloc.onAddSelectedToBuiltinCategory(category: $0) },
+                    onUserCategory: { bloc.onAddSelectedToUserCategory(categoryId: $0) }
+                )
+            }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $pickedPhoto, matching: .images)
+            .onChange(of: pickedPhoto) { _, item in
+                guard let item else { return }
+                pickedPhoto = nil
+                Task { await scan(item) }
             }
             .tint(ChefTheme.primary)
     }
+
+    /// The book name when any book exists ("All recipes" for the cross-book view), else "Recipes" —
+    /// or the selection count while selecting.
+    private func title(_ state: RecipeListBlocModel) -> String {
+        if state.isSelectionMode {
+            return ComposeStrings.format("recipe_list_selection_count", ["count": "\(state.selectedRecipeIds.count)"])
+        }
+        if state.recipeBooks.isEmpty { return ComposeStrings["recipe_list_title"] }
+        return state.activeBook?.name ?? ComposeStrings["recipe_list_book_all_recipes"]
+    }
+
+    // MARK: - Toolbars
+
+    @ToolbarContentBuilder
+    private func browseToolbar(_ state: RecipeListBlocModel) -> some ToolbarContent {
+        if !state.recipeBooks.isEmpty {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: bloc.onBookSelectorClicked) {
+                    Image(systemName: "books.vertical")
+                }
+                .accessibilityLabel(ComposeStrings["recipe_list_book_selector"])
+            }
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button { showSortFilter = true } label: {
+                let filtered = state.totalActiveFilterCount > 0
+                Image(systemName: filtered
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
+            }
+            .accessibilityLabel(ComposeStrings["recipe_list_filter"])
+            .accessibilityValue(state.totalActiveFilterCount > 0 ? "\(state.totalActiveFilterCount)" : "")
+
+            if state.isScanFromPhotoEnabled {
+                Menu {
+                    Button(action: bloc.onAddRecipeClicked) {
+                        Label(ComposeStrings["recipe_list_create_recipe"], systemImage: "square.and.pencil")
+                    }
+                    Button { showPhotoPicker = true } label: {
+                        Label(ComposeStrings["recipe_list_scan_from_photo"], systemImage: "camera.viewfinder")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(ComposeStrings["recipe_list_add_recipe"])
+            } else {
+                Button(action: bloc.onAddRecipeClicked) {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(ComposeStrings["recipe_list_add_recipe"])
+            }
+
+            Menu {
+                Button(action: bloc.onToggleViewMode) {
+                    if state.isGridView {
+                        Label(ComposeStrings["recipe_list_view_list"], systemImage: "list.bullet")
+                    } else {
+                        Label(ComposeStrings["recipe_list_view_grid"], systemImage: "square.grid.2x2")
+                    }
+                }
+                Divider()
+                Button(action: bloc.onSyncClicked) {
+                    Label(ComposeStrings["recipe_list_menu_sync"], systemImage: "arrow.triangle.2.circlepath")
+                }
+                Button(action: bloc.onEnterSelectionMode) {
+                    Label(ComposeStrings["recipe_list_menu_select"], systemImage: "checkmark.circle")
+                }
+                Button(action: bloc.onExportClicked) {
+                    Label(ComposeStrings["recipe_list_menu_export_all"], systemImage: "square.and.arrow.up")
+                }
+                Button(action: bloc.onCollaborateClicked) {
+                    Label(ComposeStrings["recipe_list_menu_collaborate"], systemImage: "person.2")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel(ComposeStrings["recipe_list_more_actions"])
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func selectionToolbar(_ state: RecipeListBlocModel) -> some ToolbarContent {
+        let hasSelection = !state.selectedRecipeIds.isEmpty
+        let selected = selectedIds(state)
+        let allSelected = !state.recipes.isEmpty && state.recipes.allSatisfy { selected.contains($0.id) }
+        ToolbarItem(placement: .topBarLeading) {
+            Button(action: bloc.onToggleSelectAllVisible) {
+                Text(ComposeStrings[allSelected ? "recipe_list_selection_deselect_all" : "recipe_list_selection_select_all"])
+            }
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button(action: bloc.onExportClicked) {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(!hasSelection)
+            .accessibilityLabel(ComposeStrings["recipe_list_selection_export"])
+
+            Menu {
+                Button(action: bloc.onAddToBookClicked) {
+                    Label(ComposeStrings["recipe_list_selection_add_to_book"], systemImage: "books.vertical")
+                }
+                Button(action: bloc.onAddToCategoryClicked) {
+                    Label(ComposeStrings["recipe_list_selection_add_to_category"], systemImage: "tag")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .disabled(!hasSelection)
+            .accessibilityLabel(ComposeStrings["recipe_list_selection_more"])
+
+            Button(action: bloc.onExitSelectionMode) {
+                Image(systemName: "xmark")
+            }
+            .accessibilityLabel(ComposeStrings["recipe_list_selection_exit"])
+        }
+    }
+
+    // MARK: - Content
 
     @ViewBuilder
     private func content(_ state: RecipeListBlocModel) -> some View {
         if state.recipes.isEmpty && state.isLoading {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if state.recipes.isEmpty && state.searchQuery.isEmpty && state.totalRecipeCount == 0 {
+        } else if !state.isLoading && state.totalRecipeCount == 0 {
             EmptyRecipesView(onBrowse: bloc.onBrowseRecipesClicked, onCreate: bloc.onAddRecipeClicked)
-        } else if state.recipes.isEmpty {
-            ContentUnavailableView.search(text: state.searchQuery)
+        } else if state.recipes.isEmpty && state.isSearchActive {
+            SearchEmptyView(
+                canSearchAllRecipes: !state.isAllRecipesSelected,
+                onSearchAllRecipes: bloc.onAllRecipesSelected
+            )
+        } else if state.recipes.isEmpty && state.totalActiveFilterCount > 0 {
+            FilterEmptyView(state: state, onClear: bloc.onClearFilters)
         } else if state.isGridView {
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: ChefTheme.Spacing.normal)],
-                          spacing: ChefTheme.Spacing.normal) {
-                    ForEach(state.recipes, id: \.id) { recipe in
-                        Button { bloc.onRecipeClicked(recipe: recipe) } label: {
-                            RecipeGridCard(recipe: recipe)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu { recipeActions(recipe) }
-                    }
-                }
-                .padding(ChefTheme.Spacing.normal)
-            }
+            grid(state)
         } else {
-            List(state.recipes, id: \.id) { recipe in
-                Button { bloc.onRecipeClicked(recipe: recipe) } label: {
+            list(state)
+        }
+    }
+
+    private func grid(_ state: RecipeListBlocModel) -> some View {
+        let selected = selectedIds(state)
+        return ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: ChefTheme.Spacing.normal)],
+                      spacing: ChefTheme.Spacing.normal) {
+                ForEach(state.recipes, id: \.id) { recipe in
+                    Button { bloc.onRecipeClicked(recipe: recipe) } label: {
+                        RecipeGridCard(recipe: recipe)
+                            .overlay(alignment: .topLeading) {
+                                if state.isSelectionMode {
+                                    SelectionBadge(isSelected: selected.contains(recipe.id))
+                                        .padding(ChefTheme.Spacing.small)
+                                }
+                            }
+                            .overlay {
+                                if state.isSelectionMode && selected.contains(recipe.id) {
+                                    RoundedRectangle(cornerRadius: 16).strokeBorder(ChefTheme.primary, lineWidth: 2)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu { recipeActions(recipe, state: state) }
+                }
+            }
+            .padding(ChefTheme.Spacing.normal)
+        }
+        .contentMargins(.bottom, cookingReserve(state), for: .scrollContent)
+    }
+
+    private func list(_ state: RecipeListBlocModel) -> some View {
+        let selected = selectedIds(state)
+        return List(state.recipes, id: \.id) { recipe in
+            Button { bloc.onRecipeClicked(recipe: recipe) } label: {
+                HStack(spacing: ChefTheme.Spacing.normal) {
+                    if state.isSelectionMode {
+                        SelectionBadge(isSelected: selected.contains(recipe.id))
+                    }
                     RecipeRow(recipe: recipe)
                 }
-                .buttonStyle(.plain)
-                .contextMenu { recipeActions(recipe) }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) { bloc.onDeleteRecipe(recipe: recipe) } label: {
+            }
+            .buttonStyle(.plain)
+            .listRowBackground(
+                state.isSelectionMode && selected.contains(recipe.id) ? ChefTheme.primary.opacity(0.12) : nil
+            )
+            .contextMenu { recipeActions(recipe, state: state) }
+            .swipeActions(edge: .trailing) {
+                if !state.isSelectionMode {
+                    Button(role: .destructive) { pendingDelete = recipe } label: {
                         Label("Delete", systemImage: "trash")
                     }
                 }
-                .swipeActions(edge: .leading) {
+            }
+            .swipeActions(edge: .leading) {
+                if !state.isSelectionMode {
                     Button { bloc.onToggleFavorite(recipe: recipe) } label: {
                         Label(recipe.isFavorite ? "Unfavorite" : "Favorite",
                               systemImage: recipe.isFavorite ? "heart.slash" : "heart")
@@ -99,57 +326,141 @@ struct RecipeListView: View {
                     .tint(.pink)
                 }
             }
-            .listStyle(.plain)
+        }
+        .listStyle(.plain)
+        .contentMargins(.bottom, cookingReserve(state), for: .scrollContent)
+    }
+
+    /// Long-press menu. "Select" is the iOS counterpart of Compose's long-press-to-select.
+    @ViewBuilder
+    private func recipeActions(_ recipe: RecipeListItem, state: RecipeListBlocModel) -> some View {
+        if !state.isSelectionMode {
+            Button { bloc.onRecipeLongClicked(recipe: recipe) } label: {
+                Label(ComposeStrings["recipe_list_menu_select"], systemImage: "checkmark.circle")
+            }
+            Button { bloc.onToggleFavorite(recipe: recipe) } label: {
+                Label(recipe.isFavorite ? "Unfavorite" : "Favorite",
+                      systemImage: recipe.isFavorite ? "heart.slash" : "heart")
+            }
+            Button(role: .destructive) { pendingDelete = recipe } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 
-    @ViewBuilder
-    private func recipeActions(_ recipe: RecipeListItem) -> some View {
-        Button { bloc.onToggleFavorite(recipe: recipe) } label: {
-            Label(recipe.isFavorite ? "Unfavorite" : "Favorite",
-                  systemImage: recipe.isFavorite ? "heart.slash" : "heart")
+    /// Room under the last row so the cooking buttons never cover it (Compose's `FabStackReserve`).
+    private func cookingReserve(_ state: RecipeListBlocModel) -> CGFloat {
+        state.cookingRecipeCount > 0 && !state.isSelectionMode ? 80 : 0
+    }
+
+    private func selectedIds(_ state: RecipeListBlocModel) -> Set<Int64> {
+        Set(state.selectedRecipeIds.map { $0.int64Value })
+    }
+
+    /// A sheet/alert presentation flag owned by the BLoC: SwiftUI only reports dismissal.
+    private func blocFlag(_ value: Bool, onDismiss: @escaping () -> Void) -> Binding<Bool> {
+        Binding(get: { value }, set: { if !$0 && value { onDismiss() } })
+    }
+
+    /// Loads the picked photo as JPEG (HEIC and friends included) and hands it to the scanner.
+    private func scan(_ item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+        let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
+        bloc.onScanRecipePhotoPicked(bytes: ByteArrayBridge.shared.fromData(data: jpeg), fileExtension: "jpg")
+    }
+}
+
+// MARK: - Cooking session
+
+/// The Compose `CookingSessionFabStack`: "Done cooking" above "Continue cooking", bottom-trailing.
+private struct CookingSessionButtons: View {
+    let onDone: () -> Void
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: ChefTheme.Spacing.small) {
+            Button(action: onDone) {
+                Label(ComposeStrings["recipe_list_done_cooking"], systemImage: "checkmark")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, ChefTheme.Spacing.normal)
+                    .padding(.vertical, ChefTheme.Spacing.small + 2)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .chefGlass()
+
+            Button(action: onContinue) {
+                Label(ComposeStrings["recipe_list_continue_cooking"], systemImage: "frying.pan")
+                    .font(.headline)
+                    .padding(.horizontal, ChefTheme.Spacing.large)
+                    .padding(.vertical, ChefTheme.Spacing.normal - 2)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(ChefTheme.primary)
+            .chefGlass()
         }
-        Button(role: .destructive) { bloc.onDeleteRecipe(recipe: recipe) } label: {
-            Label("Delete", systemImage: "trash")
+        .padding(.trailing, ChefTheme.Spacing.normal)
+        .padding(.bottom, ChefTheme.Spacing.normal)
+    }
+}
+
+// MARK: - Scan
+
+private struct ScanningOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: ChefTheme.Spacing.normal) {
+                ProgressView().controlSize(.large)
+                Text(ComposeStrings["recipe_list_scanning_title"]).font(.headline)
+                Text(ComposeStrings["recipe_list_scanning_message"])
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(ChefTheme.Spacing.large)
+            .frame(maxWidth: 280)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         }
     }
 }
 
-/// Toolbar menu to switch recipe books, like the Android book selector.
-private struct BookMenu: View {
-    let state: RecipeListBlocModel
-    let bloc: RecipeListBloc
+// MARK: - Invites
+
+private struct InviteBanner: View {
+    let invite: RecipeBookInvite
+    let onAccept: () -> Void
+    let onDecline: () -> Void
 
     var body: some View {
-        Menu {
-            Button {
-                bloc.onAllRecipesSelected()
-            } label: {
-                if state.isAllRecipesSelected {
-                    Label("All recipes", systemImage: "checkmark")
-                } else {
-                    Text("All recipes")
-                }
-            }
-            Divider()
-            ForEach(state.recipeBooks, id: \.id) { book in
-                Button {
-                    bloc.onBookSelected(bookId: book.id)
-                } label: {
-                    if !state.isAllRecipesSelected && state.activeBook?.id == book.id {
-                        Label(book.name, systemImage: "checkmark")
-                    } else {
-                        Text(book.name)
-                    }
-                }
-            }
-            Divider()
-            Button(action: bloc.onCreateBookClicked) {
-                Label("New recipe book", systemImage: "plus")
-            }
-        } label: {
-            Image(systemName: "books.vertical")
+        HStack(spacing: ChefTheme.Spacing.small) {
+            Image(systemName: "envelope.badge")
+                .foregroundStyle(ChefTheme.primary)
+            Text(ComposeStrings.format("recipe_list_invite_message", ["book": invite.bookName]))
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(ComposeStrings["recipe_list_invite_decline"], action: onDecline)
+                .buttonStyle(.borderless)
+            Button(ComposeStrings["recipe_list_invite_accept"], action: onAccept)
+                .buttonStyle(.borderedProminent)
         }
+        .font(.subheadline)
+        .padding(ChefTheme.Spacing.normal - 4)
+        .background(ChefTheme.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Rows
+
+private struct SelectionBadge: View {
+    let isSelected: Bool
+
+    var body: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundStyle(isSelected ? ChefTheme.primary : .secondary)
+            .background(Circle().fill(.background).padding(2))
+            .accessibilityLabel(isSelected ? "Selected" : "Not selected")
     }
 }
 
@@ -173,9 +484,10 @@ private struct RecipeRow: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+                    SyncStatusIcon(status: recipe.syncStatus)
                 }
                 if let description = recipe.description_, !description.isEmpty {
-                    Text(description)
+                    Text(RecipeTextFormatter.shared.inlineRuns(text: description).attributed)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -186,6 +498,30 @@ private struct RecipeRow: View {
         }
         .padding(.vertical, ChefTheme.Spacing.extraSmall)
         .contentShape(Rectangle())
+    }
+}
+
+/// Compose's `SyncStatusIcon`: a muted cloud for synced, a slashed cloud for not synced.
+private struct SyncStatusIcon: View {
+    let status: SyncStatus
+
+    var body: some View {
+        switch status {
+        case .synced:
+            Image(systemName: "checkmark.icloud")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .accessibilityLabel(ComposeStrings["recipe_sync_synced"])
+        case .notSynced:
+            Image(systemName: "icloud.slash")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(ComposeStrings["recipe_sync_not_synced"])
+        default:
+            ProgressView()
+                .controlSize(.mini)
+                .accessibilityLabel(ComposeStrings["recipe_sync_syncing"])
+        }
     }
 }
 
@@ -268,10 +604,12 @@ private struct RecipeInfo: View {
                 Label { LocalizedText(text: time) } icon: { Image(systemName: "clock") }
             }
             if let servings = recipe.servings {
-                Label("\(servings.intValue) servings", systemImage: "fork.knife")
+                Label(ComposeStrings.format("recipe_list_item_servings", ["servings": "\(servings.intValue)"]),
+                      systemImage: "fork.knife")
             }
             if let calories = recipe.calories {
-                Label("\(calories.intValue) cal", systemImage: "flame")
+                Label(ComposeStrings.format("recipe_list_item_calories", ["calories": "\(calories.intValue)"]),
+                      systemImage: "flame")
             }
         }
         .font(.caption)
@@ -289,24 +627,73 @@ private struct CompactLabelStyle: LabelStyle {
     }
 }
 
+// MARK: - Empty states
+
 private struct EmptyRecipesView: View {
     let onBrowse: () -> Void
     let onCreate: () -> Void
 
     var body: some View {
         ContentUnavailableView {
-            Label("No recipes yet", systemImage: "fork.knife")
+            Label(ComposeStrings["recipe_list_empty_title"], systemImage: "fork.knife")
         } description: {
-            Text("Get started by finding recipes online or creating one from scratch.")
+            Text(ComposeStrings["recipe_list_empty_description"])
         } actions: {
             Button(action: onBrowse) {
-                Label("Find Recipes Online", systemImage: "magnifyingglass")
+                Label(ComposeStrings["recipe_list_empty_browse"], systemImage: "magnifyingglass")
             }
             .buttonStyle(.borderedProminent)
             Button(action: onCreate) {
-                Label("Create New Recipe", systemImage: "plus")
+                Label(ComposeStrings["recipe_list_empty_create"], systemImage: "plus")
             }
             .buttonStyle(.bordered)
+        }
+        .tint(ChefTheme.primary)
+    }
+}
+
+/// Compose's `SearchEmptyState`: inside a single book it offers to widen the search to every book.
+private struct SearchEmptyView: View {
+    let canSearchAllRecipes: Bool
+    let onSearchAllRecipes: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(ComposeStrings["recipe_list_search_empty"], systemImage: "magnifyingglass")
+        } description: {
+            if canSearchAllRecipes {
+                Text(ComposeStrings["recipe_list_search_empty_book_hint"])
+            }
+        } actions: {
+            if canSearchAllRecipes {
+                Button(action: onSearchAllRecipes) {
+                    Label(ComposeStrings["recipe_list_search_all_recipes"], systemImage: "books.vertical")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .tint(ChefTheme.primary)
+    }
+}
+
+/// Compose's `FilterEmptyState`: names the active filters and offers to clear them.
+private struct FilterEmptyView: View {
+    let state: RecipeListBlocModel
+    let onClear: () -> Void
+
+    var body: some View {
+        let names = state.activeFilters.map { ComposeStrings[$0.labelKey] }
+            + state.activeCategories.map { ComposeStrings[$0.labelKey] }
+        ContentUnavailableView {
+            Label(ComposeStrings["recipe_list_filter_empty_title"], systemImage: "line.3.horizontal.decrease.circle")
+        } description: {
+            if !names.isEmpty {
+                Text(ComposeStrings.format("recipe_list_filter_empty_description",
+                                           ["filters": names.sorted().joined(separator: ", ")]))
+            }
+        } actions: {
+            Button(ComposeStrings["recipe_list_clear_filters"], action: onClear)
+                .buttonStyle(.bordered)
         }
         .tint(ChefTheme.primary)
     }

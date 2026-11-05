@@ -107,21 +107,21 @@ Known gaps:
   (minus the bottom-nav root). A user swipe-back or system back button shrinks the path, and the
   binding's setter calls `RootBloc.onBackClicked()` so Decompose stays the source of truth.
 - **Modal children** (the Android `isModal` set: Browser, MealPlanner, CookMode, AiChat,
-  EditRecipeBook, EditGroceryList) → `.fullScreenCover` instead of a push, once native.
-  `StackEntry.isModal` marks them (so far CookMode); the rest still push while hosted, since they
-  draw their own close button. `RootStackModel` splits the entries at the first modal one: the
-  entries below drive the main `NavigationStack`, and the modal entry plus everything opened above
-  it (e.g. AI chat or recipe detail from Cook Mode) drive a second `NavigationStack` inside the
-  cover (`ModalStackView`). The cover is a separate presentation, so that isn't a nested stack. It
-  dismisses when the BLoCs pop the modal entry. Toasts don't show over a cover yet, because the
-  toast host lives under it.
+  EditRecipeBook, EditGroceryList) → `.fullScreenCover` instead of a push, once native. The
+  flattened entries split at the first modal root child (`RootStackModel.mainEntries` /
+  `modalEntries`): everything from it up is presented in one full-screen cover with its own
+  `NavigationStack`, so screens a modal opens (AI chat → "Add recipe" → recipe editor) push inside
+  the cover. The cover is keyed by the modal's root child, so a nested stack replacing its own root
+  (AI chat "New conversation") swaps the cover's root view instead of re-presenting it. Dismissal
+  only goes through the BLoC (the close button), and toasts move to an overlay inside the cover
+  while it shows. Native so far: AiChat, CookMode; the hosted ones still push.
 - **Nested stacks** (RecipeRoot, SettingsRoot, MealPlanner, ManageFamily, AiChat, Browser,
   Onboarding) start out hosted, nested navigation included. When one goes native, its children get
   flattened into the same root path (`RootStackModel` in `RedesignRootView.swift`, which also
   subscribes to each flattened child's own `routerState`). Each `StackEntry` records which BLoC pops
   it: a nested child pops through its stack's `onBackClicked`, except the nested stack's first
   child, which pops the whole root child through `RootBloc.onBackClicked` (a Decompose stack can't
-  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot.
+  pop its last item). Nested `NavigationStack`s are not allowed. Flattened so far: RecipeRoot, AiChat.
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
@@ -172,7 +172,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 0 | Flag + launch switch | — | Done. |
 | 1 | Shell + interop | Root stack, `TabView`, hosted fallback, theme, `.chefGlass()`, flow bridge | Done (first cut). |
 | 2 | More tab | `SettingsScreen` | Done (first cut): keeps Dev settings → Feature flags reachable. |
-| 3 | Recipe list | `RecipeListScreen` | Done (first cut): search, list/grid, favorite, delete, add. Selection mode, filter sheet, book picker, scan from photo still to do. |
+| 3 | Recipe list | `RecipeListScreen` | Done: search, list/grid, overflow menu (view mode, sync, select, export all, collaborate), sort & filter sheet, grouped book picker with edit, selection mode with bulk export / add to book / add to category, scan from photo (`PhotosPicker` → `ByteArrayBridge`), invite banners, continue / done cooking, search / filter / empty states, sync status, inline-markdown descriptions. Swipe and context-menu delete confirm first. Coach marks and the tablet filter rail still to do. |
 | 4 | Toast + review hosts | — | Done (first cut): native toast overlay on `ToastService`, StoreKit review prompt. |
 | 5 | Recipe detail | `RecipeDetailScreen`, `RecipeImageFullScreenScreen` | Done (first cut): RecipeRoot flattened (Edit stays hosted), hero + pinned ingredient/direction sections, scale menu, links, share/edit/delete, bottom glass toolbar, zoom transition into a pinch-zoom image. Text parsing reuses Kotlin via `RecipeTextFormatter`. Coach marks and the tablet two-column layout still to do; the add-to-grocery sheet hosts Compose until PR 7. |
 | 6 | Edit recipe | `EditRecipeScreen` | Done (first cut): every field bound to the BLoC's StateFlows; books and category chips with a native category picker (create/rename/delete); rating; PhotosPicker + square crop; markdown editors with selection-aware bold/italic/list buttons, recipe-link insertion at the caret, and a preview. Back and swipe-back go through the BLoC's discard prompt (`SwipeBackGate`). WYSIWYG rich-text mode, coach marks and the wide layout still to do; the recipe-link picker hosts Compose until PR 7. |
@@ -185,7 +185,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 13 | Auth | `AuthenticationScreen`, `OtpScreen` | |
 | 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
 | 15 | Browser | `BrowserRootScreen`, landing, bookmarks, edit query, select engine | Native `WKWebView`. |
-| 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | |
+| 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | |
 | 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | |
 | 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | |

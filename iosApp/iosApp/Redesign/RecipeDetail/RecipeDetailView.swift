@@ -504,14 +504,14 @@ private struct DeletingOverlay: View {
     }
 }
 
-private struct WebPage: Identifiable {
+struct WebPage: Identifiable {
     let url: URL
     var id: URL { url }
 }
 
 /// `SFSafariViewController` for SwiftUI: Safari's reader, sign-ins and share sheet, presented as a
 /// sheet over the screen.
-private struct SafariView: UIViewControllerRepresentable {
+struct SafariView: UIViewControllerRepresentable {
     let url: URL
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
