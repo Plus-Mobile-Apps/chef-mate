@@ -37,3 +37,18 @@ class EventWatcher<T : Any>(private val flow: Flow<T>) {
         return Cancellable { job.cancel() }
     }
 }
+
+/**
+ * [FlowWatcher] for a nullable [StateFlow] (e.g. a pending photo or an unset rating). Swift wraps
+ * this in `ObservedOptionalFlow`; [FlowWatcher]'s non-null `value` would crash Swift on `null`.
+ */
+class NullableFlowWatcher<T : Any>(private val flow: StateFlow<T?>) {
+    val value: T?
+        get() = flow.value
+
+    /** Delivers every value (the current one first) on the main thread until cancelled. */
+    fun watch(onEach: (T?) -> Unit): Cancellable {
+        val job = CoroutineScope(Dispatchers.Main.immediate).launch { flow.collect { onEach(it) } }
+        return Cancellable { job.cancel() }
+    }
+}

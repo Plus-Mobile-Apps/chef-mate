@@ -37,6 +37,19 @@ extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     }
 
     public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        viewControllers.count > 1
+        viewControllers.count > 1 && !SwipeBackGate.isBlocked
+    }
+}
+
+/// Lets a screen veto the edge-swipe back gesture while it's showing, so back always goes through
+/// its BLoC (e.g. the recipe editor's discard-changes prompt). Apply with `.blocksSwipeBack()`.
+enum SwipeBackGate {
+    fileprivate(set) static var isBlocked = false
+}
+
+extension View {
+    func blocksSwipeBack() -> some View {
+        onAppear { SwipeBackGate.isBlocked = true }
+            .onDisappear { SwipeBackGate.isBlocked = false }
     }
 }

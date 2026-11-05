@@ -133,6 +133,7 @@ final class RootStackModel: ObservableObject {
             case .root: root.onBackClicked()
             case .recipeRoot(let bloc): bloc.onBackClicked()
             case .aiChatRoot(let bloc): bloc.onBackClicked()
+            case .editor(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -147,14 +148,15 @@ final class RootStackModel: ObservableObject {
         var result: [StackEntry] = []
         var liveNested = Set<ObjectIdentifier>()
 
-        /// Adds one entry per child of a nested stack. The nested stack's own root can't pop
-        /// itself; the root stack removes the whole root child instead.
+        /// Adds one entry per child of a nested stack, each popped through `popper`. A nested
+        /// stack's own root can't pop itself, so `popper` normally returns `.root` for index 0 and
+        /// the root stack removes the whole root child instead.
         func flatten<T: AnyObject>(
             _ owner: RootBlocChild,
             bloc: AnyObject,
             stack: Value<ChildStack<AnyObject, T>>,
             content: (T) -> StackEntry.Content,
-            popper: StackEntry.Popper
+            popper: (_ index: Int, _ child: T) -> StackEntry.Popper
         ) {
             let key = ObjectIdentifier(bloc)
             liveNested.insert(key)
@@ -164,7 +166,7 @@ final class RootStackModel: ObservableObject {
             for (index, nested) in stack.value.items.enumerated() {
                 result.append(StackEntry(
                     content: content(nested.instance),
-                    popper: index == 0 ? .root : popper,
+                    popper: popper(index, nested.instance),
                     owner: owner
                 ))
             }
@@ -174,10 +176,19 @@ final class RootStackModel: ObservableObject {
             let child = item.instance
             if let recipeRoot = child as? RootBlocChild.RecipeRoot {
                 let bloc = recipeRoot.bloc
-                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .recipe($0) }, popper: .recipeRoot(bloc))
+                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .recipe($0) }) { index, nested in
+                    if let edit = nested as? RecipeRootBlocChild.Edit {
+                        // The editor decides: discard prompt when there are changes, else it
+                        // closes itself (popping, or finishing a create flow).
+                        return .editor(edit.bloc)
+                    }
+                    return index == 0 ? .root : .recipeRoot(bloc)
+                }
             } else if let aiChat = child as? RootBlocChild.AiChat {
                 let bloc = aiChat.bloc
-                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .aiChat($0) }, popper: .aiChatRoot(bloc))
+                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .aiChat($0) }) { index, _ in
+                    return index == 0 ? .root : .aiChatRoot(bloc)
+                }
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root, owner: child))
             }
@@ -213,6 +224,7 @@ struct StackEntry: Hashable {
         case root
         case recipeRoot(RecipeRootBloc)
         case aiChatRoot(AiChatRootBloc)
+        case editor(EditRecipeBloc)
     }
 
     let content: Content
@@ -247,6 +259,8 @@ struct StackEntryView: View {
         case .recipe(let child):
             if let detail = child as? RecipeRootBlocChild.Detail {
                 RecipeDetailView(bloc: detail.bloc)
+            } else if let edit = child as? RecipeRootBlocChild.Edit {
+                EditRecipeView(bloc: edit.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
