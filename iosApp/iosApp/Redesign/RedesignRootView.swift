@@ -44,6 +44,16 @@ struct RedesignRootView: View {
                     }
                 }
             }
+            // `item:` keeps the flow on screen while the sheet animates away after the BLoC closes it.
+            .sheet(item: Binding(
+                get: { stack.mealPlanner.map(ModalBloc.init) },
+                set: { item in
+                    // A swipe-down closes the whole add-meal flow, whichever step it was on.
+                    if item == nil && stack.mealPlanner != nil { appDelegate.root.onBackClicked() }
+                }
+            )) { modal in
+                MealPlannerSheet(bloc: modal.bloc)
+            }
             .globalHosts(
                 toastService: RootBlocProvider.shared.toastService,
                 reviewService: RootBlocProvider.shared.inAppReviewService,
@@ -99,13 +109,16 @@ struct ModalPresentation: Identifiable {
 ///
 /// The entries split at the first modal root child (the Android `isModal` set; so far
 /// `AiChat` and `CookMode` are native): those below it are the main navigation stack, the rest are presented in a
-/// full-screen cover.
+/// full-screen cover. `MealPlanner` is the exception: it presents as a sheet (`MealPlannerSheet`),
+/// and it and anything above it are left out of `entries`.
 final class RootStackModel: ObservableObject {
     @Published private(set) var entries: [StackEntry] = []
     /// Index of the first entry belonging to a modal root child, if one is showing.
     private var modalStart: Int?
     /// The last non-empty `modalEntries`, shown while the cover animates away.
     private(set) var lastModalEntries: [StackEntry] = []
+    /// The add-meal flow while it is open, presented as a sheet.
+    @Published private(set) var mealPlanner: MealPlannerRootBloc?
 
     private let root: RootBloc
     private var rootCancellation: Cancellation?
@@ -149,6 +162,7 @@ final class RootStackModel: ObservableObject {
         defer { isRebuilding = false }
 
         var result: [StackEntry] = []
+        var modal: MealPlannerRootBloc?
         var liveNested = Set<ObjectIdentifier>()
 
         /// Adds one entry per child of a nested stack, each popped through `popper`. A nested
@@ -177,7 +191,10 @@ final class RootStackModel: ObservableObject {
 
         for item in root.state.value.items {
             let child = item.instance
-            if let recipeRoot = child as? RootBlocChild.RecipeRoot {
+            if let mealPlanner = child as? RootBlocChild.MealPlanner {
+                modal = mealPlanner.bloc
+                break
+            } else if let recipeRoot = child as? RootBlocChild.RecipeRoot {
                 let bloc = recipeRoot.bloc
                 flatten(child, bloc: bloc, stack: bloc.routerState, content: { .recipe($0) }) { index, nested in
                     if let edit = nested as? RecipeRootBlocChild.Edit {
@@ -215,6 +232,7 @@ final class RootStackModel: ObservableObject {
         modalStart = result.indices.dropFirst().first { result[$0].owner.isModal }
         if let modalStart { lastModalEntries = Array(result[modalStart...]) }
         entries = result
+        if mealPlanner !== modal { mealPlanner = modal }
     }
 }
 
@@ -223,6 +241,12 @@ private extension RootBlocChild {
     /// (Browser, MealPlanner, CookMode, AiChat, EditRecipeBook, EditGroceryList). Only the native
     /// ones are listed; hosted ones still push.
     var isModal: Bool { self is RootBlocChild.AiChat || self is RootBlocChild.CookMode }
+}
+
+/// A modal root child's BLoC, identified by instance, for `.sheet(item:)`.
+struct ModalBloc<Bloc: AnyObject>: Identifiable {
+    let bloc: Bloc
+    var id: ObjectIdentifier { ObjectIdentifier(bloc) }
 }
 
 /// One navigation entry, identified by its (stable) Decompose child instance.
