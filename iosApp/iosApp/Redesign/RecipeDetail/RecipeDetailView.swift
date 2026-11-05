@@ -1,5 +1,4 @@
 import SwiftUI
-import SafariServices
 import ComposeApp
 
 /// The redesigned recipe detail, mirroring the Android `RecipeDetailScreen` compact layout: a hero
@@ -100,10 +99,7 @@ struct RecipeDetailView: View {
                     .navigationTransition(.zoom(sourceID: RecipeHero.imageTransitionId, in: imageNamespace))
             }
         }
-        .sheet(item: $webPage) { page in
-            SafariView(url: page.url)
-                .ignoresSafeArea()
-        }
+        .safariSheet(item: $webPage)
         .onAppear {
             // Share links arrive once the recipe has been made public; hand each to the share sheet.
             shareWatch = shareWatch ?? EventWatcher<NSString>(flow: bloc.shareLink).watch { url in
@@ -502,25 +498,6 @@ private struct DeletingOverlay: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
     }
-}
-
-struct WebPage: Identifiable {
-    let url: URL
-    var id: URL { url }
-}
-
-/// `SFSafariViewController` for SwiftUI: Safari's reader, sign-ins and share sheet, presented as a
-/// sheet over the screen.
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.preferredControlTintColor = UIColor(ChefTheme.primary)
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
 
 private struct ActionButton: View {
