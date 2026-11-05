@@ -136,6 +136,7 @@ final class RootStackModel: ObservableObject {
             case .aiChatRoot(let bloc): bloc.onBackClicked()
             case .editor(let bloc): bloc.onBackClicked()
             case .manageFamily(let bloc): bloc.onBackClicked()
+            case .child(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -196,6 +197,11 @@ final class RootStackModel: ObservableObject {
                 flatten(child, bloc: bloc, stack: bloc.routerState, content: { .family($0) }) { index, _ in
                     return index == 0 ? .root : .manageFamily(bloc)
                 }
+            } else if child is RootBlocChild.Authentication || child is RootBlocChild.OtpVerification,
+                      let bloc = child.bloc as? BackClickBloc {
+                // Auth screens pop through their own BLoC: its back output also abandons whatever
+                // the sign-in was gating (RootBlocImpl.destinationAfterAuth).
+                result.append(StackEntry(content: .root(child), popper: .child(bloc), owner: child))
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root, owner: child))
             }
@@ -234,6 +240,8 @@ struct StackEntry: Hashable {
         case aiChatRoot(AiChatRootBloc)
         case editor(EditRecipeBloc)
         case manageFamily(ManageFamilyRootBloc)
+        /// A root child whose own back handler pops it (and may do more than a plain pop).
+        case child(BackClickBloc)
     }
 
     let content: Content
@@ -269,6 +277,10 @@ struct StackEntryView: View {
                 CookModeView(bloc: cookMode.bloc)
             } else if let browser = child as? RootBlocChild.Browser {
                 BrowserRootView(bloc: browser.bloc, isModal: true)
+            } else if let auth = child as? RootBlocChild.Authentication {
+                AuthenticationView(bloc: auth.bloc)
+            } else if let otp = child as? RootBlocChild.OtpVerification {
+                OtpView(bloc: otp.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }

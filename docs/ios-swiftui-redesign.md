@@ -139,7 +139,7 @@ Known gaps:
   on `keyboardWillShow` and brings it back on `keyboardWillHide`, matching the system tab bar and
   the Android nav pill, which both stay behind the keyboard.
 - **Web links** in native screens open in an `SFSafariViewController` sheet instead of the in-app
-  Browser screen.
+  Browser screen (`.safariSheet(item:)` in `Redesign/SafariView.swift`).
 
 ### Liquid Glass
 
@@ -188,7 +188,7 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 10 | Meal plan | `MealPlanScreen` | |
 | 11 | Cook mode | `CookModeScreen`, `WhatsCookingScreen` | Done (first cut): full-screen cover with its own stack, stacked layout under pinned headers, split layout as segmented swipe pages (iPhone) or resizable columns (iPad), cross-off / highlight, scale menu, keep screen on (`isIdleTimerDisabled`), finish confirm, premium alert, glass recipe-chip bar, What's Cooking as a native sheet with select-and-remove. Coach marks are a glass callout under the nav bar, not anchored tooltips. Line views (`IngredientLine`, `DirectionLine`) are now shared with recipe detail in `RecipeText.swift`. |
 | 12 | Settings root | `SettingsRootScreen`, `AppSettingsScreen`, `BottomNavOrderScreen`, grocery autocomplete + category rules | |
-| 13 | Auth | `AuthenticationScreen`, `OtpScreen` | |
+| 13 | Auth | `AuthenticationScreen`, `OtpScreen` | Done (first cut): email/password with iOS autofill hints (`.username`/`.password`, `.oneTimeCode` for the code), forgot-password / email-me-a-code, mode switch, guest-data discard alert, glass submit button above the keyboard, resend countdown. Swipe-back pops through each BLoC's own `onBackClicked` (`StackEntry.Popper.child`) so abandoning sign-in still clears the gated destination. Privacy/terms open in a Safari sheet. |
 | 14 | Onboarding | `OnboardingRootScreen` + pages | `TabView(.page)`. |
 | 15 | Browser | `BrowserRootScreen`, landing, edit query, select engine, browser | Done (first cut): native `WKWebView` kept in the BLoC's `InstanceKeeper` (page and history survive tab switches), crossfade between the browser's own screens with the address bar morphing via `matchedGeometryEffect`, edge-swipe page history, engine picker, bookmarks grid, search coach mark as a popover. The root-stack browser (links opened from elsewhere) pushes the same view with a nav bar. The Settings → Bookmarks screen (`BrowserBookmarksScreen`) stays hosted until PR 12. |
 | 16 | AI chat | `AiChatRootScreen`, `AiChatScreen`, `AiChatHistoryScreen` | Done (first cut): first native modal (full-screen cover, AiChat flattened). Bottom-anchored log, inline markdown via `AttributedString` (lists → bullets, headings → bold), thinking bubble, add-recipe pill, glass input with `PhotosPicker` (bytes cross via `NativeBytes`), web links in a Safari sheet. History: swipe/context-menu delete with confirmation, delete all. The Android typewriter reveal is not ported; replies show as they stream. |
