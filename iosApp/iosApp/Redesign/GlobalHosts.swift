@@ -6,9 +6,25 @@ extension View {
     /// The app-wide hosts that the Compose `App` composable provides on the other UI path: the
     /// `ToastService` overlay and the in-app review prompt. Apply once, at the root of the shell.
     /// `bottomInset` lifts toasts over the tab bar while it is showing; screens with their own
-    /// bottom toolbar add theirs with `toastClearance(_:)`.
-    func globalHosts(toastService: ToastService, reviewService: InAppReviewService, bottomInset: CGFloat) -> some View {
-        modifier(GlobalHosts(toastService: toastService, reviewService: reviewService, bottomInset: bottomInset))
+    /// bottom toolbar add theirs with `toastClearance(_:)`. `showsToasts` is false while a
+    /// full-screen cover hides this overlay (the cover shows them with `toastOverlay`).
+    func globalHosts(
+        toastService: ToastService,
+        reviewService: InAppReviewService,
+        bottomInset: CGFloat,
+        showsToasts: Bool = true
+    ) -> some View {
+        toastOverlay(toastService: toastService, bottomInset: bottomInset, isEnabled: showsToasts)
+            .background {
+                ReviewHost(service: reviewService)
+            }
+    }
+
+    /// The toast overlay alone, for content presented over the shell's root (a full-screen cover),
+    /// where the root overlay can't be seen. Only one overlay should be enabled at a time, so two
+    /// hosts never drain the same queue.
+    func toastOverlay(toastService: ToastService, bottomInset: CGFloat = 0, isEnabled: Bool = true) -> some View {
+        modifier(ToastOverlay(toastService: toastService, bottomInset: bottomInset, isEnabled: isEnabled))
     }
 }
 
@@ -56,24 +72,23 @@ private struct ToastClearance: ViewModifier {
     }
 }
 
-private struct GlobalHosts: ViewModifier {
+private struct ToastOverlay: ViewModifier {
     let toastService: ToastService
-    let reviewService: InAppReviewService
     let bottomInset: CGFloat
+    let isEnabled: Bool
     @StateObject private var clearances = ToastClearances()
 
     func body(content: Content) -> some View {
         content
             .environment(\.toastClearances, clearances)
             .overlay(alignment: .bottom) {
-                ToastHost(service: toastService)
-                    // The tab bar only shows on tab roots, which register no clearance of their
-                    // own, so the two never stack.
-                    .padding(.bottom, max(bottomInset, clearances.inset))
-                    .animation(.snappy, value: clearances.inset)
-            }
-            .background {
-                ReviewHost(service: reviewService)
+                if isEnabled {
+                    ToastHost(service: toastService)
+                        // The tab bar only shows on tab roots, which register no clearance of
+                        // their own, so the two never stack.
+                        .padding(.bottom, max(bottomInset, clearances.inset))
+                        .animation(.snappy, value: clearances.inset)
+                }
             }
     }
 }
