@@ -83,6 +83,7 @@ kotlin {
             export(projects.client.auth.data.public)
             export(projects.client.meal.core.public)
             export(projects.client.meal.data.public)
+            export(projects.client.onboarding.public)
             // Global hosts: the native toast overlay and store-review prompt.
             export(projects.client.toast.public)
             export(projects.client.review.public)

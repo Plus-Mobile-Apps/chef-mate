@@ -305,6 +305,8 @@ struct StackEntryView: View {
                 AuthenticationView(bloc: auth.bloc)
             } else if let otp = child as? RootBlocChild.OtpVerification {
                 OtpView(bloc: otp.bloc)
+            } else if let onboarding = child as? RootBlocChild.Onboarding {
+                OnboardingView(bloc: onboarding.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
