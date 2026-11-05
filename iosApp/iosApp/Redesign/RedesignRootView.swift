@@ -22,14 +22,17 @@ struct RedesignRootView: View {
     var body: some View {
         let entries = stack.mainEntries
         if let base = entries.first {
-            let pushed = Array(entries.dropFirst())
+            // A trailing sheet entry (e.g. the recipe book form) is presented over the stack
+            // instead of pushed onto it, like the Android modal slide-up.
+            let sheetEntry = entries.count > 1 && entries.last?.presentsAsSheet == true ? entries.last : nil
+            let pushed = Array(entries.dropFirst().dropLast(sheetEntry == nil ? 0 : 1))
             let isModalShown = stack.modal != nil
             let path = Binding<[StackEntry]>(
                 get: { pushed },
                 set: { newPath in
                     // Only pops originate from SwiftUI; pushes always come from the BLoCs. The
-                    // stack under a modal can't be popped from the UI while it is covered.
-                    guard !isModalShown else { return }
+                    // stack under a modal or sheet can't be popped from the UI while it is covered.
+                    guard !isModalShown, sheetEntry == nil else { return }
                     stack.pop(count: pushed.count - newPath.count)
                 }
             )
@@ -42,6 +45,28 @@ struct RedesignRootView: View {
                         StackEntryView(entry: base)
                             .navigationDestination(for: StackEntry.self) { StackEntryView(entry: $0) }
                     }
+                }
+            }
+            // `item:` keeps the flow on screen while the sheet animates away after the BLoC closes it.
+            .sheet(item: Binding(
+                get: { stack.mealPlanner.map(ModalBloc.init) },
+                set: { item in
+                    // A swipe-down closes the whole add-meal flow, whichever step it was on.
+                    if item == nil && stack.mealPlanner != nil { appDelegate.root.onBackClicked() }
+                }
+            )) { modal in
+                MealPlannerSheet(bloc: modal.bloc)
+            }
+            .sheet(item: Binding(
+                get: { sheetEntry },
+                set: { newValue in
+                    // A swipe-down dismisses natively; pop it through its BLoC. Skip if the BLoC
+                    // already removed it (e.g. after Save), so nothing else gets popped.
+                    if newValue == nil, let sheetEntry, stack.entries.last == sheetEntry { stack.pop(count: 1) }
+                }
+            )) { entry in
+                NavigationStack {
+                    StackEntryView(entry: entry)
                 }
             }
             .globalHosts(
@@ -93,19 +118,22 @@ struct ModalPresentation: Identifiable {
 }
 
 /// The Decompose root stack flattened into navigation entries. Most root children are one entry.
-/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`, `ManageFamily`) contributes one entry per
-/// nested child instead, so its screens push and swipe back natively rather than inside a hosted
+/// A child whose own nested stack is redesigned (`RecipeRoot`, `AiChat`, `ManageFamily`,
+/// `SettingsRoot`) contributes one entry per nested child instead, so its screens push and swipe back natively rather than inside a hosted
 /// Compose stack. Each entry remembers which BLoC pops it.
 ///
 /// The entries split at the first modal root child (the Android `isModal` set; so far
 /// `AiChat` and `CookMode` are native): those below it are the main navigation stack, the rest are presented in a
-/// full-screen cover.
+/// full-screen cover. `MealPlanner` is the exception: it presents as a sheet (`MealPlannerSheet`),
+/// and it and anything above it are left out of `entries`.
 final class RootStackModel: ObservableObject {
     @Published private(set) var entries: [StackEntry] = []
     /// Index of the first entry belonging to a modal root child, if one is showing.
     private var modalStart: Int?
     /// The last non-empty `modalEntries`, shown while the cover animates away.
     private(set) var lastModalEntries: [StackEntry] = []
+    /// The add-meal flow while it is open, presented as a sheet.
+    @Published private(set) var mealPlanner: MealPlannerRootBloc?
 
     private let root: RootBloc
     private var rootCancellation: Cancellation?
@@ -137,6 +165,7 @@ final class RootStackModel: ObservableObject {
             case .editor(let bloc): bloc.onBackClicked()
             case .manageFamily(let bloc): bloc.onBackClicked()
             case .child(let bloc): bloc.onBackClicked()
+            case .settingsRoot(let bloc): bloc.onBackClicked()
             }
         }
     }
@@ -149,6 +178,7 @@ final class RootStackModel: ObservableObject {
         defer { isRebuilding = false }
 
         var result: [StackEntry] = []
+        var modal: MealPlannerRootBloc?
         var liveNested = Set<ObjectIdentifier>()
 
         /// Adds one entry per child of a nested stack, each popped through `popper`. A nested
@@ -177,7 +207,10 @@ final class RootStackModel: ObservableObject {
 
         for item in root.state.value.items {
             let child = item.instance
-            if let recipeRoot = child as? RootBlocChild.RecipeRoot {
+            if let mealPlanner = child as? RootBlocChild.MealPlanner {
+                modal = mealPlanner.bloc
+                break
+            } else if let recipeRoot = child as? RootBlocChild.RecipeRoot {
                 let bloc = recipeRoot.bloc
                 flatten(child, bloc: bloc, stack: bloc.routerState, content: { .recipe($0) }) { index, nested in
                     if let edit = nested as? RecipeRootBlocChild.Edit {
@@ -202,6 +235,11 @@ final class RootStackModel: ObservableObject {
                 // Auth screens pop through their own BLoC: its back output also abandons whatever
                 // the sign-in was gating (RootBlocImpl.destinationAfterAuth).
                 result.append(StackEntry(content: .root(child), popper: .child(bloc), owner: child))
+            } else if let settingsRoot = child as? RootBlocChild.SettingsRoot {
+                let bloc = settingsRoot.bloc
+                flatten(child, bloc: bloc, stack: bloc.routerState, content: { .settings($0) }) { index, _ in
+                    return index == 0 ? .root : .settingsRoot(bloc)
+                }
             } else {
                 result.append(StackEntry(content: .root(child), popper: .root, owner: child))
             }
@@ -215,6 +253,7 @@ final class RootStackModel: ObservableObject {
         modalStart = result.indices.dropFirst().first { result[$0].owner.isModal }
         if let modalStart { lastModalEntries = Array(result[modalStart...]) }
         entries = result
+        if mealPlanner !== modal { mealPlanner = modal }
     }
 }
 
@@ -225,6 +264,12 @@ private extension RootBlocChild {
     var isModal: Bool { self is RootBlocChild.AiChat || self is RootBlocChild.CookMode }
 }
 
+/// A modal root child's BLoC, identified by instance, for `.sheet(item:)`.
+struct ModalBloc<Bloc: AnyObject>: Identifiable {
+    let bloc: Bloc
+    var id: ObjectIdentifier { ObjectIdentifier(bloc) }
+}
+
 /// One navigation entry, identified by its (stable) Decompose child instance.
 struct StackEntry: Hashable {
     enum Content {
@@ -232,6 +277,7 @@ struct StackEntry: Hashable {
         case recipe(RecipeRootBlocChild)
         case aiChat(AiChatRootBlocChild)
         case family(ManageFamilyRootBlocChild)
+        case settings(SettingsRootBlocChild)
     }
 
     enum Popper {
@@ -242,6 +288,7 @@ struct StackEntry: Hashable {
         case manageFamily(ManageFamilyRootBloc)
         /// A root child whose own back handler pops it (and may do more than a plain pop).
         case child(BackClickBloc)
+        case settingsRoot(SettingsRootBloc)
     }
 
     let content: Content
@@ -259,11 +306,22 @@ struct StackEntry: Hashable {
         case .recipe(let child): child
         case .aiChat(let child): child
         case .family(let child): child
+        case .settings(let child): child
         }
+    }
+
+    /// Presented as a sheet over the stack rather than pushed (see `RedesignRootView`). Only
+    /// native modal screens; hosted ones still push until their own PR.
+    var presentsAsSheet: Bool {
+        rootChild is RootBlocChild.EditRecipeBook
     }
 
     static func == (lhs: StackEntry, rhs: StackEntry) -> Bool { lhs.instance === rhs.instance }
     func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(instance)) }
+}
+
+extension StackEntry: Identifiable {
+    var id: ObjectIdentifier { ObjectIdentifier(instance) }
 }
 
 /// Native view for a navigation entry, or its Compose screen until that screen is redesigned.
@@ -281,6 +339,14 @@ struct StackEntryView: View {
                 AuthenticationView(bloc: auth.bloc)
             } else if let otp = child as? RootBlocChild.OtpVerification {
                 OtpView(bloc: otp.bloc)
+            } else if let onboarding = child as? RootBlocChild.Onboarding {
+                OnboardingView(bloc: onboarding.bloc)
+            } else if let publicRecipe = child as? RootBlocChild.PublicRecipe {
+                PublicRecipeView(bloc: publicRecipe.bloc)
+            } else if let export = child as? RootBlocChild.ExportRecipes {
+                ExportRecipesView(bloc: export.bloc)
+            } else if let editBook = child as? RootBlocChild.EditRecipeBook {
+                EditRecipeBookView(bloc: editBook.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
@@ -305,6 +371,17 @@ struct StackEntryView: View {
                 FamilyListView(bloc: list.bloc)
             } else if let detail = child as? ManageFamilyRootBlocChild.FamilyDetail {
                 FamilyDetailView(bloc: detail.bloc)
+            }
+        case .settings(let child):
+            switch child {
+            case let categories as SettingsRootBlocChild.RecipeCategories:
+                RecipeCategoriesView(bloc: categories.bloc)
+            case let export as SettingsRootBlocChild.ExportRecipes:
+                ExportRecipesView(bloc: export.bloc)
+            case let importRecipes as SettingsRootBlocChild.ImportRecipes:
+                ImportRecipesView(bloc: importRecipes.bloc)
+            default:
+                ComposeScreenHost(screen: child.bloc)
             }
         }
     }
