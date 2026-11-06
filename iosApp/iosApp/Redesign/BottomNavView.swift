@@ -4,21 +4,18 @@ import ComposeApp
 /// The redesigned bottom navigation. Tab order and selection come from `BottomNavBloc`; each tab
 /// owns the `NavigationStack` that root-stack children push onto.
 ///
-/// Like the Android bottom nav, the tab bar only shows on the tab roots. A `TabView` keeps the
-/// tabs, but its system bar is hidden and `ChefTabBar` is drawn inside each tab's root screen
-/// instead, so it slides out with a push and back in with a pop, tracking the swipe-back gesture
-/// (UIKit's `hidesBottomBarWhenPushed` look). Hiding the system bar per pushed screen with
-/// `.toolbar(.hidden, for: .tabBar)` made it snap back only after the pop finished, and SwiftUI's
-/// tab controller ignores `hidesBottomBarWhenPushed`.
+/// Uses the system `TabView` tab bar, so on iOS 26+ it is the native Liquid Glass bar (and the
+/// standard bar on earlier versions). Like the Android bottom nav, the bar only shows on the tab
+/// roots: pushed screens hide it with `.toolbar(.hidden, for: .tabBar)`.
 struct BottomNavView: View {
+    /// The space the system tab bar takes above the bottom safe area, for overlays (toasts) that
+    /// are drawn above the `TabView` and must clear it.
+    static let tabBarHeight: CGFloat = 56
+
     let bloc: BottomNavBloc
     @Binding var path: [StackEntry]
     @StateObject private var model: ObservedFlow<BottomNavBlocModel>
     @StateObject private var content: ObservedValue<ChildStack<AnyObject, BottomNavBlocChild>>
-    /// True while the software keyboard is up. The bar is a `safeAreaInset`, which SwiftUI lays
-    /// out above the keyboard, so it would otherwise ride up on top of it; like the system tab bar
-    /// (and the Android nav pill) it should stay behind the keyboard instead.
-    @State private var keyboardVisible = false
 
     init(bloc: BottomNavBloc, path: Binding<[StackEntry]>) {
         self.bloc = bloc
@@ -29,6 +26,7 @@ struct BottomNavView: View {
 
     var body: some View {
         let selectedTab = model.value.selectedTab
+        let notificationCount = Int(model.value.notificationCount)
         TabView(selection: Binding(get: { model.current.selectedTab }, set: { bloc.onTabSelected(tab: $0) })) {
             ForEach(model.value.tabs, id: \.self) { tab in
                 Tab(tab.title, systemImage: tab.systemImage, value: tab) {
@@ -42,87 +40,16 @@ struct BottomNavView: View {
                                 Color.clear
                             }
                         }
-                        .safeAreaInset(edge: .bottom, spacing: 0) {
-                            if !keyboardVisible {
-                                ChefTabBar(
-                                    tabs: model.value.tabs,
-                                    selected: selectedTab,
-                                    notificationCount: Int(model.value.notificationCount),
-                                    onSelect: { bloc.onTabSelected(tab: $0) }
-                                )
-                            }
-                        }
-                        .toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: StackEntry.self) { entry in
                             StackEntryView(entry: entry)
+                                .toolbar(.hidden, for: .tabBar)
                         }
                     }
                 }
+                .badge(tab == .settings ? notificationCount : 0)
             }
         }
         .tint(ChefTheme.primary)
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            keyboardVisible = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            keyboardVisible = false
-        }
-    }
-}
-
-/// The tab bar drawn inside each tab's root screen: a glass capsule of tab buttons, styled after the
-/// iOS 26 tab bar.
-struct ChefTabBar: View {
-    /// The space the bar takes above the bottom safe area, for content that must clear it.
-    static let height: CGFloat = 72
-
-    let tabs: [BottomNavBlocTab]
-    let selected: BottomNavBlocTab
-    let notificationCount: Int
-    let onSelect: (BottomNavBlocTab) -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs, id: \.self) { tab in
-                let isSelected = tab == selected
-                Button { onSelect(tab) } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: tab.systemImage)
-                            .font(.system(size: 20, weight: .medium))
-                            .frame(height: 26)
-                            .overlay(alignment: .topTrailing) {
-                                if tab == .settings && notificationCount > 0 {
-                                    Text("\(notificationCount)")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 5)
-                                        .background(.red, in: Capsule())
-                                        .offset(x: 10, y: -4)
-                                }
-                            }
-                        Text(tab.title)
-                            .font(.caption2.weight(.medium))
-                            .lineLimit(1)
-                    }
-                    .foregroundStyle(isSelected ? ChefTheme.primary : Color.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background {
-                        if isSelected {
-                            Capsule().fill(Color.primary.opacity(0.08))
-                        }
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                .accessibilityValue(tab == .settings && notificationCount > 0 ? "\(notificationCount)" : "")
-            }
-        }
-        .padding(4)
-        .chefGlass()
-        .padding(.horizontal, ChefTheme.Spacing.normal + 4)
-        .padding(.bottom, ChefTheme.Spacing.extraSmall)
     }
 }
 

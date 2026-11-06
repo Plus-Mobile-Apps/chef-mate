@@ -146,17 +146,14 @@ asset-catalog copies. A `_dark` sibling is picked by the caller from `colorSchem
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
-- **The tab bar only shows on tab roots**, like the Android bottom nav. The system `TabView` bar is
-  hidden and `ChefTabBar` (a glass capsule styled after the iOS 26 bar) is drawn in each tab's
-  root screen with `safeAreaInset`, so it slides out with a push and back in with a pop, tracking
-  the swipe-back gesture. Two alternatives didn't work: `.toolbar(.hidden, for: .tabBar)` per
-  pushed screen snaps the bar back only after the pop finishes, and SwiftUI's tab controller
-  ignores UIKit's `hidesBottomBarWhenPushed`. Trade-off: no system tab-bar extras (minimize on
-  scroll, search tab) until we revisit.
-- **The tab bar hides while the keyboard is up.** `ChefTabBar` is a `safeAreaInset`, which SwiftUI
-  lays out above the keyboard, so it would otherwise ride up on top of it. `BottomNavView` drops it
-  on `keyboardWillShow` and brings it back on `keyboardWillHide`, matching the system tab bar and
-  the Android nav pill, which both stay behind the keyboard.
+- **The tab bar is the system `TabView` bar**, so iOS 26 devices get the native Liquid Glass bar
+  (selection pill, badges via `.badge`, keyboard handling) for free. Like the Android bottom nav it
+  only shows on tab roots: each pushed screen hides it with `.toolbar(.hidden, for: .tabBar)`.
+  Known trade-off: SwiftUI's tab controller ignores UIKit's `hidesBottomBarWhenPushed`, so on a pop
+  the bar comes back when the pop finishes instead of sliding in with the swipe-back gesture. (An
+  earlier custom glass capsule, `ChefTabBar`, drawn in each tab root's `safeAreaInset`, tracked the
+  gesture but wasn't the real system bar.) Overlays drawn above the `TabView` (toasts) clear it with
+  `BottomNavView.tabBarHeight`.
 - **Web links** in native screens open in an `SFSafariViewController` sheet instead of the in-app
   Browser screen (`.safariSheet(item:)` in `Redesign/SafariView.swift`).
 

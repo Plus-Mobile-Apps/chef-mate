@@ -86,7 +86,7 @@ private struct ToastOverlay: ViewModifier {
                     ToastHost(service: toastService)
                         // The larger of the two, not the sum: a tab root with its own bottom chrome
                         // over the tab bar (the grocery add row) registers a clearance that already
-                        // includes `ChefTabBar.height`.
+                        // includes `BottomNavView.tabBarHeight`.
                         .padding(.bottom, max(bottomInset, clearances.inset))
                         .animation(.snappy, value: clearances.inset)
                 }

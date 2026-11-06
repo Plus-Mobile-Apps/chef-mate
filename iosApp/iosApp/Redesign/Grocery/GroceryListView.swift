@@ -65,7 +65,7 @@ struct GroceryListView: View {
             }
         }
         // Toasts lift by the larger of the tab bar and this, so clear both: the add row sits on the bar.
-        .toastClearance(state.currentUserRole != .viewer ? ChefTabBar.height + 64 : 0)
+        .toastClearance(state.currentUserRole != .viewer ? BottomNavView.tabBarHeight + 64 : 0)
         .tint(ChefTheme.primary)
         .sheet(isPresented: $showSortFilter) {
             GrocerySortFilterSheet(state: state) { sort, filter, recipe in

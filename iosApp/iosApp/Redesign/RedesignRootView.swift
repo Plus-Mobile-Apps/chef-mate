@@ -73,7 +73,7 @@ struct RedesignRootView: View {
                 toastService: RootBlocProvider.shared.toastService,
                 reviewService: RootBlocProvider.shared.inAppReviewService,
                 // Pushed entries hide the tab bar; only the bare tab content shows it.
-                bottomInset: bottomNav != nil && pushed.isEmpty ? ChefTabBar.height : 0,
+                bottomInset: bottomNav != nil && pushed.isEmpty ? BottomNavView.tabBarHeight : 0,
                 // A full-screen cover hides this overlay; the cover shows toasts itself.
                 showsToasts: !isModalShown
             )
