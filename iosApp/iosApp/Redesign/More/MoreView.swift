@@ -2,12 +2,15 @@ import SwiftUI
 import ComposeApp
 
 /// The redesigned More tab, mirroring the Android `SettingsScreen`: profile header or auth
-/// prompts, navigation rows, Sign Out, and the version label. Developer settings (debug builds)
-/// stays reachable here so the redesign flag can always be switched back off.
+/// prompts, navigation rows, Sign Out, and the version label. There is no title: once the large
+/// profile header scrolls away, a compact avatar and the greeting take its place in the bar.
+/// Developer settings (debug builds) stays reachable here so the redesign flag can always be
+/// switched back off.
 struct MoreView: View {
     let bloc: SettingsBloc
     @StateObject private var model: ObservedFlow<SettingsBlocModel>
     @SwiftUI.Environment(\.openURL) private var openURL
+    @State private var headerScrolledAway = false
 
     init(bloc: SettingsBloc) {
         self.bloc = bloc
@@ -18,9 +21,16 @@ struct MoreView: View {
         let state = model.value
         let hasProfile = state.isAuthenticated && !state.isAnonymous
         List {
+            if hasProfile {
+                // Its own section, so the Manage profile card below keeps all four corners rounded.
+                Section {
+                    ProfileHeader(state: state, onTap: bloc.onManageProfileClicked)
+                }
+                .listSectionSpacing(.compact)
+            }
+
             Section {
                 if hasProfile {
-                    ProfileHeader(state: state, onTap: bloc.onManageProfileClicked)
                     MoreRow(ComposeStrings["manage_profile"], systemImage: "person.crop.circle", action: bloc.onManageProfileClicked)
                 } else {
                     if state.isAnonymous {
@@ -89,7 +99,21 @@ struct MoreView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(ComposeStrings["tab_more"])
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top > ProfileHeader.collapseOffset
+        } action: { _, scrolledAway in
+            withAnimation(.snappy) { headerScrolledAway = scrolledAway }
+        }
+        .toolbar {
+            if hasProfile && headerScrolledAway {
+                // The title slot: full width and no glass capsule, unlike a leading item.
+                ToolbarItem(placement: .principal) {
+                    CompactProfile(state: state, onTap: bloc.onManageProfileClicked)
+                }
+            }
+        }
         .confirmationDialog(
             ComposeStrings["sign_out_confirmation_title"],
             isPresented: Binding(
@@ -121,11 +145,15 @@ private struct ProfileHeader: View {
     let state: SettingsBlocModel
     let onTap: () -> Void
 
+    /// How far the list scrolls before the header is mostly hidden under the bar and the compact
+    /// profile replaces it.
+    static let collapseOffset: CGFloat = 150
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: ChefTheme.Spacing.small) {
                 Avatar(name: state.profileName ?? "", imageUrl: state.profileImageUrl)
-                    .frame(width: 96, height: 96)
+                    .frame(width: 128, height: 128)
                 if let greeting = state.greeting {
                     LocalizedText(text: greeting)
                         .font(.title2.weight(.semibold))
@@ -140,9 +168,33 @@ private struct ProfileHeader: View {
     }
 }
 
+/// The profile photo and greeting shown in the navigation bar once the header scrolls away.
+private struct CompactProfile: View {
+    let state: SettingsBlocModel
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: ChefTheme.Spacing.small) {
+                Avatar(name: state.profileName ?? "", imageUrl: state.profileImageUrl, initialFont: .subheadline.weight(.semibold))
+                    .frame(width: 32, height: 32)
+                if let greeting = state.greeting {
+                    LocalizedText(text: greeting)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+}
+
 private struct Avatar: View {
     let name: String
     let imageUrl: String?
+    var initialFont: Font = .largeTitle.weight(.semibold)
 
     var body: some View {
         AsyncImage(url: imageUrl.flatMap(URL.init(string:))) { image in
@@ -151,7 +203,7 @@ private struct Avatar: View {
             ZStack {
                 ChefTheme.primary
                 Text(name.first.map { String($0).uppercased() } ?? "")
-                    .font(.largeTitle.weight(.semibold))
+                    .font(initialFont)
                     .foregroundStyle(.white)
             }
         }
