@@ -382,6 +382,16 @@ struct StackEntryView: View {
                 ExportRecipesView(bloc: export.bloc)
             case let importRecipes as SettingsRootBlocChild.ImportRecipes:
                 ImportRecipesView(bloc: importRecipes.bloc)
+            case let appSettings as SettingsRootBlocChild.AppSettings:
+                AppSettingsView(bloc: appSettings.bloc)
+            case let navOrder as SettingsRootBlocChild.BottomNavOrder:
+                BottomNavOrderView(bloc: navOrder.bloc)
+            case let autocomplete as SettingsRootBlocChild.GroceryAutocomplete:
+                GroceryAutocompleteView(bloc: autocomplete.bloc)
+            case let rules as SettingsRootBlocChild.GroceryCategoryRules:
+                GroceryCategoryRulesView(bloc: rules.bloc)
+            case let bookmarks as SettingsRootBlocChild.BrowserBookmarks:
+                BrowserBookmarksView(bloc: bookmarks.bloc)
             default:
                 ComposeScreenHost(screen: child.bloc)
             }

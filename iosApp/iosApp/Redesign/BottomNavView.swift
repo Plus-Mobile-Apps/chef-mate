@@ -148,7 +148,7 @@ private struct TabChildView: View {
     }
 }
 
-private extension BottomNavBlocTab {
+extension BottomNavBlocTab {
     var title: String {
         switch self {
         case .recipes: ComposeStrings["tab_recipes"]
