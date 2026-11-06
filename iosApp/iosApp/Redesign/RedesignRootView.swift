@@ -349,6 +349,10 @@ struct StackEntryView: View {
                 EditRecipeBookView(bloc: editBook.bloc)
             } else if let editList = child as? RootBlocChild.EditGroceryList {
                 EditGroceryListView(bloc: editList.bloc)
+            } else if let profile = child as? RootBlocChild.ManageProfile {
+                ManageProfileView(bloc: profile.bloc)
+            } else if let notifications = child as? RootBlocChild.Notifications {
+                NotificationsView(bloc: notifications.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
