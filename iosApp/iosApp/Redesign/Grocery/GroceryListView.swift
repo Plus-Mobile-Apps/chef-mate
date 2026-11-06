@@ -5,10 +5,8 @@ import ComposeApp
 /// pinned aisle headers (or one alphabetical run), a check-off control per row, swipe to delete
 /// (the BLoC's toast offers Undo), and an add row floating at the bottom with autocomplete
 /// suggestions opening above it. The list picker is the navigation title's menu; sort & filter is
-/// a sheet; delete-items and create-list are native dialogs.
-///
-/// Not yet ported (docs/ios-swiftui-redesign.md): the item detail sheet hosts its Compose screen
-/// until PR 9.
+/// a sheet; delete-items and create-list are native dialogs. Tapping an item opens
+/// `GroceryDetailView` in a sheet.
 struct GroceryListView: View {
     let bloc: GroceryListBloc
     @StateObject private var model: ObservedFlow<GroceryListBlocModel>
@@ -77,8 +75,10 @@ struct GroceryListView: View {
         }
         .sheet(isPresented: detailSheetBinding) {
             if let detail = sheet.value.child?.instance as? GroceryListBlocSheet.GroceryDetail {
-                ComposeScreenHost(screen: detail.bloc)
-                    .presentationDetents([.medium, .large])
+                NavigationStack {
+                    GroceryDetailView(bloc: detail.bloc)
+                }
+                .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }

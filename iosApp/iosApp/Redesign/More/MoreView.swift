@@ -177,7 +177,7 @@ private struct AuthButtons: View {
 }
 
 /// A tappable settings row: leading icon, title, optional trailing accessory, and a chevron.
-private struct MoreRow<Trailing: View>: View {
+struct MoreRow<Trailing: View>: View {
     let title: String
     let systemImage: String
     let action: () -> Void

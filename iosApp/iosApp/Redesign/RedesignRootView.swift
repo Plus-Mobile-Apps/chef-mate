@@ -313,7 +313,7 @@ struct StackEntry: Hashable {
     /// Presented as a sheet over the stack rather than pushed (see `RedesignRootView`). Only
     /// native modal screens; hosted ones still push until their own PR.
     var presentsAsSheet: Bool {
-        rootChild is RootBlocChild.EditRecipeBook
+        rootChild is RootBlocChild.EditRecipeBook || rootChild is RootBlocChild.EditGroceryList
     }
 
     static func == (lhs: StackEntry, rhs: StackEntry) -> Bool { lhs.instance === rhs.instance }
@@ -347,6 +347,16 @@ struct StackEntryView: View {
                 ExportRecipesView(bloc: export.bloc)
             } else if let editBook = child as? RootBlocChild.EditRecipeBook {
                 EditRecipeBookView(bloc: editBook.bloc)
+            } else if let editList = child as? RootBlocChild.EditGroceryList {
+                EditGroceryListView(bloc: editList.bloc)
+            } else if let profile = child as? RootBlocChild.ManageProfile {
+                ManageProfileView(bloc: profile.bloc)
+            } else if let notifications = child as? RootBlocChild.Notifications {
+                NotificationsView(bloc: notifications.bloc)
+            } else if let devSettings = child as? RootBlocChild.DeveloperSettings {
+                DeveloperSettingsView(bloc: devSettings.bloc)
+            } else if let flags = child as? RootBlocChild.FeatureFlags {
+                FeatureFlagsView(bloc: flags.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
@@ -380,6 +390,16 @@ struct StackEntryView: View {
                 ExportRecipesView(bloc: export.bloc)
             case let importRecipes as SettingsRootBlocChild.ImportRecipes:
                 ImportRecipesView(bloc: importRecipes.bloc)
+            case let appSettings as SettingsRootBlocChild.AppSettings:
+                AppSettingsView(bloc: appSettings.bloc)
+            case let navOrder as SettingsRootBlocChild.BottomNavOrder:
+                BottomNavOrderView(bloc: navOrder.bloc)
+            case let autocomplete as SettingsRootBlocChild.GroceryAutocomplete:
+                GroceryAutocompleteView(bloc: autocomplete.bloc)
+            case let rules as SettingsRootBlocChild.GroceryCategoryRules:
+                GroceryCategoryRulesView(bloc: rules.bloc)
+            case let bookmarks as SettingsRootBlocChild.BrowserBookmarks:
+                BrowserBookmarksView(bloc: bookmarks.bloc)
             default:
                 ComposeScreenHost(screen: child.bloc)
             }

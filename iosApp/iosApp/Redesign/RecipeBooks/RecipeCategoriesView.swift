@@ -169,14 +169,14 @@ struct RecipeCategoriesView: View {
                     Label(ComposeStrings["recipe_categories_select_mode_a11y"], systemImage: "checkmark.circle")
                 }
                 Divider()
-                Button(role: .destructive) { bloc.onDeleteRequested(item: item) } label: {
+                Button(role: .destructive) { bloc.onDeleteRequested(item_: item) } label: {
                     Label(ComposeStrings["category_delete"], systemImage: "trash")
                 }
             }
         }
         .swipeActions(edge: .trailing) {
             if item.isEditable && !state.selectionMode {
-                Button(role: .destructive) { bloc.onDeleteRequested(item: item) } label: {
+                Button(role: .destructive) { bloc.onDeleteRequested(item_: item) } label: {
                     Label(ComposeStrings["category_delete"], systemImage: "trash")
                 }
                 Button { bloc.onRenameRequested(item: item) } label: {

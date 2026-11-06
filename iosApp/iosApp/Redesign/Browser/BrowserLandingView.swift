@@ -212,7 +212,7 @@ private struct BookmarkTile: View {
 }
 
 /// A letter avatar standing in for the site's favicon, which would mean a fetch per tile.
-private struct BookmarkMonogram: View {
+struct BookmarkMonogram: View {
     let host: String
 
     var body: some View {
