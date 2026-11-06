@@ -13,6 +13,7 @@ import ComposeApp
 struct RedesignRootView: View {
     let appDelegate: AppDelegate
     @StateObject private var stack: RootStackModel
+    @Namespace private var cookModeNamespace
 
     init(appDelegate: AppDelegate) {
         self.appDelegate = appDelegate
@@ -77,13 +78,39 @@ struct RedesignRootView: View {
                 // A full-screen cover hides this overlay; the cover shows toasts itself.
                 showsToasts: !isModalShown
             )
-            .fullScreenCover(item: Binding(get: { stack.modal }, set: { _ in })) { _ in
-                ModalStackView(stack: stack)
-                    .toastOverlay(toastService: RootBlocProvider.shared.toastService)
+            .environment(\.cookModeTransition, cookModeNamespace)
+            .fullScreenCover(item: Binding(
+                get: { stack.modal },
+                set: { item in
+                    // Cook mode's zoom transition can be swiped down; close it through its BLoCs.
+                    if item == nil, stack.modal != nil { stack.pop(count: stack.modalEntries.count) }
+                }
+            )) { modal in
+                if modal.owner is RootBlocChild.CookMode {
+                    // Zooms out of the "Continue cooking" button when it is on screen, and can be
+                    // dragged down to close like the Android cook-mode sheet.
+                    ModalStackView(stack: stack)
+                        .toastOverlay(toastService: RootBlocProvider.shared.toastService)
+                        .navigationTransition(.zoom(sourceID: CookModeTransition.sourceId, in: cookModeNamespace))
+                } else {
+                    ModalStackView(stack: stack)
+                        .toastOverlay(toastService: RootBlocProvider.shared.toastService)
+                }
             }
         }
     }
 
+}
+
+/// The zoom source for presenting cook mode (see `RedesignRootView`). A "Continue cooking" button
+/// marks itself with `.matchedTransitionSource(id: CookModeTransition.sourceId, in:)` using the
+/// `cookModeTransition` namespace from the environment.
+enum CookModeTransition {
+    static let sourceId = "cookMode"
+}
+
+extension EnvironmentValues {
+    @Entry var cookModeTransition: Namespace.ID?
 }
 
 /// The navigation stack inside the full-screen cover: the modal root child's entries plus anything
