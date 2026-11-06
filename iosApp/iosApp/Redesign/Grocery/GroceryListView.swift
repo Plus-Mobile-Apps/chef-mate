@@ -131,7 +131,7 @@ struct GroceryListView: View {
                     }
                 } header: {
                     if showHeaders {
-                        LocalizedText(text: group.category.displayName())
+                        GroceryCategoryHeader(text: group.category.displayName())
                     }
                 }
             }
@@ -618,5 +618,23 @@ private struct GrocerySortFilterSheet: View {
                 }
             }
         }
+    }
+}
+
+/// A pinned aisle header on a solid gray band, like the Android `CategoryHeader` (a
+/// `surfaceVariant` surface), so sections stand apart more than the default translucent header.
+private struct GroceryCategoryHeader: View {
+    let text: TextData
+
+    var body: some View {
+        LocalizedText(text: text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(nil)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, ChefTheme.Spacing.normal)
+            .padding(.vertical, ChefTheme.Spacing.small)
+            .background(Color(.secondarySystemBackground))
+            .listRowInsets(EdgeInsets())
     }
 }
