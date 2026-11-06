@@ -26,6 +26,8 @@ struct MealPlanView: View {
                 .contentMargins(.bottom, state.cookingRecipeCount > 0 ? 130 : 0, for: .scrollContent)
         }
         .navigationTitle(title(state))
+        // The title menu (the personal / family plan switcher) only shows on an inline title.
+        .navigationBarTitleDisplayMode(state.planSelector != nil ? .inline : .large)
         .toolbarTitleMenu { planMenu(state) }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
