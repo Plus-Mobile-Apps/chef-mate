@@ -6,7 +6,8 @@ import ComposeApp
 ///
 /// Uses the system `TabView` tab bar, so on iOS 26+ it is the native Liquid Glass bar (and the
 /// standard bar on earlier versions). Like the Android bottom nav, the bar only shows on the tab
-/// roots: pushed screens hide it with `.toolbar(.hidden, for: .tabBar)`.
+/// roots: pushed screens hide it with `.toolbar(.hidden, for: .tabBar)`, and `TabBarPushTransition`
+/// makes it slide out and back in with the push and pop.
 struct BottomNavView: View {
     /// The space the system tab bar takes above the bottom safe area, for overlays (toasts) that
     /// are drawn above the `TabView` and must clear it.
@@ -40,6 +41,7 @@ struct BottomNavView: View {
                                 Color.clear
                             }
                         }
+                        .background(TabBarPushTransition())
                         .navigationDestination(for: StackEntry.self) { entry in
                             StackEntryView(entry: entry)
                                 .toolbar(.hidden, for: .tabBar)
