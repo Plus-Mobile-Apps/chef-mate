@@ -313,7 +313,7 @@ struct StackEntry: Hashable {
     /// Presented as a sheet over the stack rather than pushed (see `RedesignRootView`). Only
     /// native modal screens; hosted ones still push until their own PR.
     var presentsAsSheet: Bool {
-        rootChild is RootBlocChild.EditRecipeBook
+        rootChild is RootBlocChild.EditRecipeBook || rootChild is RootBlocChild.EditGroceryList
     }
 
     static func == (lhs: StackEntry, rhs: StackEntry) -> Bool { lhs.instance === rhs.instance }
@@ -347,6 +347,8 @@ struct StackEntryView: View {
                 ExportRecipesView(bloc: export.bloc)
             } else if let editBook = child as? RootBlocChild.EditRecipeBook {
                 EditRecipeBookView(bloc: editBook.bloc)
+            } else if let editList = child as? RootBlocChild.EditGroceryList {
+                EditGroceryListView(bloc: editList.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
