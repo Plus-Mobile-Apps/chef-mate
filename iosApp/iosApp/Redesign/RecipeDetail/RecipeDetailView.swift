@@ -8,7 +8,7 @@ import ComposeApp
 /// transition.
 ///
 /// Not yet ported (docs/ios-swiftui-redesign.md, PR 5): coach marks, and the tablet two-column
-/// layout. The add-to-grocery sheet still hosts its Compose screen until PR 7.
+/// layout.
 struct RecipeDetailView: View {
     let bloc: RecipeDetailBloc
     @StateObject private var model: ObservedFlow<RecipeDetailBlocModel>
@@ -89,8 +89,11 @@ struct RecipeDetailView: View {
         }
         .sheet(isPresented: sheetBinding) {
             if let addToGrocery = sheet.value.child?.instance as? RecipeDetailBlocSheet.AddToGroceryList {
-                ComposeScreenHost(screen: addToGrocery.bloc)
-                    .presentationDragIndicator(.visible)
+                NavigationStack {
+                    AddRecipeToGroceryListView(bloc: addToGrocery.bloc)
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
         }
         .fullScreenCover(isPresented: fullImageBinding) {
@@ -457,7 +460,7 @@ private struct SectionHeader<Accessory: View>: View {
 }
 
 /// The ingredient scale menu (½× through 4×), persisted per recipe by the BLoC.
-private struct ScaleMenu: View {
+struct ScaleMenu: View {
     let scale: Double
     let onScaleChanged: (Double) -> Void
 
