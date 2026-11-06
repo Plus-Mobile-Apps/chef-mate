@@ -51,11 +51,13 @@ struct RecipeListView: View {
                     .padding(.vertical, ChefTheme.Spacing.small)
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
+            .overlay(alignment: .bottom) {
                 if state.cookingRecipeCount > 0 && !state.isSelectionMode {
-                    CookingSessionButtons(
-                        onDone: bloc.onDoneCookingClicked,
-                        onContinue: bloc.onContinueCookingClicked
+                    CookingSessionBar(
+                        continueTitle: ComposeStrings["recipe_list_continue_cooking"],
+                        doneTitle: ComposeStrings["recipe_list_done_cooking"],
+                        onContinue: bloc.onContinueCookingClicked,
+                        onDone: bloc.onDoneCookingClicked
                     )
                 }
             }
@@ -367,40 +369,6 @@ struct RecipeListView: View {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
         bloc.onScanRecipePhotoPicked(bytes: NativeBytes.shared.fromData(data: jpeg), fileExtension: "jpg")
-    }
-}
-
-// MARK: - Cooking session
-
-/// The Compose `CookingSessionFabStack`: "Done cooking" above "Continue cooking", bottom-trailing.
-private struct CookingSessionButtons: View {
-    let onDone: () -> Void
-    let onContinue: () -> Void
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: ChefTheme.Spacing.small) {
-            Button(action: onDone) {
-                Label(ComposeStrings["recipe_list_done_cooking"], systemImage: "checkmark")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, ChefTheme.Spacing.normal)
-                    .padding(.vertical, ChefTheme.Spacing.small + 2)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .chefGlass()
-
-            Button(action: onContinue) {
-                Label(ComposeStrings["recipe_list_continue_cooking"], systemImage: "frying.pan")
-                    .font(.headline)
-                    .padding(.horizontal, ChefTheme.Spacing.large)
-                    .padding(.vertical, ChefTheme.Spacing.normal - 2)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(ChefTheme.primary)
-            .chefGlass()
-        }
-        .padding(.trailing, ChefTheme.Spacing.normal)
-        .padding(.bottom, ChefTheme.Spacing.normal)
     }
 }
 

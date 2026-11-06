@@ -110,3 +110,52 @@ extension StatusBlock where Actions == EmptyView {
         self.init(systemImage: systemImage, title: title, message: message, isError: isError, showsProgress: showsProgress) { EmptyView() }
     }
 }
+
+/// The cook-session controls over the Recipes and Meals tabs: a centered "Continue cooking" glass
+/// capsule with a round checkmark "Done cooking" button just to its right. The checkmark hangs off
+/// the capsule's trailing edge, so the capsule itself stays centered. The capsule is the zoom
+/// source cook mode opens from (see `CookModeTransition`).
+struct CookingSessionBar: View {
+    let continueTitle: String
+    let doneTitle: String
+    let onContinue: () -> Void
+    let onDone: () -> Void
+    @SwiftUI.Environment(\.cookModeTransition) private var cookModeTransition
+
+    var body: some View {
+        continueButton
+            .overlay(alignment: .trailing) {
+                Button(action: onDone) {
+                    Image(systemName: "checkmark")
+                        .font(.headline)
+                        .frame(width: 50, height: 50)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .chefGlass(in: Circle())
+                .accessibilityLabel(doneTitle)
+                .alignmentGuide(.trailing) { $0[.leading] - ChefTheme.Spacing.small }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, ChefTheme.Spacing.normal)
+    }
+
+    @ViewBuilder
+    private var continueButton: some View {
+        let button = Button(action: onContinue) {
+            Label(continueTitle, systemImage: "frying.pan")
+                .font(.headline)
+                .padding(.horizontal, ChefTheme.Spacing.large)
+                .frame(height: 50)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(ChefTheme.primary)
+        .chefGlass()
+        if let cookModeTransition {
+            button.matchedTransitionSource(id: CookModeTransition.sourceId, in: cookModeTransition)
+        } else {
+            button
+        }
+    }
+}

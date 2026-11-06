@@ -23,7 +23,7 @@ struct MealPlanView: View {
             content(state)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 // Let the last meal scroll clear of the cook-mode buttons.
-                .contentMargins(.bottom, state.cookingRecipeCount > 0 ? 130 : 0, for: .scrollContent)
+                .contentMargins(.bottom, state.cookingRecipeCount > 0 ? 80 : 0, for: .scrollContent)
         }
         .navigationTitle(title(state))
         // The title menu (the personal / family plan switcher) only shows on an inline title.
@@ -44,9 +44,16 @@ struct MealPlanView: View {
                 }
             }
         }
-        .overlay(alignment: .bottomTrailing) {
+        .overlay(alignment: .bottom) {
             if state.cookingRecipeCount > 0 {
-                CookingButtons(onContinue: bloc.onContinueCookingClicked, onDone: bloc.onDoneCookingClicked)
+                CookingSessionBar(
+                    continueTitle: ComposeStrings["meal_plan_continue_cooking"],
+                    doneTitle: ComposeStrings["meal_plan_done_cooking"],
+                    onContinue: bloc.onContinueCookingClicked,
+                    onDone: bloc.onDoneCookingClicked
+                )
+                // Keep toasts (e.g. "added to cook mode") from covering the buttons.
+                .toastClearance(72)
             }
         }
         .tint(ChefTheme.primary)
@@ -291,38 +298,6 @@ struct MealPlanView: View {
                 if !shown && isShown(model.current) { dismiss() }
             }
         )
-    }
-}
-
-/// The cook-mode session buttons, stacked at the bottom trailing corner like the Android FABs.
-private struct CookingButtons: View {
-    let onContinue: () -> Void
-    let onDone: () -> Void
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: ChefTheme.Spacing.small) {
-            Button(action: onDone) {
-                Label(ComposeStrings["meal_plan_done_cooking"], systemImage: "checkmark")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, ChefTheme.Spacing.normal)
-                    .padding(.vertical, ChefTheme.Spacing.small + 2)
-            }
-            .buttonStyle(.plain)
-            .chefGlass()
-
-            Button(action: onContinue) {
-                Label(ComposeStrings["meal_plan_continue_cooking"], systemImage: "frying.pan.fill")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, ChefTheme.Spacing.large - 4)
-                    .padding(.vertical, ChefTheme.Spacing.normal - 2)
-                    .background(ChefTheme.primary, in: Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(ChefTheme.Spacing.normal)
-        // Keep toasts (e.g. "added to cook mode") from covering the buttons.
-        .toastClearance(120)
     }
 }
 
