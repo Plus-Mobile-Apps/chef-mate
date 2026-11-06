@@ -353,6 +353,10 @@ struct StackEntryView: View {
                 ManageProfileView(bloc: profile.bloc)
             } else if let notifications = child as? RootBlocChild.Notifications {
                 NotificationsView(bloc: notifications.bloc)
+            } else if let devSettings = child as? RootBlocChild.DeveloperSettings {
+                DeveloperSettingsView(bloc: devSettings.bloc)
+            } else if let flags = child as? RootBlocChild.FeatureFlags {
+                FeatureFlagsView(bloc: flags.bloc)
             } else {
                 ComposeScreenHost(screen: child.bloc)
             }
