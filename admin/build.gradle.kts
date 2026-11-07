@@ -31,7 +31,8 @@ kotlin {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            implementation(libs.compose.material.expressive)
+            implementation(libs.compose.material.icons.extended)
             implementation(compose.ui)
             implementation(libs.supabase.client)
             implementation(libs.supabase.auth)
