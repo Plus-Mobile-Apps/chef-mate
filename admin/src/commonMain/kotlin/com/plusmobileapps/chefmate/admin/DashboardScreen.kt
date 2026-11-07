@@ -161,6 +161,7 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
                         horizontalArrangement = Arrangement.spacedBy(AdminDimens.paddingSmall),
                         modifier = Modifier.padding(end = AdminDimens.paddingSmall),
                     ) {
+                        FlagHelpAction()
                         AdminIconButton(
                             Icons.Filled.Refresh,
                             "Refresh",

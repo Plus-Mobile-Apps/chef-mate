@@ -1,6 +1,7 @@
 package com.plusmobileapps.chefmate.admin
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -67,6 +68,9 @@ fun FlagEditorScreen(draft: FlagDraft, onCancel: () -> Unit, onSave: (AdminFeatu
                         containerColor = MaterialTheme.colorScheme.background,
                     ),
                 title = { Text(if (draft.isNew) "New flag" else "Edit flag") },
+                actions = {
+                    Box(Modifier.padding(end = AdminDimens.paddingSmall)) { FlagHelpAction() }
+                },
                 navigationIcon = {
                     AdminIconButton(
                         Icons.AutoMirrored.Filled.ArrowBack,
