@@ -4,8 +4,10 @@ import ComposeApp
 /// The redesigned Cook Mode, mirroring the Android `CookModeScreen`. Presented as a full-screen
 /// cover (see `RootStackModel.modalEntries`). The active recipe's ingredients and directions show in
 /// one of two layouts the BLoC remembers: stacked (one list under pinned headers) or split (swipeable
-/// Ingredients / Directions pages on iPhone, two resizable columns on iPad). A floating glass bar
-/// switches between the recipes being cooked and opens What's Cooking.
+/// Ingredients / Directions pages on a portrait iPhone, two resizable columns on iPad or in
+/// landscape). A floating glass bar switches between the recipes being cooked and opens What's
+/// Cooking; in landscape, like the Android compact-height layout, it gives way to a fork-and-knife
+/// toolbar button so the recipe gets the full height.
 ///
 /// Ingredient cross-offs and the highlighted step are screen-local, like on Android: they survive
 /// layout toggles and reset when the active recipe changes.
@@ -16,6 +18,7 @@ struct CookModeView: View {
     @State private var showWhatsCooking = false
     @State private var crossedOut = Set<Int>()
     @State private var highlightedStep: Int?
+    @State private var isLandscape = false
     @SwiftUI.Environment(\.horizontalSizeClass) private var sizeClass
 
     init(bloc: CookModeBloc) {
@@ -33,12 +36,15 @@ struct CookModeView: View {
                 CoachMarkBanner(activeId: state.activeCoachMark, onDismiss: { bloc.onCoachMarkDismissed(id: $0) })
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                CookingBar(
-                    chips: state.activeSessions,
-                    onWhatsCookingClicked: { showWhatsCooking = true },
-                    onChipClicked: { bloc.onRecipeChipClicked(recipeId: $0) }
-                )
+                if !isLandscape {
+                    CookingBar(
+                        chips: state.activeSessions,
+                        onWhatsCookingClicked: { showWhatsCooking = true },
+                        onChipClicked: { bloc.onRecipeChipClicked(recipeId: $0) }
+                    )
+                }
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isLandscape = $0 }
             .tint(ChefTheme.primary)
             .sheet(isPresented: $showWhatsCooking) {
                 WhatsCookingSheet(bloc: bloc.whatsCookingBloc, onDismiss: { showWhatsCooking = false })
@@ -95,7 +101,7 @@ struct CookModeView: View {
             case .stacked:
                 StackedBody(lines: lines)
             default:
-                if sizeClass == .regular {
+                if sizeClass == .regular || isLandscape {
                     SplitWideBody(lines: lines)
                 } else {
                     SplitCompactBody(lines: lines)
@@ -115,6 +121,15 @@ struct CookModeView: View {
         ToolbarItem(placement: .cancellationAction) {
             Button { bloc.onCloseClicked() } label: {
                 Label(ComposeStrings["cook_mode_close"], systemImage: "xmark")
+            }
+        }
+        if isLandscape {
+            // The recipe switcher moves up here from the bottom bar, like the Android
+            // compact-height header.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showWhatsCooking = true } label: {
+                    Label(ComposeStrings["cook_mode_whats_cooking"], systemImage: "fork.knife")
+                }
             }
         }
         if sizeClass == .regular {
@@ -300,7 +315,7 @@ private struct SplitCompactBody: View {
     }
 }
 
-/// iPad split: ingredients and directions side by side, the divider draggable from 20% to 80%.
+/// Wide split (iPad, or any landscape): ingredients and directions side by side, the divider draggable from 20% to 80%.
 private struct SplitWideBody: View {
     let lines: CookLines
     @State private var ingredientsFraction: CGFloat = 0.5
