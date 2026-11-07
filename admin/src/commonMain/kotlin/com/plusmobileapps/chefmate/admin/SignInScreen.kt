@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -91,6 +90,7 @@ fun SignInScreen(auth: AdminAuth) {
                             onValueChange = { email = it },
                             label = { Text("Admin email") },
                             singleLine = true,
+                            shape = PillShape,
                             enabled = !loading,
                             modifier = Modifier.fillMaxWidth().submitOnEnter(::sendCode),
                             keyboardOptions =
@@ -115,6 +115,7 @@ fun SignInScreen(auth: AdminAuth) {
                             onValueChange = { code = it },
                             label = { Text("6-digit code") },
                             singleLine = true,
+                            shape = PillShape,
                             enabled = !loading,
                             modifier = Modifier.fillMaxWidth().submitOnEnter(::verifyCode),
                             keyboardOptions =
@@ -144,7 +145,7 @@ fun SignInScreen(auth: AdminAuth) {
                     }
                 }
 
-                if (loading) CircularProgressIndicator()
+                if (loading) AdminLoadingIndicator()
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }

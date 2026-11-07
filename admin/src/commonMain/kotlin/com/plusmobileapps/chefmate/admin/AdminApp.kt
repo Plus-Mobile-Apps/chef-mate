@@ -2,11 +2,7 @@ package com.plusmobileapps.chefmate.admin
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,21 +33,10 @@ fun AdminRoot(auth: AdminAuth, repo: FeatureFlagAdminRepository) {
                             DashboardScreen(repo = repo, onSignOut = { auth.signOut() })
                         }
                     is SessionStatus.Initializing ->
-                        Box(Modifier.fillMaxSize(), Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                        Box(Modifier.fillMaxSize(), Alignment.Center) { AdminLoadingIndicator() }
                     else -> SignInScreen(auth = auth)
                 }
             }
         }
     }
-}
-
-@Composable
-private fun AdminTheme(content: @Composable () -> Unit) {
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    MaterialTheme(
-        colorScheme = if (dark) darkColorScheme() else lightColorScheme(),
-        content = content,
-    )
 }

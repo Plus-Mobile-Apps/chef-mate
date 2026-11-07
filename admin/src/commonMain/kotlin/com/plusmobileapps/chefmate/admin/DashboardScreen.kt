@@ -1,6 +1,7 @@
 package com.plusmobileapps.chefmate.admin
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,25 +14,34 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -119,17 +130,20 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
     Scaffold(
         modifier =
             Modifier.onPreviewKeyEvent {
-                if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when {
-                    it.isShortcut(Key.F) -> {
-                        searchFocus.requestFocus()
-                        true
-                    }
-                    else -> false
+                if (it.type == KeyEventType.KeyDown && it.isShortcut(Key.F)) {
+                    searchFocus.requestFocus()
+                    true
+                } else {
+                    false
                 }
             },
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Feature flags")
@@ -143,21 +157,38 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
                     }
                 },
                 actions = {
-                    TextButton(onClick = { scope.launch { reload() } }) { Text("Refresh") }
-                    TextButton(onClick = { scope.launch { onSignOut() } }) { Text("Sign out") }
-                    if (!widthClass.isCompact) {
-                        Spacer(Modifier.width(8.dp))
-                        Button(onClick = { editing = FlagDraft() }) { Text("New flag") }
-                        Spacer(Modifier.width(16.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(AdminDimens.paddingSmall),
+                        modifier = Modifier.padding(end = AdminDimens.paddingSmall),
+                    ) {
+                        AdminIconButton(
+                            Icons.Filled.Refresh,
+                            "Refresh",
+                            onClick = { scope.launch { reload() } },
+                        )
+                        AdminIconButton(
+                            Icons.AutoMirrored.Filled.Logout,
+                            "Sign out",
+                            onClick = { scope.launch { onSignOut() } },
+                        )
+                        if (!widthClass.isCompact) {
+                            AdminIconButton(
+                                Icons.Filled.Add,
+                                "New flag",
+                                onClick = { editing = FlagDraft() },
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
                     }
                 },
             )
         },
         floatingActionButton = {
             if (widthClass.isCompact) {
-                ExtendedFloatingActionButton(
-                    text = { Text("New flag") },
-                    icon = {},
+                AdminFloatingActionButton(
+                    text = "New flag",
+                    icon = Icons.Filled.Add,
                     onClick = { editing = FlagDraft() },
                 )
             }
@@ -187,7 +218,9 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
                     }
                 },
                 onDelete = { pendingDelete = it },
-                bottomPadding = if (widthClass.isCompact) 88.dp else 24.dp,
+                bottomPadding =
+                    if (widthClass.isCompact) AdminDimens.fabClearance
+                    else AdminDimens.paddingLarge,
                 modifier = modifier,
             )
         }
@@ -195,7 +228,7 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
         if (listDetail) {
             Row(Modifier.fillMaxSize().padding(padding)) {
                 list(Modifier.weight(0.42f).fillMaxHeight())
-                VerticalDivider()
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Box(Modifier.weight(0.58f).fillMaxHeight()) {
                     val draft = editing
                     if (draft == null) {
@@ -222,22 +255,28 @@ fun DashboardScreen(repo: FeatureFlagAdminRepository, onSignOut: suspend () -> U
             title = { Text("Delete “${flag.key}”?") },
             text = { Text("This permanently removes the flag row. This can't be undone.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val key = flag.key
-                        pendingDelete = null
-                        if (editing?.key == key) editing = null
-                        scope.launch {
-                            runCatching { repo.delete(key) }
-                                .onSuccess { reload() }
-                                .onFailure { error = it.message ?: "Delete failed" }
-                        }
-                    },
-                ) {
-                    Text("Delete")
+                Row(horizontalArrangement = Arrangement.spacedBy(AdminDimens.paddingNormal)) {
+                    AdminButton(
+                        text = "Cancel",
+                        variant = AdminButtonVariant.SECONDARY,
+                        onClick = { pendingDelete = null },
+                    )
+                    AdminButton(
+                        text = "Delete",
+                        variant = AdminButtonVariant.DESTRUCTIVE,
+                        onClick = {
+                            val key = flag.key
+                            pendingDelete = null
+                            if (editing?.key == key) editing = null
+                            scope.launch {
+                                runCatching { repo.delete(key) }
+                                    .onSuccess { reload() }
+                                    .onFailure { error = it.message ?: "Delete failed" }
+                            }
+                        },
+                    )
                 }
             },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
         )
     }
 }
@@ -271,9 +310,14 @@ private fun FlagList(
 ) {
     Column(modifier) {
         FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(
+                        horizontal = AdminDimens.paddingNormal,
+                        vertical = AdminDimens.paddingSmall,
+                    ),
+            horizontalArrangement = Arrangement.spacedBy(AdminDimens.paddingSmall),
+            verticalArrangement = Arrangement.spacedBy(AdminDimens.paddingSmall),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -281,9 +325,15 @@ private fun FlagList(
                 onValueChange = onQueryChange,
                 placeholder = { Text("Search flags") },
                 singleLine = true,
+                shape = PillShape,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon =
                     if (query.isNotEmpty()) {
-                        { TextButton(onClick = { onQueryChange("") }) { Text("Clear") } }
+                        {
+                            IconButton(onClick = { onQueryChange("") }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                            }
+                        }
                     } else null,
                 modifier =
                     Modifier.weight(1f).focusRequester(searchFocus).onPreviewKeyEvent {
@@ -297,40 +347,47 @@ private fun FlagList(
                 selected = showArchived,
                 onClick = onToggleArchived,
                 label = { Text("Show archived") },
+                leadingIcon =
+                    if (showArchived) {
+                        {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
+                            )
+                        }
+                    } else null,
             )
         }
         error?.let {
             Text(
                 it,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                modifier =
+                    Modifier.padding(
+                        horizontal = AdminDimens.paddingNormal,
+                        vertical = AdminDimens.paddingExtraSmall,
+                    ),
             )
         }
 
         when {
-            loading -> CenteredProgress()
-            totalCount == 0 ->
-                Text(
-                    "No flags yet. Use “New flag” to create one.",
-                    Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            flags.isEmpty() ->
-                Text(
-                    "No flags match “$query”.",
-                    Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            loading ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    AdminLoadingIndicator()
+                }
+            totalCount == 0 -> EmptyMessage("No flags yet. Use “New flag” to create one.")
+            flags.isEmpty() -> EmptyMessage("No flags match “$query”.")
             else ->
                 LazyColumn(
                     contentPadding =
                         PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 4.dp,
+                            start = AdminDimens.paddingSmall,
+                            end = AdminDimens.paddingSmall,
+                            top = AdminDimens.paddingExtraSmall,
                             bottom = bottomPadding,
                         ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(AdminDimens.paddingExtraSmall),
                 ) {
                     items(flags, key = { it.key }) { flag ->
                         FlagRow(
@@ -346,6 +403,20 @@ private fun FlagList(
     }
 }
 
+@Composable
+private fun EmptyMessage(text: String) {
+    Text(
+        text,
+        Modifier.padding(AdminDimens.paddingNormal),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * A flat list row in the style of the app's recipe list: no card chrome, generous spacing, and a
+ * tonal rounded highlight for the selected row (as the recipe filter sidebar's selected item).
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FlagRow(
@@ -356,38 +427,53 @@ private fun FlagRow(
     onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    OutlinedCard(
-        onClick = onEdit,
-        modifier = Modifier.fillMaxWidth(),
-        border =
-            if (selected) BorderStroke(2.dp, colors.primary)
-            else BorderStroke(1.dp, colors.outlineVariant),
-        colors =
-            CardDefaults.outlinedCardColors(
-                containerColor = if (selected) colors.secondaryContainer else colors.surface,
-            ),
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(MaterialTheme.shapes.large)
+                .background(if (selected) colors.secondaryContainer else Color.Transparent)
+                .clickable(onClick = onEdit)
+                .padding(
+                    start = AdminDimens.paddingNormal,
+                    end = AdminDimens.paddingExtraSmall,
+                    top = AdminDimens.paddingNormal,
+                    bottom = AdminDimens.paddingNormal,
+                ),
+        verticalAlignment = Alignment.Top,
     ) {
         Column(
-            Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AdminDimens.paddingSmall),
         ) {
             SelectionContainer {
                 Text(
                     flag.key,
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.titleMedium,
+                    color = if (flag.archived) colors.onSurfaceVariant else colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            flag.description
+                ?.takeIf { it.isNotBlank() }
+                ?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (flag.enabled) {
-                    Pill("Enabled", colors.primaryContainer, colors.onPrimaryContainer)
+                    Pill("Enabled", colors.primary, colors.onPrimary)
                 } else {
-                    Pill("Disabled", colors.surfaceVariant, colors.onSurfaceVariant)
+                    Pill("Disabled", colors.surfaceContainerHighest, colors.onSurfaceVariant)
                 }
                 if (flag.archived) Pill("Archived", colors.errorContainer, colors.onErrorContainer)
                 Pill("${flag.valueType} = ${flag.value}", monospace = true)
@@ -398,23 +484,19 @@ private fun FlagRow(
                     ?.let { Pill(if (it.size == 1) "1 user" else "${it.size} users") }
                 versionRange(flag)?.let { Pill(it) }
             }
-            flag.description
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onToggleArchive) {
-                    Text(if (flag.archived) "Unarchive" else "Archive")
-                }
-                TextButton(onClick = onDelete) { Text("Delete", color = colors.error) }
-            }
+        }
+        Row {
+            AdminPlainIconButton(
+                icon = if (flag.archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                label = if (flag.archived) "Unarchive" else "Archive",
+                onClick = onToggleArchive,
+            )
+            AdminPlainIconButton(
+                icon = Icons.Outlined.Delete,
+                label = "Delete",
+                onClick = onDelete,
+                tint = colors.error,
+            )
         }
     }
 }
@@ -433,18 +515,18 @@ private fun versionRange(flag: AdminFeatureFlag): String? {
 @Composable
 private fun Pill(
     text: String,
-    container: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    content: Color = MaterialTheme.colorScheme.onSurface,
+    container: Color = MaterialTheme.colorScheme.secondaryContainer,
+    content: Color = MaterialTheme.colorScheme.onSecondaryContainer,
     monospace: Boolean = false,
 ) {
-    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.small) {
+    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.medium) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,
             fontFamily = if (monospace) FontFamily.Monospace else null,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = AdminDimens.paddingSmall, vertical = 3.dp),
         )
     }
 }
@@ -452,28 +534,35 @@ private fun Pill(
 @Composable
 private fun EmptyDetail(onNew: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        Modifier.fillMaxSize().padding(AdminDimens.paddingExtraLarge),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Box(
+            Modifier.size(72.dp)
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Flag,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        Spacer(Modifier.size(AdminDimens.paddingNormal))
         Text("Select a flag to edit it", style = MaterialTheme.typography.titleMedium)
         Text(
             "or create a new one. Ctrl/⌘ F jumps to search.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+            modifier =
+                Modifier.padding(
+                    top = AdminDimens.paddingExtraSmall,
+                    bottom = AdminDimens.paddingNormal,
+                ),
         )
-        Button(onClick = onNew) { Text("New flag") }
-    }
-}
-
-@Composable
-private fun CenteredProgress() {
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        CircularProgressIndicator()
+        AdminButton(text = "New flag", onClick = onNew)
     }
 }
