@@ -28,15 +28,20 @@ fun AdminApp() {
 fun AdminRoot(auth: AdminAuth, repo: FeatureFlagAdminRepository) {
     AdminTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            val status by auth.sessionStatus.collectAsState(initial = SessionStatus.Initializing)
-            when (val current = status) {
-                is SessionStatus.Authenticated ->
-                    AdminAccessGate(auth = auth, userId = current.session.user?.id) {
-                        DashboardScreen(repo = repo, auth = auth)
-                    }
-                is SessionStatus.Initializing ->
-                    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-                else -> SignInScreen(auth = auth)
+            ProvideWidthClass {
+                val status by
+                    auth.sessionStatus.collectAsState(initial = SessionStatus.Initializing)
+                when (val current = status) {
+                    is SessionStatus.Authenticated ->
+                        AdminAccessGate(auth = auth, userId = current.session.user?.id) {
+                            DashboardScreen(repo = repo, onSignOut = { auth.signOut() })
+                        }
+                    is SessionStatus.Initializing ->
+                        Box(Modifier.fillMaxSize(), Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    else -> SignInScreen(auth = auth)
+                }
             }
         }
     }
