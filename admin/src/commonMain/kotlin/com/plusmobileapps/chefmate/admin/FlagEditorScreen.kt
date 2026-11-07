@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,7 +23,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -198,6 +201,7 @@ private fun FlagEditorForm(
     validation: FlagValidation,
     onChange: (FlagDraft) -> Unit,
 ) {
+    val unknownPlatforms = state.unknownPlatforms
     BoxWithConstraints {
         val twoColumn = maxWidth >= 640.dp
         Column(verticalArrangement = Arrangement.spacedBy(AdminDimens.paddingLarge)) {
@@ -287,9 +291,43 @@ private fun FlagEditorForm(
                                         ),
                                     )
                                 },
-                                label = { Text(platform) },
+                                label = { Text(FlagDraft.platformLabel(platform)) },
                             )
                         }
+                        // Values left over from older rows (`desktop`, `web`) that no app reports.
+                        // Shown so they can be removed deliberately, never dropped silently.
+                        unknownPlatforms.forEach { platform ->
+                            FilterChip(
+                                selected = true,
+                                onClick = {
+                                    onChange(state.copy(platforms = state.platforms - platform))
+                                },
+                                label = { Text(platform) },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "Remove $platform",
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                    )
+                                },
+                                colors =
+                                    FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor =
+                                            MaterialTheme.colorScheme.errorContainer,
+                                        selectedLabelColor =
+                                            MaterialTheme.colorScheme.onErrorContainer,
+                                        selectedTrailingIconColor =
+                                            MaterialTheme.colorScheme.onErrorContainer,
+                                    ),
+                            )
+                        }
+                    }
+                    if (unknownPlatforms.isNotEmpty()) {
+                        Text(
+                            unknownPlatformsWarning(unknownPlatforms, state.platforms),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
 

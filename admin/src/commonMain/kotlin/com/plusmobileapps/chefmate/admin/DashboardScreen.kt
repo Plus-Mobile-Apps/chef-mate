@@ -479,7 +479,15 @@ private fun FlagRow(
                 if (flag.archived) Pill("Archived", colors.errorContainer, colors.onErrorContainer)
                 Pill("${flag.valueType} = ${flag.value}", monospace = true)
                 Pill("${flag.rolloutPercent}%")
-                flag.platforms?.takeIf { it.isNotEmpty() }?.let { Pill(it.joinToString(", ")) }
+                val (knownPlatforms, unknownPlatforms) =
+                    flag.platforms.orEmpty().partition(FlagDraft::isKnownPlatform)
+                if (knownPlatforms.isNotEmpty()) {
+                    Pill(knownPlatforms.joinToString(", ", transform = FlagDraft::platformLabel))
+                }
+                // Values no app reports (older `desktop` / `web` rows): flagged so they get fixed.
+                unknownPlatforms.forEach {
+                    Pill("$it · no app", colors.errorContainer, colors.onErrorContainer)
+                }
                 flag.userIds
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { Pill(if (it.size == 1) "1 user" else "${it.size} users") }

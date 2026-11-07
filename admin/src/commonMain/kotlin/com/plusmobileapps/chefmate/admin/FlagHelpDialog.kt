@@ -89,9 +89,9 @@ fun FlagHelpDialog(onDismiss: () -> Unit) {
                 )
                 Field(
                     "Platforms",
-                    "Restricts the flag to the selected platforms; none selected means all. " +
-                        "The app currently reports android, ios, or jvm (desktop), so " +
-                        "selecting desktop or web matches no client.",
+                    "Restricts the flag to Android, iOS, or Desktop; none selected means all. " +
+                        "There's no web app. Older flags may list desktop or web, which no " +
+                        "app reports; those show in red and can be removed.",
                 )
                 Field(
                     "Min / max version",
