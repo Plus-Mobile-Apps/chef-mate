@@ -146,17 +146,17 @@ asset-catalog copies. A `_dark` sibling is picked by the caller from `colorSchem
 - **Bottom nav → `TabView`** with the iOS 18 `Tab` API, ordered by `BottomNavBloc.Model.tabs`;
   selection calls `onTabSelected`. Only the active Decompose child exists, so the other tabs render
   empty until selected.
-- **The tab bar only shows on tab roots**, like the Android bottom nav. The system `TabView` bar is
-  hidden and `ChefTabBar` (a glass capsule styled after the iOS 26 bar) is drawn in each tab's
-  root screen with `safeAreaInset`, so it slides out with a push and back in with a pop, tracking
-  the swipe-back gesture. Two alternatives didn't work: `.toolbar(.hidden, for: .tabBar)` per
-  pushed screen snaps the bar back only after the pop finishes, and SwiftUI's tab controller
-  ignores UIKit's `hidesBottomBarWhenPushed`. Trade-off: no system tab-bar extras (minimize on
-  scroll, search tab) until we revisit.
-- **The tab bar hides while the keyboard is up.** `ChefTabBar` is a `safeAreaInset`, which SwiftUI
-  lays out above the keyboard, so it would otherwise ride up on top of it. `BottomNavView` drops it
-  on `keyboardWillShow` and brings it back on `keyboardWillHide`, matching the system tab bar and
-  the Android nav pill, which both stay behind the keyboard.
+- **The tab bar is the system `TabView` bar**, so iOS 26 devices get the native Liquid Glass bar
+  (selection pill, badges via `.badge`, keyboard handling) for free. Like the Android bottom nav it
+  only shows on tab roots: each pushed screen hides it with `.toolbar(.hidden, for: .tabBar)`.
+- **The tab bar slides with push and pop.** SwiftUI's tab controller ignores UIKit's
+  `hidesBottomBarWhenPushed`, so `.toolbar(.hidden, for: .tabBar)` alone snaps the bar away on a
+  push and back only once a pop has finished. `TabBarPushTransition` (a background on each tab root)
+  restores the UIKit motion: as a screen is pushed it pins a window snapshot of the bar to the tab
+  root's view, so the bar leaves with the root and comes back with it on a pop, tracking the
+  interactive swipe back (a cancelled swipe keeps the snapshot for the next try). Once the root is
+  back on screen the real bar has returned and the snapshot is dropped. Overlays drawn above the
+  `TabView` (toasts) clear the bar with `BottomNavView.tabBarHeight`.
 - **Web links** in native screens open in an `SFSafariViewController` sheet instead of the in-app
   Browser screen (`.safariSheet(item:)` in `Redesign/SafariView.swift`).
 
