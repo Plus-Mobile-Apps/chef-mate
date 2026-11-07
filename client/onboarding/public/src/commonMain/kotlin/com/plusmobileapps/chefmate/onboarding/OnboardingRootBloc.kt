@@ -13,10 +13,11 @@ import com.plusmobileapps.chefmate.ui.ComposeScreen
 /**
  * Navigation BLoC that drives the first-run onboarding flow. It owns a Decompose router that walks
  * the user from the [WelcomeBloc] through a series of feature tours ([ShareRecipesBloc],
- * [SaveRecipesBloc], [AddToGroceryBloc], [MealPlanningBloc], [CookModeBloc], [RecipeBooksBloc],
- * [GroceryListsBloc], [FamilySharingBloc]) to the final [StartCookingBloc]. When the user finishes
- * (or skips), it marks onboarding as completed and emits [Output.Finished] so the root can load the
- * rest of the app.
+ * [SaveRecipesBloc], [AddToGroceryBloc], [VoiceGroceryBloc], [MealPlanningBloc], [CookModeBloc],
+ * [RecipeBooksBloc], [GroceryListsBloc], [FamilySharingBloc]) to the final [StartCookingBloc]. When
+ * the user finishes (or skips), it marks onboarding as completed and emits [Output.Finished] so the
+ * root can load the rest of the app. The [VoiceGroceryBloc] step only appears when the device has a
+ * supported voice assistant (see [VoiceAssistantProvider]).
  *
  * From the welcome screen the user can also choose to sign in; that is surfaced as [Output.SignIn]
  * so the root can open the authentication flow. From the final [StartCookingBloc] step, the user
@@ -64,6 +65,8 @@ interface OnboardingRootBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
         data class SaveRecipes(override val bloc: SaveRecipesBloc) : Child()
 
         data class AddToGrocery(override val bloc: AddToGroceryBloc) : Child()
+
+        data class VoiceGrocery(override val bloc: VoiceGroceryBloc) : Child()
 
         data class MealPlanning(override val bloc: MealPlanningBloc) : Child()
 

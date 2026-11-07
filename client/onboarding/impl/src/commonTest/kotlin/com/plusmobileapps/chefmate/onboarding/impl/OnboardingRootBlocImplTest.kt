@@ -15,6 +15,8 @@ import com.plusmobileapps.chefmate.onboarding.RecipeBooksBloc
 import com.plusmobileapps.chefmate.onboarding.SaveRecipesBloc
 import com.plusmobileapps.chefmate.onboarding.ShareRecipesBloc
 import com.plusmobileapps.chefmate.onboarding.StartCookingBloc
+import com.plusmobileapps.chefmate.onboarding.VoiceAssistant
+import com.plusmobileapps.chefmate.onboarding.VoiceGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.WelcomeBloc
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.russhwolf.settings.MapSettings
@@ -32,6 +34,8 @@ class OnboardingRootBlocImplTest {
     var shareRecipesOutput: Consumer<ShareRecipesBloc.Output> = Consumer {}
     var saveRecipesOutput: Consumer<SaveRecipesBloc.Output> = Consumer {}
     var addToGroceryOutput: Consumer<AddToGroceryBloc.Output> = Consumer {}
+    var voiceGroceryOutput: Consumer<VoiceGroceryBloc.Output> = Consumer {}
+    var voiceGroceryAssistant: VoiceAssistant? = null
     var mealPlanningOutput: Consumer<MealPlanningBloc.Output> = Consumer {}
     var cookModeOutput: Consumer<CookModeBloc.Output> = Consumer {}
     var recipeBooksOutput: Consumer<RecipeBooksBloc.Output> = Consumer {}
@@ -46,12 +50,14 @@ class OnboardingRootBlocImplTest {
     fun createBloc(
         props: OnboardingRootBloc.Props = OnboardingRootBloc.Props(),
         context: BlocContext = TestBlocContext.create(),
+        voiceAssistant: VoiceAssistant? = null,
     ) =
         OnboardingRootBlocImpl(
             context = context,
             props = props,
             output = { rootOutput = it },
             onboardingRepository = onboardingRepository,
+            voiceAssistantProvider = { voiceAssistant },
             welcome = { _, showSignIn, output ->
                 welcomeShowSignIn = showSignIn
                 welcomeOutput = output
@@ -67,6 +73,11 @@ class OnboardingRootBlocImplTest {
             },
             addToGrocery = { _, output ->
                 addToGroceryOutput = output
+                mock()
+            },
+            voiceGrocery = { _, assistant, output ->
+                voiceGroceryAssistant = assistant
+                voiceGroceryOutput = output
                 mock()
             },
             mealPlanning = { _, output ->
@@ -147,6 +158,36 @@ class OnboardingRootBlocImplTest {
 
         familySharingOutput.onNext(FamilySharingBloc.Output.Next)
         bloc.instance() should instanceOf<OnboardingRootBloc.Child.StartCooking>()
+    }
+
+    @Test
+    fun When_no_voice_assistant_Then_voice_step_is_skipped() {
+        bloc.totalSteps shouldBe 10
+
+        welcomeOutput.onNext(WelcomeBloc.Output.GetStarted)
+        shareRecipesOutput.onNext(ShareRecipesBloc.Output.Next)
+        saveRecipesOutput.onNext(SaveRecipesBloc.Output.Next)
+        addToGroceryOutput.onNext(AddToGroceryBloc.Output.Next)
+
+        bloc.instance() should instanceOf<OnboardingRootBloc.Child.MealPlanning>()
+        voiceGroceryAssistant shouldBe null
+    }
+
+    @Test
+    fun When_voice_assistant_available_Then_voice_step_follows_add_to_grocery() {
+        val bloc = createBloc(voiceAssistant = VoiceAssistant.SIRI)
+        bloc.totalSteps shouldBe 11
+
+        welcomeOutput.onNext(WelcomeBloc.Output.GetStarted)
+        shareRecipesOutput.onNext(ShareRecipesBloc.Output.Next)
+        saveRecipesOutput.onNext(SaveRecipesBloc.Output.Next)
+        addToGroceryOutput.onNext(AddToGroceryBloc.Output.Next)
+
+        bloc.instance() should instanceOf<OnboardingRootBloc.Child.VoiceGrocery>()
+        voiceGroceryAssistant shouldBe VoiceAssistant.SIRI
+
+        voiceGroceryOutput.onNext(VoiceGroceryBloc.Output.Next)
+        bloc.instance() should instanceOf<OnboardingRootBloc.Child.MealPlanning>()
     }
 
     @Test
