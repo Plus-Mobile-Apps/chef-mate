@@ -10,6 +10,7 @@ import com.plusmobileapps.chefmate.recipe.data.DEFAULT_INGREDIENT_SCALE
 import com.plusmobileapps.chefmate.ui.ComposeScreen
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.StateFlow
 
 interface AddRecipeToGroceryListBloc : BackClickBloc, ComposeScreen {
@@ -32,7 +33,30 @@ interface AddRecipeToGroceryListBloc : BackClickBloc, ComposeScreen {
 
     fun onSaveClicked()
 
-    data class GroceryListItem(val id: Long, val name: String)
+    data class GroceryListItem(
+        val id: Long,
+        val name: String,
+        /** The remote id of the family this list belongs to, or null for a personal list. */
+        val familyId: String? = null,
+        /** The family's name, for the section header; null when unknown or for a personal list. */
+        val familyName: String? = null,
+        val isShared: Boolean = false,
+    ) {
+        val isFamily: Boolean
+            get() = familyId != null
+    }
+
+    /** A titled run of lists in the grocery list picker. */
+    data class GroceryListSection(val header: Header, val lists: ImmutableList<GroceryListItem>) {
+        sealed class Header {
+            data object Personal : Header()
+
+            /** One per family; [name] is null when the family's name isn't known yet. */
+            data class Family(val name: String?) : Header()
+
+            data object SharedWithYou : Header()
+        }
+    }
 
     data class IngredientGroup(val category: GroceryCategory, val items: ImmutableList<ListItem>)
 
@@ -58,6 +82,44 @@ interface AddRecipeToGroceryListBloc : BackClickBloc, ComposeScreen {
 
         val isEmpty: Boolean
             get() = groupedIngredients.isEmpty()
+
+        /**
+         * [groceryLists] split into Personal / one-per-family / Shared with you, in that order,
+         * mirroring the grocery list screen's own picker. Empty sections are dropped.
+         */
+        val groceryListSections: ImmutableList<GroceryListSection>
+            get() {
+                val personal = groceryLists.filter { !it.isFamily && !it.isShared }
+                val families = groceryLists.filter { it.isFamily }.groupBy { it.familyId }
+                val shared = groceryLists.filter { it.isShared && !it.isFamily }
+                return buildList {
+                    if (personal.isNotEmpty()) {
+                        add(
+                            GroceryListSection(
+                                GroceryListSection.Header.Personal,
+                                personal.toImmutableList(),
+                            ),
+                        )
+                    }
+                    families.values.forEach { lists ->
+                        add(
+                            GroceryListSection(
+                                GroceryListSection.Header.Family(lists.first().familyName),
+                                lists.toImmutableList(),
+                            ),
+                        )
+                    }
+                    if (shared.isNotEmpty()) {
+                        add(
+                            GroceryListSection(
+                                GroceryListSection.Header.SharedWithYou,
+                                shared.toImmutableList(),
+                            ),
+                        )
+                    }
+                }
+                    .toImmutableList()
+            }
     }
 
     sealed class Output {

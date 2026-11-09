@@ -1,5 +1,7 @@
 package com.plusmobileapps.chefmate.recipe.core.addgrocery
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.plusmobileapps.chefmate.grocery.data.GroceryCategory
@@ -42,7 +44,7 @@ private fun ingredientGroups(
                         displayName = "eggs",
                         quantity = eggsQuantity,
                         isSelected = true,
-                    )
+                    ),
                 ),
         ),
         IngredientGroup(
@@ -55,7 +57,7 @@ private fun ingredientGroups(
                         displayName = "spaghetti",
                         quantity = spaghettiQuantity,
                         isSelected = true,
-                    )
+                    ),
                 ),
         ),
     )
@@ -75,7 +77,7 @@ val previewAddToGroceryBloc: AddRecipeToGroceryListBloc =
                 ),
             groceryLists = persistentListOf(GroceryListItem(id = 1L, name = "My Grocery List")),
             selectedGroceryList = GroceryListItem(id = 1L, name = "My Grocery List"),
-        )
+        ),
     )
 
 /** The sheet at a persisted 2× scale — the amounts and the control both reflect the factor. */
@@ -94,7 +96,7 @@ val previewAddToGroceryBlocScaled: AddRecipeToGroceryListBloc =
             groceryLists = persistentListOf(GroceryListItem(id = 1L, name = "My Grocery List")),
             selectedGroceryList = GroceryListItem(id = 1L, name = "My Grocery List"),
             ingredientScale = 2.0,
-        )
+        ),
     )
 
 /** No ingredients to pick from — the empty message replaces the list. */
@@ -104,8 +106,49 @@ val previewAddToGroceryBlocEmpty: AddRecipeToGroceryListBloc =
             isLoading = false,
             isAdding = false,
             groupedIngredients = persistentListOf(),
-        )
+        ),
     )
+
+/** Personal lists plus one family's lists — the picker groups them under headers. */
+val previewGroceryListSections: List<AddRecipeToGroceryListBloc.GroceryListSection> =
+    AddRecipeToGroceryListBloc.Model(
+            isLoading = false,
+            isAdding = false,
+            groupedIngredients = persistentListOf(),
+            groceryLists =
+                persistentListOf(
+                    GroceryListItem(id = 1L, name = "My Grocery List"),
+                    GroceryListItem(id = 2L, name = "Costco"),
+                    GroceryListItem(
+                        id = 3L,
+                        name = "Safeway",
+                        familyId = "family-1",
+                        familyName = "The Smiths",
+                    ),
+                    GroceryListItem(
+                        id = 4L,
+                        name = "PCC",
+                        familyId = "family-1",
+                        familyName = "The Smiths",
+                    ),
+                ),
+        )
+        .groceryListSections
+
+@Preview
+@Composable
+internal fun AddRecipeToGroceryListSelectorMenuPreview() {
+    ChefMateTheme {
+        Surface {
+            Column {
+                GroceryListSelectorMenuContent(
+                    sections = previewGroceryListSections,
+                    onListSelected = {},
+                )
+            }
+        }
+    }
+}
 
 @Preview
 @Composable

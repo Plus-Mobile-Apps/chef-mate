@@ -2,6 +2,8 @@ package com.plusmobileapps.chefmate.admin
 
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import kotlin.test.Test
 
 class FlagDraftTest {
@@ -44,7 +46,7 @@ class FlagDraftTest {
     fun wellFormedVersionsPass() {
         val v =
             FlagDraftValidator.validate(
-                FlagDraft(key = "x", minVersion = "1", maxVersion = "2.3.4")
+                FlagDraft(key = "x", minVersion = "1", maxVersion = "2.3.4"),
             )
         v.versionError shouldBe null
     }
@@ -129,8 +131,50 @@ class FlagDraftTest {
     @Test
     fun fromMarksExistingFlagAsNotNew() {
         FlagDraft.from(
-                AdminFeatureFlag(key = "k", valueType = "string", value = "v", enabled = true)
+                AdminFeatureFlag(key = "k", valueType = "string", value = "v", enabled = true),
             )
             .isNew shouldBe false
+    }
+
+    @Test
+    fun platformOptionsMatchTheClientPlatformEnum() {
+        // FeatureFlagEvaluator compares against Platform.name (ANDROID / IOS / JVM).
+        FlagDraft.ALL_PLATFORMS shouldBe listOf("android", "ios", "jvm")
+    }
+
+    @Test
+    fun fromLowercasesPlatformsSoChipsMatch() {
+        val flag =
+            AdminFeatureFlag(
+                key = "k",
+                valueType = "bool",
+                value = "true",
+                enabled = true,
+                platforms = listOf("ANDROID", "Jvm"),
+            )
+        FlagDraft.from(flag).platforms shouldBe setOf("android", "jvm")
+    }
+
+    @Test
+    fun legacyPlatformsAreKeptAndReportedAsUnknown() {
+        val flag =
+            AdminFeatureFlag(
+                key = "k",
+                valueType = "bool",
+                value = "true",
+                enabled = true,
+                platforms = listOf("web", "ios", "desktop"),
+            )
+        val draft = FlagDraft.from(flag)
+        draft.unknownPlatforms shouldBe listOf("desktop", "web")
+        // Never dropped on save: removing them could widen the flag to every platform.
+        draft.toFlag().platforms shouldBe listOf("desktop", "ios", "web")
+    }
+
+    @Test
+    fun unknownOnlyPlatformsGetTheEveryPlatformWarning() {
+        unknownPlatformsWarning(listOf("web"), setOf("web")) shouldContain "every platform"
+        unknownPlatformsWarning(listOf("web"), setOf("web", "ios")) shouldNotContain
+            "every platform"
     }
 }

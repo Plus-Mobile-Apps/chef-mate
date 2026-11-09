@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,7 +59,7 @@ fun AdminAccessGate(auth: AdminAuth, userId: String?, content: @Composable () ->
 
     when (val current = state) {
         AccessState.Checking ->
-            Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize(), Alignment.Center) { AdminLoadingIndicator() }
         AccessState.Granted -> content()
         AccessState.Denied ->
             AccessMessage(
@@ -94,21 +92,23 @@ private fun AccessMessage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Column(
-            modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
-            Text(
-                message,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-            )
-            onRetry?.let {
-                Button(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Retry") }
+        AuthCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(title, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+                onRetry?.let {
+                    Button(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Retry") }
+                }
+                TextButton(onClick = { scope.launch { auth.signOut() } }) { Text("Sign out") }
             }
-            TextButton(onClick = { scope.launch { auth.signOut() } }) { Text("Sign out") }
         }
     }
 }

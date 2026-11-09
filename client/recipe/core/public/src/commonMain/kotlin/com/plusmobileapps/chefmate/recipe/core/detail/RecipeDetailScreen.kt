@@ -464,7 +464,7 @@ private fun RecipeDetailBody(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription =
                                             stringResource(
-                                                Res.string.recipe_detail_ai_chat_premium
+                                                Res.string.recipe_detail_ai_chat_premium,
                                             ),
                                     )
                                 }
@@ -837,10 +837,9 @@ private fun RecipeDetailCompactContent(
         // Description below hero
         recipe.description?.let { description ->
             item(key = "description") {
-                Text(
-                    text = description.toInlineMarkdownAnnotatedString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                RecipeDescriptionText(
+                    description = description,
+                    onLinkClick = onRecipeLinkClick,
                     modifier = Modifier.padding(horizontal = padding),
                 )
             }
@@ -943,10 +942,9 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
 
             recipe.description?.let { description ->
                 item(key = "description") {
-                    Text(
-                        text = description.toInlineMarkdownAnnotatedString(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    RecipeDescriptionText(
+                        description = description,
+                        onLinkClick = onRecipeLinkClick,
                         modifier = Modifier.padding(horizontal = padding),
                     )
                 }
@@ -972,7 +970,7 @@ private fun ColumnScope.RecipeDetailTwoColumnContent(
             onDrag = { dragAmountX ->
                 val delta = dragAmountX * 0.001f
                 ingredientsWeight = (ingredientsWeight + delta).coerceIn(0.2f, 0.8f)
-            }
+            },
         )
 
         // Column 2: directions
@@ -1134,7 +1132,7 @@ private fun DragHandle(onDrag: (Float) -> Unit, modifier: Modifier = Modifier) {
                     .background(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         shape = MaterialTheme.shapes.small,
-                    )
+                    ),
         )
     }
 }
@@ -1351,7 +1349,27 @@ private fun formatRecipeAsText(recipe: Recipe): String = buildString {
     }
 }
 
-/** The span style applied to recipe-to-recipe links inside ingredients/directions. */
+/** The recipe description, with its `[label](url)` and bare URLs clickable. */
+@Composable
+private fun RecipeDescriptionText(
+    description: String,
+    onLinkClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val linkStyle = recipeLinkStyle()
+    val rendered =
+        remember(description, linkStyle, onLinkClick) {
+            description.toInlineMarkdownAnnotatedString(linkStyle, onLinkClick)
+        }
+    Text(
+        text = rendered,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
+}
+
+/** The span style applied to links inside the description, ingredients, and directions. */
 @Composable
 private fun recipeLinkStyle(): SpanStyle =
     SpanStyle(
@@ -1464,7 +1482,7 @@ private fun DirectionLineItem(
                         )
                     } else {
                         Modifier
-                    }
+                    },
                 )
                 .padding(
                     vertical = dimens.paddingExtraSmall,
@@ -1527,7 +1545,7 @@ private fun DeleteConfirmationDialog(
                         Res.string.recipe_detail_delete_message,
                         "recipe_name" to FixedString(recipeName),
                     )
-                    .localized()
+                    .localized(),
             )
         },
         confirmButton = {
@@ -1620,7 +1638,7 @@ val previewRecipeDetailBloc: RecipeDetailBloc =
                     updatedAt = FixedString("February 1, 2023"),
                     isDeleting = false,
                     showDeleteConfirmationDialog = false,
-                )
+                ),
             )
         override val shareLink = emptyFlow<String>()
 
@@ -1726,7 +1744,7 @@ val previewRecipeDetailBlocWithAiChat: RecipeDetailBloc =
     object : RecipeDetailBloc by previewRecipeDetailBloc {
         override val state: StateFlow<RecipeDetailBloc.Model> =
             MutableStateFlow(
-                previewRecipeDetailBloc.state.value.copy(showAiChat = true, isSubscribed = true)
+                previewRecipeDetailBloc.state.value.copy(showAiChat = true, isSubscribed = true),
             )
 
         @Composable override fun Content(modifier: Modifier) = RecipeDetailScreen(this, modifier)
@@ -1737,7 +1755,7 @@ val previewRecipeDetailBlocWithLockedAiChat: RecipeDetailBloc =
     object : RecipeDetailBloc by previewRecipeDetailBloc {
         override val state: StateFlow<RecipeDetailBloc.Model> =
             MutableStateFlow(
-                previewRecipeDetailBloc.state.value.copy(showAiChat = true, isSubscribed = false)
+                previewRecipeDetailBloc.state.value.copy(showAiChat = true, isSubscribed = false),
             )
 
         @Composable override fun Content(modifier: Modifier) = RecipeDetailScreen(this, modifier)

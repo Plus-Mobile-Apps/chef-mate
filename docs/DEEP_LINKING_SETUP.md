@@ -1,375 +1,145 @@
-# Deep Linking Setup for Email Verification
+# Deep Linking Setup
 
-This guide explains how deep linking has been configured in Chef Mate to automatically sign in users when they click the email verification link.
+This guide covers how each platform is configured so that links open Chef Mate. For the list of supported URIs, how they map to screens, and how to add a new one, see [navigation-deeplinks.md](navigation-deeplinks.md).
+
+> Email verification no longer relies on deep links. Sign-up, passwordless sign-in, and email change all use an 8-digit code that the user enters in the app (`AuthenticationRepository.verifyEmailOtp` with an `OtpFlow`). See [EMAIL_VERIFICATION_GUIDE.md](EMAIL_VERIFICATION_GUIDE.md).
 
 ## Overview
 
-When a user signs up and needs to verify their email:
-1. They receive an email with a verification link
-2. Clicking the link opens the Chef Mate app automatically
-3. The app processes the authentication tokens from the link
-4. The user is automatically signed in without manual intervention
+Chef Mate accepts two link forms. Both are parsed by the same `DeepLink.parse` in `client/root/public/.../root/DeepLink.kt`:
 
-## Implementation Details
+| Form | Example | Used by |
+|---|---|---|
+| Custom scheme | `chefmate://recipe/42` | Dev/QA shortcuts, the iOS share extension (`chefmate://import?url=…`), the desktop apps |
+| Verified web link | `https://chefmate.plusmobileapps.com/notifications` | Invite emails, public recipe share links |
 
-### 1. Supabase Auth Configuration
+The scheme and web host are defined once in `client/shared/src/commonMain/kotlin/com/plusmobileapps/chefmate/ChefMateUrls.kt` (`SCHEME`, `WEB_HOST`). For the web form, `DeepLink.parse` only accepts an exact host match, so a lookalike host such as `chefmate.plusmobileapps.com.evil.com` resolves to `DeepLink.None`.
 
-**File**: `client/auth/data/impl/src/commonMain/kotlin/com/plusmobileapps/chefmate/auth/data/impl/SupabaseModule.kt`
+Every platform sends links into `RootBloc` in one of two ways:
 
-```kotlin
-install(Auth) {
-    scheme = "chefmate"
-    host = "auth"
-}
-```
+- **Cold start**: the link is parsed and passed to `RootBloc.Factory.create(deepLink = …)`, which uses it as the initial navigation stack.
+- **Warm start**: the URL string goes to `RootBloc.handleDeepLink(url)`, which brings the destination to the front of the running stack.
 
-This configures Supabase to:
-- Generate email verification links with the format: `chefmate://auth/callback#access_token=...`
-- Automatically handle session restoration when the app receives these deep links
+Neither path does anything until onboarding has been completed.
 
-### 2. Android Manifest Configuration
+## Android
 
-**File**: `client/composeApp/src/androidMain/AndroidManifest.xml`
+**Files:** `client/composeApp/src/androidMain/AndroidManifest.xml`, `MainActivity.kt`, `res/values/strings.xml`
 
-Added deep link intent filter to MainActivity:
+`MainActivity` uses `android:launchMode="singleTask"` and declares two `VIEW` intent filters:
 
 ```xml
-<activity
-    android:name=".MainActivity"
-    android:launchMode="singleTask"
-    ...>
-    
-    <!-- Deep link for email verification -->
-    <intent-filter android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW" />
-        
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        
-        <data
-            android:scheme="chefmate"
-            android:host="auth"
-            android:pathPrefix="/callback" />
-    </intent-filter>
-</activity>
+<!-- chefmate:// deeplinks (dev convenience) -->
+<intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="chefmate" />
+</intent-filter>
+
+<!-- Verified https App Links -->
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="https" android:host="chefmate.plusmobileapps.com" android:pathPrefix="/notifications" />
+    <data android:scheme="https" android:host="chefmate.plusmobileapps.com" android:pathPrefix="/recipe" />
+</intent-filter>
 ```
 
-**Key attributes:**
-- `android:launchMode="singleTask"`: Ensures only one instance of MainActivity exists
-- `android:autoVerify="true"`: Enables Android App Links verification
-- Scheme and host match the Supabase Auth configuration
+- **App Links verification**: the hosted `https://chefmate.plusmobileapps.com/.well-known/assetlinks.json` proves domain ownership. It is domain-level, so adding a new path only needs a new `pathPrefix` here.
+- **Credential sharing**: the `asset_statements` `<meta-data>` (pointing at the same `assetlinks.json`) links the app to the website for password-manager autofill.
+- **Cold start**: `MainActivity.onCreate` parses `intent.data` with `DeepLink.parse` and passes the result to `buildRootBloc(deepLink = …)`.
+- **Warm start**: `onNewIntent` forwards `ACTION_VIEW` data to `rootBloc.handleDeepLink(url)`.
+- `ACTION_SEND` `text/plain` intents (sharing a URL from a browser) are a separate flow and go to `rootBloc.handleSharedUrl`.
 
-### 3. Deep Link Handling in MainActivity
+## iOS
 
-**File**: `client/composeApp/src/androidMain/kotlin/com/plusmobileapps/chefmate/MainActivity.kt`
+**Files:** `iosApp/iosApp/Info.plist`, `iosApp/iosApp/iosApp.entitlements`, `iosApp/iosApp/iOSApp.swift`, `iosApp/iosApp/ContentView.swift`, `client/composeApp/src/iosMain/.../RootBlocProvider.kt`
 
-The MainActivity now:
-- Injects the `SupabaseClient`
-- Handles deep links in both `onCreate()` (app not running) and `onNewIntent()` (app already running)
-- Calls `supabaseClient.handleDeeplinks(intent)` which automatically processes the authentication tokens
+iOS supports both the custom scheme and Universal Links.
 
-```kotlin
-class MainActivity : ComponentActivity() {
-    private lateinit var supabaseClient: SupabaseClient
-    
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        val appComponent = (application as MyApplication).appComponent
-        supabaseClient = appComponent.supabaseClient
-        
-        val rootBloc = buildRootBloc(
-            componentContext = defaultComponentContext(),
-            applicationComponent = appComponent,
-        )
-        setContent {
-            App(rootBloc)
-        }
-        
-        // Handle deep link when app is launched
-        supabaseClient.handleDeeplinks(intent)
-    }
-    
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        // Handle deep link when app is already running
-        supabaseClient.handleDeeplinks(intent)
-    }
-}
+**Custom scheme.** `Info.plist` registers `chefmate` under `CFBundleURLTypes`:
+
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>com.plusmobileapps.chefmate</string>
+        <key>CFBundleURLSchemes</key>
+        <array><string>chefmate</string></array>
+    </dict>
+</array>
 ```
 
-**Key points:**
-- The Supabase SDK's `handleDeeplinks(intent)` method automatically extracts tokens from the intent
-- No manual URL parsing needed
-- No explicit session creation needed
-- The method handles both deep links and regular intents safely
+**Universal Links and Associated Domains.** `iosApp.entitlements` (set as `CODE_SIGN_ENTITLEMENTS` for both Debug and Release) declares:
 
-### 4. Application Component
-
-**File**: `client/composeApp/src/commonMain/kotlin/com/plusmobileapps/chefmate/ApplicationComponent.kt`
-
-Exposed `supabaseClient` from the application component so MainActivity can access it for deep link handling.
-
-```kotlin
-interface ApplicationComponent {
-    val rootBlocFactory: RootBloc.Factory
-    val authenticationRepository: AuthenticationRepository
-    val supabaseClient: SupabaseClient
-}
+```xml
+<key>com.apple.developer.associated-domains</key>
+<array>
+    <string>webcredentials:chefmate.plusmobileapps.com</string>
+    <string>applinks:chefmate.plusmobileapps.com</string>
+</array>
 ```
 
-### 5. Automatic Session Detection
+`webcredentials:` enables password autofill. `applinks:` enables Universal Links. The entitlement is not scoped to paths. The paths that open the app are listed in the `apple-app-site-association` file, which is hosted in the separate `chefmate-site` repo. A new `https` path needs that file updated and redeployed, separately from the app release.
 
-The `SupabaseAuthenticationRepository` has a session status listener (in its `init` block) that automatically observes session changes:
+**URL handling:**
 
-```kotlin
-init {
-    scope.launch {
-        supabaseClient.auth.sessionStatus.collect { sessionStatus ->
-            when (sessionStatus) {
-                is SessionStatus.Authenticated -> {
-                    val user = sessionStatus.session.user
-                    user?.let {
-                        _state.value = AuthState.Authenticated(it.toChefMateUser())
-                    }
-                }
-                is SessionStatus.NotAuthenticated -> {
-                    _state.value = AuthState.Unauthenticated
-                }
-                // ...
-            }
-        }
-    }
-}
-```
+- **Cold start (custom scheme)**: `AppDelegate.application(_:didFinishLaunchingWithOptions:)` reads `launchOptions[.url]` (skipping `chefmate://import`) and passes it to `RootBlocProvider.buildRootBloc(…, deepLinkUrl:)`, which calls `DeepLink.parse`.
+- **Any link, cold or warm**: `ContentView` attaches `.onOpenURL`, which receives both `chefmate://…` and `https://` Universal Links:
+  - `chefmate://import?url=…` (from the share extension, `iosApp/ShareExtension/ShareViewController.swift`) → `root.handleSharedUrl(url:)`
+  - anything else → `root.handleDeepLink(url:)`
+- **Fallback**: `.onContinueUserActivity(NSUserActivityTypeBrowsingWeb)` also forwards `activity.webpageURL` to `handleDeepLink`, because some iOS versions deliver Universal Links that way. `handleDeepLink` is idempotent, so a link delivered through both paths is harmless.
 
-When `supabaseClient.handleDeeplinks(intent)` restores the session, this listener automatically detects it and updates the auth state.
+## Desktop (JVM)
 
-## User Flow
+**Files:** `client/composeApp/build.gradle.kts` (`macOS { infoPlist { … } }`), `client/composeApp/src/jvmMain/.../main.kt`, `deeplink/SchemeRegistrar.kt`, `deeplink/SingleInstance.kt`, `deeplink/DeepLinkCoordinator.kt`
 
-### Complete Email Verification Flow
+Desktop apps cannot claim `https://` links. Instead, the web pages on `chefmate.plusmobileapps.com` (for example `/notifications`) redirect the browser to the matching `chefmate://` URL, and the app registers that scheme:
 
-1. **User Signs Up**
-   - Enters email and password in sign-up form
-   - App calls `signUpWithEmailAndPassword()`
-   - Supabase creates account and sends verification email
+- **macOS**: `CFBundleURLTypes` is set in the packaged Info.plist from `build.gradle.kts`. The URL arrives as an Apple Event, which `Desktop.setOpenURIHandler` in `main.kt` handles for both cold and warm launches.
+- **Windows / Linux**: `SchemeRegistrar.registerIfPackaged()` registers the scheme for the current user at launch: a registry entry on Windows, a `.desktop` handler in `~/.local/share/applications` on Linux. It needs no admin rights, is safe to run repeatedly, and is skipped under `./gradlew run`. Each link opens a new process, so `SingleInstance` uses a file lock and a loopback socket to forward the link to the running instance.
+- Warm links from every source go through `DeepLinkCoordinator` (a `SharedFlow` with `replay = 1`, which covers the macOS cold-launch race) and then to `rootBloc.handleDeepLink(url)`. The cold-start link comes from the first CLI argument.
 
-2. **App Response**
-   - Checks if email is confirmed (`emailConfirmedAt == null`)
-   - Signs out the user
-   - Sets auth state to `AwaitingEmailVerification`
-   - User sees verification message on Settings screen
+## Testing
 
-3. **Email Verification**
-   - User opens their email
-   - Clicks verification link: `chefmate://auth/callback#access_token=...&refresh_token=...&type=signup`
-   - Android OS detects the deep link and opens Chef Mate app
-
-4. **Deep Link Processing**
-   - MainActivity receives the intent with the deep link URL
-   - Calls `supabaseClient.handleDeeplinks(intent)`
-   - Supabase SDK automatically extracts tokens and restores the session
-
-5. **Session Restoration**
-   - Session status listener detects the new session
-   - Updates auth state to `Authenticated` with user info
-   - Settings screen automatically hides verification message and shows user's name
-   - User is fully logged in without manual sign-in! ✅
-
-## Testing Deep Links
-
-### On a Physical Android Device
-
-1. **Build and install the app**
-   ```bash
-   ./gradlew :client:composeApp:installDebug
-   ```
-
-2. **Sign up a new user** in the app
-
-3. **Check your email** for the verification link
-
-4. **Click the verification link** on your phone
-   - The Chef Mate app should open automatically
-   - You should be signed in without entering credentials
-
-### Using ADB (Android Debug Bridge)
-
-You can simulate deep links for testing:
+See [navigation-deeplinks.md](navigation-deeplinks.md) for per-platform commands (`adb shell am start`, `xcrun simctl openurl`, `./gradlew :client:composeApp:run --args=…`, `open` / `xdg-open`). To test verified links:
 
 ```bash
-# Test the deep link
-adb shell am start -a android.intent.action.VIEW \
-  -d "chefmate://auth/callback#access_token=test&refresh_token=test&type=signup" \
-  com.plusmobileapps.chefmate
-```
+# Android: check App Links verification state
+adb shell pm get-app-links com.plusmobileapps.chefmate
 
-**Note**: This won't actually authenticate (invalid tokens), but you can verify:
-- The app opens
-- The deep link is received and logged
-- The `handleDeepLinkIntent` method is called
+# Android: open a verified https link
+adb shell am start -W -a android.intent.action.VIEW -d "https://chefmate.plusmobileapps.com/notifications"
 
-### Check Logs
-
-View logs to see deep link processing:
-
-```bash
-adb logcat | grep "Deep link"
-```
-
-You should see logs like:
-```
-D/Napier: Received deep link: chefmate://auth/callback#...
-D/Napier: Handling deep link: chefmate://auth/callback#...
-D/Napier: Deep link received - Supabase will handle session restoration automatically
-```
-
-## Supabase Dashboard Configuration
-
-### Adding Redirect URLs to Allowlist
-
-1. Go to your Supabase Dashboard
-2. Navigate to **Authentication → URL Configuration**
-3. Add the following to **Redirect URLs**:
-   ```
-   chefmate://auth/callback
-   ```
-
-**Important**: Without this, Supabase will reject the redirect URL and use a default web URL instead.
-
-### Testing Email Templates
-
-You can customize the verification email template:
-
-1. Go to **Authentication → Email Templates**
-2. Select **Confirm signup** template
-3. Verify the `{{ .ConfirmationURL }}` placeholder is present
-4. The URL will automatically use your configured redirect URL
-
-### Example Email Template
-
-```html
-<h2>Confirm your signup</h2>
-
-<p>Follow this link to confirm your email:</p>
-<p><a href="{{ .ConfirmationURL }}">Confirm your email</a></p>
-
-<p>If you didn't sign up for Chef Mate, you can safely ignore this email.</p>
+# iOS simulator: open a Universal Link
+xcrun simctl openurl booted "https://chefmate.plusmobileapps.com/notifications"
 ```
 
 ## Troubleshooting
 
-### Deep Link Not Opening App
+**An `https` link opens the browser instead of the app**
+- Android: run `pm get-app-links` and confirm the domain shows `verified`. Check that the path prefix is in the `autoVerify` filter and that `assetlinks.json` contains the signing certificate fingerprint for the build you installed (debug and release fingerprints are different).
+- iOS: confirm the path is listed in the hosted `apple-app-site-association`. iOS caches this file, so reinstall the app after changing it. Universal Links do not open the app when typed into Safari's address bar; tap them from Notes, Mail, or Messages.
 
-**Problem**: Clicking the verification link opens a browser instead of the app.
-
-**Solutions**:
-1. Verify the redirect URL is in Supabase allowlist
-2. Check AndroidManifest.xml has the correct intent filter
-3. Ensure `scheme` and `host` match between Supabase config and manifest
-4. Try uninstalling and reinstalling the app (clears Android's deep link cache)
-
-### App Opens But Not Authenticated
-
-**Problem**: App opens but user isn't signed in.
-
-**Solutions**:
-1. Check logs for deep link URL format
-2. Verify tokens are in the URL fragment (after `#`)
-3. Ensure Supabase SDK version is compatible (using 3.2.6)
-4. Check that session status listener is properly observing changes
-
-### Email Contains Wrong URL
-
-**Problem**: Email verification link doesn't use `chefmate://` scheme.
-
-**Solutions**:
-1. Verify `scheme` and `host` are set in `SupabaseModule.kt`
-2. Add `chefmate://auth/callback` to Supabase redirect URL allowlist
-3. Test with a new user signup (old emails may have cached URLs)
-
-### Testing on Emulator
-
-**Note**: Deep links work differently on emulators:
-- Some emulators may not handle custom schemes properly
-- Test on a physical device for accurate results
-- Use ADB commands to simulate deep links on emulator
-
-## iOS Considerations
-
-For iOS support (when you add it), you'll need to:
-
-1. **Add Universal Links** to your iOS app
-2. **Configure Associated Domains** in Xcode
-3. **Handle URL callbacks** in iOS-specific code
-4. **Update Supabase redirect URLs** to support both Android and iOS
-
-Example iOS redirect URL:
-```
-https://yourapp.com/auth/callback
-```
-
-And configure Universal Links to handle this domain.
-
-## Security Considerations
-
-### Access Token Exposure
-
-**Risk**: Access tokens are visible in the deep link URL.
-
-**Mitigations**:
-- Tokens are short-lived (typically 1 hour)
-- Refresh tokens allow secure long-term sessions
-- Deep links are only processed by your app (not accessible to other apps)
-- URLs aren't logged by Android system (custom scheme)
-
-### Intent Hijacking
-
-**Risk**: Malicious apps could try to intercept deep links.
-
-**Mitigations**:
-- Use `android:autoVerify="true"` for App Links verification
-- Only your app can handle the `chefmate://` scheme after installation
-- Android's package manager ensures scheme uniqueness
-
-## Architecture Benefits
-
-1. **Seamless UX**: Users don't need to manually sign in after verification
-2. **Secure**: Tokens are handled automatically by Supabase SDK
-3. **Observable**: Auth state changes are automatically reflected in UI
-4. **Testable**: Deep link handling is isolated in repository layer
-5. **Maintainable**: Configuration is centralized in SupabaseModule
-
-## Key Implementation Points
-
-1. **Supabase Configuration**: Set `scheme` and `host` in SupabaseModule to configure deep link format
-2. **Android Manifest**: Add intent filter with matching scheme and host for deep link handling
-3. **MainActivity**: Call `supabaseClient.handleDeeplinks(intent)` in `onCreate()` and `onNewIntent()`
-4. **Session Listener**: Existing session status observer automatically detects and updates auth state
-5. **Supabase Dashboard**: Add redirect URL to allowlist
+**The app opens but stays on the default screen**
+- Onboarding has not been completed. Deep links are ignored until it is.
+- The URI is not recognized and parsed to `DeepLink.None`. Check `DeepLinkTest` for the accepted forms.
 
 ## Related Files
 
-### Auth Layer
-- `client/auth/data/impl/src/commonMain/kotlin/com/plusmobileapps/chefmate/auth/data/impl/SupabaseModule.kt` - Configures scheme and host
-- `client/auth/data/impl/src/commonMain/kotlin/com/plusmobileapps/chefmate/auth/data/impl/SupabaseAuthenticationRepository.kt` - Session status listener
-
-### Android Layer
-- `client/composeApp/src/androidMain/AndroidManifest.xml` - Deep link intent filter
-- `client/composeApp/src/androidMain/kotlin/com/plusmobileapps/chefmate/MainActivity.kt` - Deep link handling
-- `client/composeApp/src/commonMain/kotlin/com/plusmobileapps/chefmate/ApplicationComponent.kt` - Exposes SupabaseClient
-
-## Next Steps
-
-1. **Test on Physical Device**: Build and install the app, then test the complete flow
-2. **Configure Supabase Dashboard**: Add redirect URL to allowlist
-3. **Customize Email Template**: Make the verification email match your brand
-4. **Monitor Logs**: Watch for any issues during testing
-5. **Add Analytics** (optional): Track verification completion rates
+- `client/root/public/.../root/DeepLink.kt` - URI model and parser
+- `client/root/impl/.../root/RootBlocImpl.kt` - `initialStackFor` (cold) and `handleDeepLink` (warm)
+- `client/shared/.../ChefMateUrls.kt` - scheme and web host constants
+- `client/composeApp/src/androidMain/AndroidManifest.xml` - Android intent filters
+- `iosApp/iosApp/Info.plist`, `iosApp/iosApp/iosApp.entitlements` - iOS scheme and Associated Domains
+- `iosApp/iosApp/ContentView.swift` - iOS `onOpenURL` and `onContinueUserActivity` handlers
+- `client/composeApp/src/jvmMain/.../deeplink/` - desktop scheme registration and single-instance forwarding
 
 ## References
 
-- [Supabase Auth Documentation](https://supabase.com/docs/guides/auth)
-- [Native Mobile Deep Linking](https://supabase.com/docs/guides/auth/native-mobile-deep-linking)
-- [Android Deep Links](https://developer.android.com/training/app-links/deep-linking)
-- [Supabase Kotlin Client](https://github.com/supabase-community/supabase-kt)
+- [Android App Links](https://developer.android.com/training/app-links)
+- [Apple: Supporting Universal Links](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app)
+- [Apple: Associated Domains](https://developer.apple.com/documentation/xcode/supporting-associated-domains)

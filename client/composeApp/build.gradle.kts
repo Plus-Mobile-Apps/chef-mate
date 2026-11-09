@@ -1,4 +1,5 @@
 import com.plusmobileapps.chefmate.convention.linkSwiftCompatibilityLibsIntoIosTests
+import com.plusmobileapps.chefmate.ios.GenerateIosStringCatalogTask
 import java.util.Properties
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
@@ -63,9 +64,44 @@ kotlin {
             export(libs.essenty.backhandler)
             export(projects.client.root.public)
             export(projects.client.shared)
+            // SwiftUI redesign (docs/ios-swiftui-redesign.md): each natively rebuilt screen exports
+            // its feature's public module so Swift sees the BLoC interface and Model.
+            export(projects.client.text.public)
+            export(projects.client.bottomnav.public)
+            export(projects.client.settings.public)
+            export(projects.client.recipe.list.public)
+            export(projects.client.recipe.core.public)
+            export(projects.client.recipe.data.public)
+            export(projects.client.cook.public)
+            export(projects.client.recipebook.data.public)
+            export(projects.client.aichat.public)
+            export(projects.client.grocery.core.public)
+            export(projects.client.grocery.data.public)
+            export(projects.client.browser.public)
+            export(projects.client.family.manage.public)
+            export(projects.client.family.data.public)
+            export(projects.client.auth.ui.public)
+            export(projects.client.auth.data.public)
+            export(projects.client.meal.core.public)
+            export(projects.client.meal.data.public)
+            export(projects.client.onboarding.public)
+            export(projects.client.recipebook.edit.public)
+            export(projects.client.recipe.categories.public)
+            export(projects.client.recipe.exporter.public)
+            export(projects.client.recipe.importer.public)
+            export(projects.client.settings.root.public)
+            export(projects.client.grocery.autocomplete.public)
+            export(projects.client.grocery.categoryRules.public)
+            export(projects.client.profile.public)
+            export(projects.client.notifications.public)
+            export(projects.client.developerSettings.public)
+            export(projects.client.featureflag.public)
+            // Global hosts: the native toast overlay and store-review prompt.
+            export(projects.client.toast.public)
+            export(projects.client.review.public)
         }
         iosTarget.binaries.withType(
-            org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable::class.java
+            org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable::class.java,
         ) {
             linkerOpts.add("-lsqlite3")
         }
@@ -93,6 +129,7 @@ kotlin {
             api(projects.client.auth.data.impl)
             api(projects.client.auth.data.public)
             api(projects.client.auth.ui.impl)
+            api(projects.client.auth.ui.public)
             api(projects.client.auth.usecase.impl)
             api(projects.client.cook.impl)
             api(projects.client.cook.public)
@@ -172,6 +209,31 @@ kotlin {
             implementation("org.openjfx:javafx-web:$fxVersion:$fxClassifier")
         }
         iosMain.dependencies {
+            // Exported to Swift for the SwiftUI redesign — `export` needs an api dependency.
+            api(projects.client.text.public)
+            api(projects.client.bottomnav.public)
+            api(projects.client.settings.public)
+            api(projects.client.recipe.list.public)
+            api(projects.client.recipe.core.public)
+            api(projects.client.recipe.data.public)
+            api(projects.client.recipebook.data.public)
+            api(projects.client.grocery.data.public)
+            api(projects.client.browser.public)
+            api(projects.client.family.data.public)
+            api(projects.client.meal.core.public)
+            api(projects.client.meal.data.public)
+            api(projects.client.recipebook.edit.public)
+            api(projects.client.recipe.categories.public)
+            api(projects.client.recipe.exporter.public)
+            api(projects.client.recipe.importer.public)
+            api(projects.client.settings.root.public)
+            api(projects.client.grocery.autocomplete.public)
+            api(projects.client.grocery.categoryRules.public)
+            api(projects.client.profile.public)
+            api(projects.client.notifications.public)
+            api(projects.client.developerSettings.public)
+            api(projects.client.featureflag.public)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.ktor.client.darwin)
             implementation(libs.bugsnag.kmp)
             implementation(libs.kermit.bugsnag)
@@ -237,7 +299,7 @@ android {
                 file(
                     System.getenv("ANDROID_KEYSTORE_FILE")
                         ?: keystoreProperties.getProperty("releaseKeyStore")
-                        ?: "release.keystore"
+                        ?: "release.keystore",
                 )
             storePassword =
                 System.getenv("ANDROID_KEYSTORE_PASSWORD")
@@ -258,8 +320,8 @@ android {
         applicationId = "com.plusmobileapps.chefmate"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 138
-        versionName = "1.9.52"
+        versionCode = 145
+        versionName = "1.10.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
@@ -308,7 +370,7 @@ compose.desktop {
             // the OSes they don't apply to, so this one list is correct for all three legs.
             targetFormats(TargetFormat.Pkg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Chef Mate"
-            packageVersion = "1.9.52"
+            packageVersion = "1.10.3"
             description = "Chef Mate - Your AI Cooking Assistant"
             vendor = "Plus Mobile Apps"
 
@@ -354,7 +416,7 @@ compose.desktop {
 
             // macOS configuration — Mac App Store distribution
             macOS {
-                packageVersion = "1.9.52"
+                packageVersion = "1.10.3"
                 // Matches the iOS app id so macOS joins the same App Store record (Universal
                 // Purchase / one "Chef Mate" listing), NOT the Android-style id used above.
                 bundleID = "com.plusmobileapps.chefmate.ChefMate"
@@ -411,7 +473,7 @@ compose.desktop {
                 // selected files); the runtime inherits the sandbox so the JVM stays contained.
                 entitlementsFile.set(rootProject.file("packaging/macos/entitlements.plist"))
                 runtimeEntitlementsFile.set(
-                    rootProject.file("packaging/macos/runtime-entitlements.plist")
+                    rootProject.file("packaging/macos/runtime-entitlements.plist"),
                 )
 
                 // Mac App Store provisioning profiles. Fetched by Fastlane match in CI and passed
@@ -565,3 +627,25 @@ if (isMacBuildHost) {
             files.from(extractJavaFxMacDylibs.map { fileTree(it.destinationDir) })
         }
 }
+
+// SwiftUI redesign: mirror every module's Compose `strings.xml` into an Xcode String Catalog so
+// native screens resolve TextData synchronously. Runs before the framework is embedded, which the
+// Xcode build phase does ahead of compiling resources, and also standalone for committing.
+val generateIosStringCatalog by
+    tasks.registering(GenerateIosStringCatalogTask::class) {
+        strings.from(
+            rootProject.fileTree("client") {
+                include("**/src/commonMain/composeResources/values/strings.xml")
+                exclude("**/build/**")
+            },
+        )
+        outputFile.set(
+            rootProject.layout.projectDirectory.file(
+                "iosApp/iosApp/Generated/ComposeStrings.xcstrings",
+            ),
+        )
+    }
+
+tasks
+    .matching { it.name == "embedAndSignAppleFrameworkForXcode" }
+    .configureEach { dependsOn(generateIosStringCatalog) }

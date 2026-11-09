@@ -157,6 +157,15 @@ interface RecipeDetailBloc : BackClickBloc, ComposeScreen {
     }
 
     interface Factory {
-        fun create(context: BlocContext, recipeId: Long, output: Consumer<Output>): RecipeDetailBloc
+        /**
+         * [initialTitle] is shown as the recipe's title while it loads (null when the opener
+         * doesn't know it).
+         */
+        fun create(
+            context: BlocContext,
+            recipeId: Long,
+            initialTitle: String?,
+            output: Consumer<Output>,
+        ): RecipeDetailBloc
     }
 }

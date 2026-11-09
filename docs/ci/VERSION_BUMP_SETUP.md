@@ -21,7 +21,7 @@ Merge PR (squash)           build-release.yml  (triggered by push to main)
                                 │
                          (tag push triggers downstream workflows if RELEASE_TOKEN set)
                              ├─► android-release.yml  → uploads to Play Store
-                             ├─► desktop-release.yml  → builds DMG / MSI / Deb
+                             ├─► desktop-release.yml  → Mac App Store .pkg, MSI/MSIX, Deb
                              └─► ios-release.yml      → iOS release
 ```
 
@@ -32,14 +32,16 @@ Merge PR (squash)           build-release.yml  (triggered by push to main)
 | `client/composeApp/build.gradle.kts` | `versionCode`, `versionName`, `packageVersion` (JVM), `packageVersion` (macOS block) |
 | `iosApp/Configuration/Config.xcconfig` | `CURRENT_PROJECT_VERSION`, `MARKETING_VERSION` |
 
-The macOS `packageVersion` is always `1.x.y` when the app version is `0.x.y`
-because macOS DMG packaging requires `MAJOR > 0`. See the comment in
-`client/composeApp/build.gradle.kts` macOS block.
+`bump-version.yml` maps the macOS `packageVersion` to `1.x.y` when the app
+version is `0.x.y`, because jpackage's macOS packaging requires `MAJOR > 0`
+(a holdover from the retired DMG build; the app is already on `1.x`, so the
+mapping is currently a no-op).
 
 > **Note:** `scripts/bump-version.sh` (the interactive local script) has a
 > `to_mac_version()` function that is currently a pass-through and does **not**
 > apply this mapping. If you use the script locally, update `to_mac_version()`
 > so it matches CI behaviour, or correct the macOS value manually after running.
+> The script also uses BSD `sed -i ''` and `tail -r`, so it only runs on macOS.
 
 ## Required GitHub secrets
 
@@ -69,6 +71,10 @@ Configure these in **Settings → Secrets and variables → Actions → Reposito
 |---|---|
 | `PLAY_STORE_SERVICE_ACCOUNT_JSON` | `android-release.yml` (Fastlane) |
 
+The iOS / macOS (`MATCH_*`, `ASC_*`, `APPLE_TEAM_ID`) and Microsoft Store
+(`PARTNER_CENTER_*`, `STORE_*`) secrets used by `ios-release.yml` and
+`desktop-release.yml` are listed in [deployment.md](../deployment.md#github-secrets).
+
 ## Step-by-step: running your first bump
 
 1. Go to **Actions → Bump Version → Run workflow**.
@@ -89,7 +95,7 @@ Configure these in **Settings → Secrets and variables → Actions → Reposito
    - Creates a GitHub release with the APK attached
 6. If `RELEASE_TOKEN` is configured, the tag push also triggers:
    - `android-release.yml` → Fastlane uploads the AAB to Play Store
-   - `desktop-release.yml` → builds DMG / MSI / Deb packages
+   - `desktop-release.yml` → uploads the macOS `.pkg` to App Store Connect, builds MSI/MSIX + Deb, and submits the MSIX to the Microsoft Store (once `STORE_PRODUCT_ID` is set)
    - `ios-release.yml` → iOS release
 
 ## Configuring `RELEASE_TOKEN`

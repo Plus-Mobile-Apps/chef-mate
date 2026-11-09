@@ -40,6 +40,7 @@ import kotlinx.serialization.Serializable
 class RecipeDetailBlocImpl(
     @Assisted context: BlocContext,
     @Assisted private val recipeId: Long,
+    @Assisted private val initialTitle: String?,
     @Assisted private val output: Consumer<Output>,
     private val viewModelFactory: RecipeDetailViewModel.Factory,
     private val dateTimeUtil: DateTimeUtil,
@@ -50,7 +51,7 @@ class RecipeDetailBlocImpl(
     private val scope = createScope()
 
     private val viewModel: RecipeDetailViewModel = instanceKeeper.getViewModel {
-        viewModelFactory.create(recipeId)
+        viewModelFactory.create(recipeId, initialTitle)
     }
 
     init {
@@ -159,7 +160,7 @@ class RecipeDetailBlocImpl(
         val recipe = viewModel.state.value.recipe
         val imageUrl = recipe.imageUrl ?: return
         fullImageNavigation.activate(
-            FullImageConfig(imageUrl = imageUrl, recipeId = recipe.id, title = recipe.title)
+            FullImageConfig(imageUrl = imageUrl, recipeId = recipe.id, title = recipe.title),
         )
     }
 
@@ -248,11 +249,11 @@ class RecipeDetailBlocImpl(
                                         toastService.show(
                                             message =
                                                 ResourceString(
-                                                    Res.string.recipe_add_to_grocery_list_added
+                                                    Res.string.recipe_add_to_grocery_list_added,
                                                 ),
                                             actionLabel =
                                                 ResourceString(
-                                                    Res.string.recipe_add_to_grocery_list_view
+                                                    Res.string.recipe_add_to_grocery_list_view,
                                                 ),
                                             duration = SnackbarDuration.Long,
                                             onAction = { output.onNext(Output.OpenGroceryList) },
@@ -260,7 +261,7 @@ class RecipeDetailBlocImpl(
                                     }
                                 }
                             },
-                        )
+                        ),
                 )
         }
 

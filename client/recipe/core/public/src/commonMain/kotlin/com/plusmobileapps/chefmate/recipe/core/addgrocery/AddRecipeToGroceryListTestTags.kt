@@ -6,5 +6,6 @@ package com.plusmobileapps.chefmate.recipe.core.addgrocery
  */
 object AddRecipeToGroceryListTestTags {
     const val SCREEN: String = "add_recipe_to_grocery_list_screen"
+    const val ADD_BUTTON: String = "add_recipe_to_grocery_list_add_button"
     const val INGREDIENT_SCALE_BUTTON: String = "add_recipe_to_grocery_list_ingredient_scale_button"
 }

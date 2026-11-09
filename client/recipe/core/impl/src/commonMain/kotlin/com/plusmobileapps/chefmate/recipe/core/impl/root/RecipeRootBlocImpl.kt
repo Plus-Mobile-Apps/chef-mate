@@ -40,7 +40,12 @@ class RecipeRootBlocImpl(
             initialStack = {
                 when (props) {
                     is RecipeRootBloc.Props.Detail ->
-                        listOf(Configuration.Detail(recipeId = props.recipeId))
+                        listOf(
+                            Configuration.Detail(
+                                recipeId = props.recipeId,
+                                initialTitle = props.initialTitle,
+                            ),
+                        )
                     is RecipeRootBloc.Props.Create ->
                         listOf(Configuration.Edit(recipeId = null, extracted = null))
                     is RecipeRootBloc.Props.CreateFromExtracted ->
@@ -50,7 +55,7 @@ class RecipeRootBlocImpl(
                                 extracted = props.extracted,
                                 fromAi = props.fromAi,
                                 consumePendingPhoto = props.consumePendingPhoto,
-                            )
+                            ),
                         )
                 }
             },
@@ -73,8 +78,9 @@ class RecipeRootBlocImpl(
                         detailBloc.create(
                             context = context,
                             recipeId = config.recipeId,
+                            initialTitle = config.initialTitle,
                             output = ::handleDetailOutput,
-                        )
+                        ),
                 )
             is Configuration.Edit ->
                 RecipeRootBloc.Child.Edit(
@@ -86,7 +92,7 @@ class RecipeRootBlocImpl(
                             fromAi = config.fromAi,
                             consumePendingPhoto = config.consumePendingPhoto,
                             output = ::handleEditOutput,
-                        )
+                        ),
                 )
         }
 
@@ -131,8 +137,8 @@ class RecipeRootBlocImpl(
             is RecipeDetailBloc.Output.OpenMealPlanner -> {
                 this.output.onNext(
                     RecipeRootBloc.Output.OpenMealPlanner(
-                        MealPlannerRootBloc.Props.FromRecipeDetail(output.recipeId)
-                    )
+                        MealPlannerRootBloc.Props.FromRecipeDetail(output.recipeId),
+                    ),
                 )
             }
             is RecipeDetailBloc.Output.OpenCookMode -> {
@@ -146,7 +152,14 @@ class RecipeRootBlocImpl(
 
     @Serializable
     sealed class Configuration {
-        @Serializable data class Detail(val recipeId: Long) : Configuration()
+        /** Equal by [recipeId] alone, so `bringToFront` dedupes regardless of [initialTitle]. */
+        @Serializable
+        data class Detail(val recipeId: Long, val initialTitle: String? = null) : Configuration() {
+            override fun equals(other: Any?): Boolean =
+                other is Detail && other.recipeId == recipeId
+
+            override fun hashCode(): Int = recipeId.hashCode()
+        }
 
         @Serializable
         data class Edit(

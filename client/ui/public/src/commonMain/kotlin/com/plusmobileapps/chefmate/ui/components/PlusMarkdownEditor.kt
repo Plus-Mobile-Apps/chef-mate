@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,18 +23,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,12 +66,10 @@ import chefmate.client.ui.public.generated.resources.markdown_editor_bulleted_li
 import chefmate.client.ui.public.generated.resources.markdown_editor_italic_a11y
 import chefmate.client.ui.public.generated.resources.markdown_editor_link_recipe_a11y
 import chefmate.client.ui.public.generated.resources.markdown_editor_mode_markdown
-import chefmate.client.ui.public.generated.resources.markdown_editor_mode_rich_text
 import chefmate.client.ui.public.generated.resources.markdown_editor_numbered_list_a11y
 import chefmate.client.ui.public.generated.resources.markdown_editor_preview_empty
 import chefmate.client.ui.public.generated.resources.markdown_editor_resize_handle_a11y
 import chefmate.client.ui.public.generated.resources.markdown_editor_tab_preview
-import chefmate.client.ui.public.generated.resources.markdown_editor_tab_write
 import com.mohamedrejeb.richeditor.model.rememberRichTextState
 import com.mohamedrejeb.richeditor.ui.material3.OutlinedRichTextEditor
 import com.plusmobileapps.chefmate.ui.text.BOLD_MARKER
@@ -108,11 +105,15 @@ class PlusMarkdownEditorController {
  * (cursor/selection, the Markdown write/preview sub-toggle, and the resize height).
  *
  * Two modes, switched by [richTextMode] (a persisted, app-wide preference hoisted to the caller):
- * - **Rich text** — a WYSIWYG editor (compose-rich-editor): Bold/Italic format the selection and
- *   the field renders the formatting inline, markers hidden. The more approachable mode on mobile.
- * - **Markdown** — edits the raw source with a Bold/Italic toolbar plus a GitHub-style
- *   Write/Preview toggle (the switch animates). Toolbar buttons are non-focusable so tapping one
- *   never clears the field's selection.
+ * - **Rich text** (Markdown toggle off) — a WYSIWYG editor (compose-rich-editor): Bold/Italic
+ *   format the selection and the field renders the formatting inline, markers hidden. The more
+ *   approachable mode on mobile.
+ * - **Markdown** (Markdown toggle on) — edits the raw source with a Bold/Italic toolbar plus a
+ *   Preview toggle (the switch animates). Toolbar buttons are non-focusable so tapping one never
+ *   clears the field's selection.
+ *
+ * Both toggles are compact icon buttons in the header beside the [label], so the toolbar row below
+ * keeps its full width for the formatting buttons on a phone.
  *
  * [showListButtons] adds bulleted/numbered list buttons to the toolbar — meaningful for the
  * one-item-per-line ingredient and direction fields, omitted for free-form fields like description.
@@ -233,43 +234,39 @@ fun PlusMarkdownEditor(
     // A light rounded outline groups each editor as one unit, so it's clear which toolbar/toggle
     // belongs to which field when several editors stack on the form.
     PlusOutlinedContainer(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
-            EditorModeToggle(
-                richTextMode = richTextMode,
-                onRichTextModeChange = onRichTextModeChange,
+            if (!richTextMode) {
+                EditorIconToggle(
+                    icon = Icons.Default.Visibility,
+                    contentDescription = stringResource(Res.string.markdown_editor_tab_preview),
+                    checked = showPreview,
+                    onCheckedChange = { showPreview = it },
+                )
+            }
+            EditorIconToggle(
+                icon = Icons.Default.Code,
+                contentDescription = stringResource(Res.string.markdown_editor_mode_markdown),
+                checked = !richTextMode,
+                onCheckedChange = { markdown -> onRichTextModeChange(!markdown) },
             )
         }
 
-        // Toolbar row: Bold/Italic on the left (hidden only in Markdown preview), Write/Preview
-        // toggle on the right (Markdown mode only).
-        val showFormatButtons = richTextMode || !showPreview
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (showFormatButtons) {
-                MarkdownFormatToolbar(
-                    onBold = ::onBold,
-                    onItalic = ::onItalic,
-                    showListButtons = showListButtons,
-                    onBulletList = ::onBulletList,
-                    onNumberedList = ::onNumberedList,
-                    onInsertLinkClick = onInsertLinkClick,
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (!richTextMode) {
-                WritePreviewToggle(
-                    showPreview = showPreview,
-                    onShowPreviewChange = { showPreview = it },
-                )
-            }
+        // Formatting buttons, hidden only while previewing Markdown (there's nothing to format).
+        if (richTextMode || !showPreview) {
+            MarkdownFormatToolbar(
+                onBold = ::onBold,
+                onItalic = ::onItalic,
+                showListButtons = showListButtons,
+                onBulletList = ::onBulletList,
+                onNumberedList = ::onNumberedList,
+                onInsertLinkClick = onInsertLinkClick,
+            )
         }
 
         Box(modifier = Modifier.fillMaxWidth().height(heightDp.dp)) {
@@ -314,51 +311,24 @@ fun PlusMarkdownEditor(
     }
 }
 
+/**
+ * A header toggle (Markdown mode, Preview). The checked state is shown by the tonal fill and
+ * exposed to accessibility services, so the icon alone stays unambiguous.
+ */
 @Composable
-private fun EditorModeToggle(
-    richTextMode: Boolean,
-    onRichTextModeChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
+private fun EditorIconToggle(
+    icon: ImageVector,
+    contentDescription: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        SegmentedButton(
-            selected = richTextMode,
-            onClick = { onRichTextModeChange(true) },
-            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-        ) {
-            Text(stringResource(Res.string.markdown_editor_mode_rich_text))
-        }
-        SegmentedButton(
-            selected = !richTextMode,
-            onClick = { onRichTextModeChange(false) },
-            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-        ) {
-            Text(stringResource(Res.string.markdown_editor_mode_markdown))
-        }
-    }
-}
-
-@Composable
-private fun WritePreviewToggle(
-    showPreview: Boolean,
-    onShowPreviewChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        SegmentedButton(
-            selected = !showPreview,
-            onClick = { onShowPreviewChange(false) },
-            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-        ) {
-            Text(stringResource(Res.string.markdown_editor_tab_write))
-        }
-        SegmentedButton(
-            selected = showPreview,
-            onClick = { onShowPreviewChange(true) },
-            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-        ) {
-            Text(stringResource(Res.string.markdown_editor_tab_preview))
-        }
+    // Non-focusable for the same reason as FormatButton: tapping it shouldn't drop the selection.
+    FilledTonalIconToggleButton(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = Modifier.focusProperties { canFocus = false },
+    ) {
+        Icon(imageVector = icon, contentDescription = contentDescription)
     }
 }
 
@@ -427,7 +397,7 @@ private fun MarkdownPreview(text: String, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.outline,
                     shape = MaterialTheme.shapes.extraSmall,
                 )
-                .padding(ChefMateTheme.dimens.paddingNormal)
+                .padding(ChefMateTheme.dimens.paddingNormal),
     ) {
         if (text.isBlank()) {
             Text(

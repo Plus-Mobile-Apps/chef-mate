@@ -83,7 +83,7 @@ class RecipeListBlocImpl(
         if (viewModel.state.value.isSelectionMode) {
             viewModel.toggleRecipeSelected(recipe.id)
         } else {
-            output.onNext(Output.OpenRecipe(recipe.id))
+            output.onNext(Output.OpenRecipe(recipe.id, recipe.title))
         }
     }
 

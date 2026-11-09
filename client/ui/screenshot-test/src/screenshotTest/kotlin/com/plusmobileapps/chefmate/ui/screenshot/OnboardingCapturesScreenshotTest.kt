@@ -29,6 +29,7 @@ import com.plusmobileapps.chefmate.recipebook.data.RecipeBook
 import com.plusmobileapps.chefmate.toast.LocalToastService
 import com.plusmobileapps.chefmate.toast.testing.FakeToastService
 import com.plusmobileapps.chefmate.ui.Content
+import com.plusmobileapps.chefmate.ui.components.PlusTooltipPreviewHost
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 
 // Source captures for the onboarding feature previews
@@ -50,7 +51,10 @@ private fun Capture(darkTheme: Boolean, content: @Composable BoxScope.() -> Unit
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), content = content)
+                    // Hosts the add-to-grocery coach mark inline: Popup windows don't render here.
+                    PlusTooltipPreviewHost(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.fillMaxSize(), content = content)
+                    }
                 }
             }
         }

@@ -79,7 +79,7 @@ class AddRecipeToGroceryListViewModel(
                         deselected - ingredientId
                     } else {
                         deselected + ingredientId
-                    }
+                    },
             )
         }
     }
@@ -122,7 +122,15 @@ class AddRecipeToGroceryListViewModel(
         scope.launch {
             groceryRepository.ensureDefaultList()
             groceryRepository.getGroceryLists().collect { lists ->
-                val groceryListItems = lists.map { GroceryListItem(id = it.id, name = it.name) }
+                val groceryListItems = lists.map {
+                    GroceryListItem(
+                        id = it.id,
+                        name = it.name,
+                        familyId = it.familyId,
+                        familyName = it.familyName,
+                        isShared = it.isShared,
+                    )
+                }
                 val lastSelectedId = settings.getLongOrNull(KEY_LAST_GROCERY_LIST_ID)
                 val selected =
                     groceryListItems.firstOrNull { it.id == lastSelectedId }

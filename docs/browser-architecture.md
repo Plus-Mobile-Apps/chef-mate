@@ -1,19 +1,21 @@
 # Browser Architecture
 
-The browser tab lets the user search the web, navigate to a recipe page, and import it into the app's library by editing the extracted fields before saving. It is composed of three BLoCs under a navigation root, plus a platform-specific WebView. This document covers the BLoC layout, the navigation stack, the recipe-extraction flow up to `RecipeRoot`, WebView state preservation, and back-button handling.
+The browser tab lets the user search the web, navigate to a recipe page, and import it into the app's library by editing the extracted fields before saving. It is composed of four BLoCs under a navigation root, plus a platform-specific WebView. This document covers the BLoC layout, the navigation stack, the recipe-extraction flow up to `RecipeRoot`, WebView state preservation, and back-button handling.
 
 For the general BLoC pattern (interface + impl + view-model, factories, scopes), see [`architecture.md`](architecture.md).
 
 ## BLoC layout
 
-`BrowserRootBloc` owns a Decompose `ChildStack` of three configurations. Each child is a separate BLoC with its own screen. All three screens place their search field under the same `sharedElement` key (`"browser-address-bar"`) so the field animates between them via `SharedTransitionLayout` + `AnimatedContent`.
+`BrowserRootBloc` owns a Decompose `ChildStack` of four configurations. Each child is a separate BLoC with its own screen. The Landing, EditQuery, and Browser screens place their search field under the same `sharedElement` key (`"browser-address-bar"`) so the field animates between them via `SharedTransitionLayout` + `AnimatedContent`.
 
 ```mermaid
 flowchart TD
-    BR[BrowserRootBloc] -->|Child.Landing| BL[BrowserLandingBloc]
+    BR[BrowserRootBloc] -->|Child.SelectEngine| BSE[BrowserSelectEngineBloc]
+    BR -->|Child.Landing| BL[BrowserLandingBloc]
     BR -->|Child.EditQuery| BE[BrowserEditQueryBloc]
     BR -->|Child.Browser| BB[BrowserBloc]
 
+    BSE -.->|BrowserSelectEngineScreen| SES[First-run search engine picker]
     BL -.->|BrowserLandingScreen| LS[Logo + tagline + readOnly field]
     BE -.->|BrowserEditQueryScreen| ES[Focused field + back arrow]
     BB -.->|BrowserScreen| BS[Address bar + PlatformWebView + Download]
@@ -23,19 +25,23 @@ flowchart TD
 
 | BLoC | Purpose | Responsibilities |
 |---|---|---|
-| `BrowserRootBloc` | Navigation root | Owns the `ChildStack`. Receives `BrowserBloc.Output.RecipeExtracted` and forwards it to its parent. Hosts the `BackCallback` that drives the WebView back button. Exposes `navigateToUrl(url)` for shared-URL handling from the bottom nav. |
-| `BrowserLandingBloc` | New-tab home | Stateless. Tapping the read-only field emits `Output.OpenEditQuery`; the EditQuery screen is what actually accepts input and submits. |
-| `BrowserEditQueryBloc` | URL/search editor | Same URL/search heuristic as Landing (see `toNavigationUrl`). On submit emits `Output.Navigate(url)`; the back arrow emits `Output.Cancel`. |
-| `BrowserBloc` | WebView screen | Tracks `currentUrl`, `webViewReportedUrl`, `addressBarText`, and `canGoBack/canGoForward` reported by the WebView. Tapping the address bar emits `Output.NavigateToLanding(currentText)`. The Download button calls `extractRecipe()` which extracts via `RecipeExtractorService` and emits `Output.RecipeExtracted(extracted)` — it does **not** save to the repo. |
+| `BrowserRootBloc` | Navigation root | Owns the `ChildStack`. Receives `BrowserBloc.Output.RecipeExtracted` and forwards it to its parent. Hosts the `BackCallback` that drives the WebView back button. Exposes `navigateToUrl(url)` (replaces the whole stack with a `Browser`) for shared-URL handling from the bottom nav. |
+| `BrowserSelectEngineBloc` | First-run engine picker | Shown instead of Landing until a default search engine is chosen. Emits `Output.EngineSelected`, which replaces the stack with `Landing`. |
+| `BrowserLandingBloc` | New-tab home | Exposes the selected default search engine (changeable from a dropdown) and the active first-run coach mark. Tapping the read-only field emits `Output.OpenEditQuery`; the EditQuery screen is what actually accepts input and submits. |
+| `BrowserEditQueryBloc` | URL/search editor | Converts the input to a URL or a search on the default engine (see `toNavigationUrl`). On submit emits `Output.Navigate(url)`; the back arrow emits `Output.Cancel`. |
+| `BrowserBloc` | WebView screen | Tracks `currentUrl`, `webViewReportedUrl`, `addressBarText`, and `canGoBack/canGoForward` reported by the WebView. Tapping the address bar emits `Output.NavigateToLanding(currentText)`. The Download button calls `onExtractRecipe()`, which captures the rendered page HTML from the WebView (falling back to fetching the URL) and extracts via `RecipeExtractorService` and emits `Output.RecipeExtracted(extracted)` — it does **not** save to the repo. |
 
 ## Navigation state machine
 
-`BrowserRootBlocImpl` manages a `StackNavigation<Configuration>` with three serializable configurations: `Landing` (object), `EditQuery(initialText)`, and `Browser(url)`. Decompose enforces uniqueness of configurations within a stack, so two of the navigation transitions go through dedupe helpers (`replaceTopEditQueryWith`, `replaceEditQueryWithBrowser`).
+`BrowserRootBlocImpl` manages a `StackNavigation<Configuration>` with four serializable configurations: `SelectEngine` (object), `Landing` (object), `EditQuery(initialText)`, and `Browser(url)`. Decompose enforces uniqueness of configurations within a stack, so two of the navigation transitions go through dedupe helpers (`replaceTopEditQueryWith`, `replaceEditQueryWithBrowser`).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Landing: initialUrl == null
     [*] --> Browser: initialUrl != null
+    [*] --> SelectEngine: no default engine
+    [*] --> Landing: otherwise
+
+    SelectEngine --> Landing: EngineSelected
 
     Landing --> EditQuery: OpenEditQuery (tap field)
 
@@ -53,7 +59,8 @@ stateDiagram-v2
 
 | Trigger | Origin | Implementation | Notes |
 |---|---|---|---|
-| Initial child | constructor | `if (initialUrl != null) listOf(Browser(initialUrl)) else listOf(Landing())` | Recipe-detail "open source URL" provides `initialUrl`. |
+| Initial child | constructor | `Browser(initialUrl)` if `initialUrl != null`, else `SelectEngine` if no default search engine is set, else `Landing` | Recipe-detail "open source URL" provides `initialUrl`. |
+| `BrowserSelectEngineBloc.Output.EngineSelected` | pick engine | `navigation.replaceAll(Landing)` | First run only. |
 | `BrowserLandingBloc.Output.OpenEditQuery` | tap landing field | `replaceTopEditQueryWith(EditQuery(""))` | Drops any pre-existing `EditQuery` to avoid duplicate-config crash. The Landing field is read-only so the seed is always empty. |
 | `BrowserEditQueryBloc.Output.Navigate` | submit URL | `replaceEditQueryWithBrowser(Browser(url))` | Drops the EditQuery on top **and** any existing same-URL Browser before adding the new Browser. |
 | `BrowserEditQueryBloc.Output.Cancel` | back arrow | `navigation.pop()` | Returns to whatever was below the EditQuery. |
@@ -79,7 +86,7 @@ sequenceDiagram
     participant Repo as RecipeRepository
 
     Screen->>Browser: onExtractRecipe()
-    Browser->>Service: extractRecipe(url)
+    Browser->>Service: extractRecipe(url, renderedHtml)
     Service-->>Browser: ExtractedRecipeData
     Browser->>BR: Output.RecipeExtracted(data)
     BR->>BN: Output.RecipeExtracted(data)

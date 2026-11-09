@@ -64,6 +64,7 @@ import com.plusmobileapps.chefmate.ui.components.glass.LocalAppBackdrop
 import com.plusmobileapps.chefmate.ui.components.glass.appBackdropSource
 import com.plusmobileapps.chefmate.ui.components.glass.backdropBlur
 import com.plusmobileapps.chefmate.ui.components.glass.rememberChromeBackdrop
+import com.plusmobileapps.chefmate.ui.stableWindowInsets
 import com.plusmobileapps.chefmate.ui.theme.ChefMateTheme
 import org.jetbrains.compose.resources.stringResource
 
@@ -155,10 +156,13 @@ fun PlusHeaderContainer(
                     data = data,
                     containerAlpha = if (backdrop != null) 0f else headerContainerAlpha,
                     centerAlign = centerAlignTitle,
+                    // Stable insets so popping this screen (a movableContent move) doesn't crash
+                    // iOS; see stableWindowInsets().
                     windowInsets =
                         WindowInsets.systemBars
                             .union(WindowInsets.displayCutout)
-                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                            .stableWindowInsets(),
                     modifier =
                         Modifier.align(Alignment.TopCenter)
                             .backdropBlur(
@@ -204,7 +208,7 @@ fun PlusHeaderContainer(
             val overlap = remember(headerHeight) { PlusHeaderOverlap(headerHeight) }
             Box(
                 modifier =
-                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background)
+                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background),
             ) {
                 HeaderOverlayLayout(
                     header = header,
@@ -367,7 +371,7 @@ private fun BottomBarBox(
                     // the FAB. Kept so the FAB sits exactly where it did before the toast
                     // migration.
                     bottom = ChefMateTheme.dimens.paddingNormal,
-                )
+                ),
         ) {
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingNormal)) {

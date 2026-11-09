@@ -18,13 +18,24 @@ struct ComposeView: UIViewControllerRepresentable {
 struct ContentView: View {
     let appDelegate: AppDelegate
 
+    /// Picks the UI shell once per launch. `root` is built in `didFinishLaunchingWithOptions`, so
+    /// the flag snapshot is already taken by the time SwiftUI asks for the body.
+    @ViewBuilder
+    private var shell: some View {
+        if RootBlocProvider.shared.useSwiftUiRedesign {
+            RedesignRootView(appDelegate: appDelegate)
+        } else {
+            ComposeView(
+                rootBloc: appDelegate.root,
+                backDispatcher: appDelegate.backDispatcher
+            )
+            .ignoresSafeArea(.all)
+            .ignoresSafeArea(.keyboard)
+        }
+    }
+
     var body: some View {
-        ComposeView(
-            rootBloc: appDelegate.root,
-            backDispatcher: appDelegate.backDispatcher
-        )
-        .ignoresSafeArea(.all)
-        .ignoresSafeArea(.keyboard)
+        shell
         // SwiftUI delivers BOTH custom-scheme links (chefmate://…) and https Universal Links
         // (https://chefmate.plusmobileapps.com/notifications from the invite emails) here, for
         // cold and warm launches alike. The invite deep link previously fell through because this

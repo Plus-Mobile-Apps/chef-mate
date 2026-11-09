@@ -25,17 +25,13 @@ import chefmate.client.notifications.public.generated.resources.notifications_ac
 import chefmate.client.notifications.public.generated.resources.notifications_decline
 import chefmate.client.notifications.public.generated.resources.notifications_empty_message
 import chefmate.client.notifications.public.generated.resources.notifications_empty_title
-import chefmate.client.notifications.public.generated.resources.notifications_family_invite_message
-import chefmate.client.notifications.public.generated.resources.notifications_grocery_invite_message
-import chefmate.client.notifications.public.generated.resources.notifications_recipe_book_invite_message
 import chefmate.client.notifications.public.generated.resources.notifications_signed_out
 import chefmate.client.notifications.public.generated.resources.notifications_signed_out_title
 import chefmate.client.notifications.public.generated.resources.notifications_title
 import com.plusmobileapps.chefmate.notifications.NotificationsBloc
 import com.plusmobileapps.chefmate.notifications.NotificationsTestTags
 import com.plusmobileapps.chefmate.notifications.data.AppNotification
-import com.plusmobileapps.chefmate.text.FixedString
-import com.plusmobileapps.chefmate.text.PhraseModel
+import com.plusmobileapps.chefmate.notifications.notificationMessage
 import com.plusmobileapps.chefmate.text.TextData
 import com.plusmobileapps.chefmate.text.asTextData
 import com.plusmobileapps.chefmate.ui.components.PlusButton
@@ -108,7 +104,7 @@ private fun NotificationCard(
     ) {
         Column(modifier = Modifier.padding(ChefMateTheme.dimens.paddingNormal)) {
             Text(
-                text = notification.message().localized(),
+                text = notificationMessage(notification).localized(),
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (isProcessing) {
@@ -131,7 +127,7 @@ private fun NotificationCard(
                         variant = PlusButtonVariant.SECONDARY,
                         modifier =
                             Modifier.testTag(
-                                NotificationsTestTags.DECLINE_PREFIX + notification.key
+                                NotificationsTestTags.DECLINE_PREFIX + notification.key,
                             ),
                         onClick = onDecline,
                     )
@@ -140,7 +136,7 @@ private fun NotificationCard(
                         text = Res.string.notifications_accept.asTextData(),
                         modifier =
                             Modifier.testTag(
-                                NotificationsTestTags.ACCEPT_PREFIX + notification.key
+                                NotificationsTestTags.ACCEPT_PREFIX + notification.key,
                             ),
                         onClick = onAccept,
                     )
@@ -173,22 +169,3 @@ private fun EmptyState(message: TextData, title: TextData? = null) {
         )
     }
 }
-
-private fun AppNotification.message(): TextData =
-    when (this) {
-        is AppNotification.GroceryInvite ->
-            PhraseModel(
-                resource = Res.string.notifications_grocery_invite_message,
-                "list" to FixedString(listName),
-            )
-        is AppNotification.RecipeBookInvite ->
-            PhraseModel(
-                resource = Res.string.notifications_recipe_book_invite_message,
-                "book" to FixedString(bookName),
-            )
-        is AppNotification.FamilyInvite ->
-            PhraseModel(
-                resource = Res.string.notifications_family_invite_message,
-                "family" to FixedString(familyName),
-            )
-    }

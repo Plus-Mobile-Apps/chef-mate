@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.waitUntilDoesNotExist
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import com.plusmobileapps.chefmate.recipe.core.addgrocery.AddRecipeToGroceryListTestTags
 
@@ -35,7 +36,7 @@ class AddRecipeToGroceryListRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasTestTag(AddRecipeToGroceryListTestTags.INGREDIENT_SCALE_BUTTON) and
-                    hasAnyAncestor(onScreen)
+                    hasAnyAncestor(onScreen),
             )
             .performClick()
         test.onNode(hasText(label)).performClick()
@@ -46,9 +47,18 @@ class AddRecipeToGroceryListRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasTestTag(AddRecipeToGroceryListTestTags.INGREDIENT_SCALE_BUTTON) and
-                    hasAnyAncestor(onScreen)
+                    hasAnyAncestor(onScreen),
             )
             .assert(hasText(label))
+    }
+
+    /** Taps the Add button, adding the selected ingredients to the chosen grocery list. */
+    fun tapAdd(): AddRecipeToGroceryListRobot = apply {
+        test.onNode(hasTestTag(AddRecipeToGroceryListTestTags.ADD_BUTTON)).performClick()
+    }
+
+    fun awaitDismissed(): AddRecipeToGroceryListRobot = apply {
+        test.waitUntilDoesNotExist(onScreen)
     }
 }
 

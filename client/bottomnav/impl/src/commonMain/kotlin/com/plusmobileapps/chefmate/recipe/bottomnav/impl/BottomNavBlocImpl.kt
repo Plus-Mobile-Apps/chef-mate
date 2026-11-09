@@ -180,7 +180,7 @@ class BottomNavBlocImpl(
                 this.output.onNext(BottomNavBloc.Output.AddNewRecipe)
             }
             is RecipeListBloc.Output.OpenRecipe -> {
-                this.output.onNext(BottomNavBloc.Output.OpenRecipe(output.recipeId))
+                this.output.onNext(BottomNavBloc.Output.OpenRecipe(output.recipeId, output.title))
             }
             RecipeListBloc.Output.OpenBrowser -> {
                 onTabSelected(BottomNavBloc.Tab.BROWSER)
@@ -196,7 +196,7 @@ class BottomNavBlocImpl(
                     BottomNavBloc.Output.OpenExtractedRecipe(
                         extracted = output.extracted,
                         consumePendingPhoto = true,
-                    )
+                    ),
                 )
             }
             is RecipeListBloc.Output.OpenEditRecipeBook -> {

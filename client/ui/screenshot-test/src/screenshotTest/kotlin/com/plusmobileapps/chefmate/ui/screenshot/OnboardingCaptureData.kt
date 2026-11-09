@@ -15,6 +15,7 @@ import coil3.compose.LocalAsyncImagePreviewHandler
 import com.plusmobileapps.chefmate.cook.CookModeBloc
 import com.plusmobileapps.chefmate.cook.impl.ui.previewCookBlocSplit
 import com.plusmobileapps.chefmate.cook.ui.CookModeScreen
+import com.plusmobileapps.chefmate.di.CoachMarkId
 import com.plusmobileapps.chefmate.grocery.core.impl.list.ui.previewGroceryListBlocFamily
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc
 import com.plusmobileapps.chefmate.grocery.core.list.GroceryListBloc.GroceryGroup
@@ -175,7 +176,8 @@ internal val captureRecipeDetailBloc: RecipeDetailBloc =
                     recipe = guacamole,
                     createdAt = FixedString("July 18, 2026"),
                     updatedAt = FixedString("July 22, 2026"),
-                )
+                    activeCoachMark = CoachMarkId.RECIPE_DETAIL_ADD_TO_GROCERY,
+                ),
             )
 
         @Composable override fun Content(modifier: Modifier) = RecipeDetailScreen(this, modifier)
@@ -189,7 +191,7 @@ internal val captureRecipeListBloc: RecipeListBloc =
                 previewRecipeListBloc.state.value.copy(
                     recipes = recipeListItems,
                     totalRecipeCount = recipeListItems.size,
-                )
+                ),
             )
 
         @Composable override fun Content(modifier: Modifier) = RecipeListScreen(this, modifier)
@@ -204,9 +206,9 @@ internal val captureCookModeBloc: CookModeBloc =
                     activeRecipe = guacamole,
                     activeSessions =
                         persistentListOf(
-                            CookModeBloc.Model.Chip(guacamole.id, guacamole.title, isActive = true)
+                            CookModeBloc.Model.Chip(guacamole.id, guacamole.title, isActive = true),
                         ),
-                )
+                ),
             )
 
         @Composable override fun Content(modifier: Modifier) = CookModeScreen(this, modifier)
@@ -250,7 +252,7 @@ internal val captureMealPlanBloc: MealPlanBloc =
                                     persistentListOf(meal(3L, recipeListItems[1], "2026-10-21")),
                             ),
                         ),
-                )
+                ),
             )
 
         @Composable override fun Content(modifier: Modifier) = MealPlanScreen(this, modifier)
@@ -309,9 +311,9 @@ internal val captureGroceryListBloc: GroceryListBloc =
                                             "Farro Salad",
                                         ),
                                     ),
-                            )
-                        )
-                )
+                            ),
+                        ),
+                ),
             )
 
         @Composable

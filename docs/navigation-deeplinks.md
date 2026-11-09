@@ -1,10 +1,10 @@
 # Navigation Deeplinks
 
-`chefmate://` deeplinks let you cold-start the app directly on a specific screen, which speeds up iteration on screens that are normally several taps deep.
+`chefmate://` deeplinks (and their `https://chefmate.plusmobileapps.com/...` web equivalents) open the app directly on a specific screen. They are used by invite emails and recipe share links, and also speed up iteration on screens that are normally several taps deep.
 
-These are **cold-start only**: the deeplink is parsed once during app launch and used as the initial Decompose stack. To re-target a different screen, fully kill the app and re-launch it (see platform instructions below). Process-death restore keeps the user's saved stack — the deeplink does **not** override it.
+On a **cold start** the deeplink is parsed once and used as the initial Decompose stack (`RootBlocImpl.initialStackFor`). On a **warm start** the running app receives the URL through `RootBloc.handleDeepLink(url)`, which brings the destination to the front. Process-death restore keeps the user's saved stack, and the deeplink does **not** override it. Deeplinks are ignored until onboarding has been completed.
 
-For the unrelated Supabase email-verification flow (`chefmate://auth/...`), see [DEEP_LINKING_SETUP.md](DEEP_LINKING_SETUP.md).
+For platform configuration (Android App Links, iOS Universal Links and Associated Domains, desktop scheme registration), see [DEEP_LINKING_SETUP.md](DEEP_LINKING_SETUP.md).
 
 ## Supported URIs
 
@@ -15,6 +15,7 @@ For the unrelated Supabase email-verification flow (`chefmate://auth/...`), see 
 | `chefmate://groceries` | Bottom-nav `Groceries` tab |
 | `chefmate://meal-planner` | Bottom-nav `Meals` tab |
 | `chefmate://settings` | App settings root screen (the destination reached via Settings tab → "App Settings") |
+| `chefmate://notifications` / `https://chefmate.plusmobileapps.com/notifications` | Notifications screen (target of the invite emails) |
 | `chefmate://signin` | Authentication screen in sign-in mode |
 | `chefmate://signup` | Authentication screen in sign-up mode |
 
@@ -43,7 +44,7 @@ adb shell am start -W -a android.intent.action.VIEW -d "chefmate://signin"
 adb shell am start -W -a android.intent.action.VIEW -d "chefmate://signup"
 ```
 
-Without `force-stop`, Android delivers the intent to the already-running activity via `onNewIntent`, which currently only handles share intents — the navigation deeplink is ignored.
+Without `force-stop`, Android delivers the intent to the already-running activity via `onNewIntent`, which forwards it to `rootBloc.handleDeepLink(url)` (a warm start).
 
 ## Desktop (JVM)
 
@@ -96,7 +97,7 @@ start "" "chefmate://notifications"             # Windows (cmd)
 
 ## iOS
 
-The `chefmate` URL scheme is registered in `iosApp/iosApp/Info.plist` under `CFBundleURLTypes`. `AppDelegate.application(_:didFinishLaunchingWithOptions:)` captures `launchOptions[.url]` (excluding the existing `chefmate://import?url=...` share flow) and forwards the URL string to `RootBlocProvider.buildRootBloc(..., deepLinkUrl:)`.
+The `chefmate` URL scheme is registered in `iosApp/iosApp/Info.plist` under `CFBundleURLTypes`. `AppDelegate.application(_:didFinishLaunchingWithOptions:)` captures `launchOptions[.url]` (excluding the existing `chefmate://import?url=...` share flow) and forwards the URL string to `RootBlocProvider.buildRootBloc(..., deepLinkUrl:)`. Links that arrive after launch, including `https://` Universal Links, are handled by `.onOpenURL` / `.onContinueUserActivity` in `ContentView.swift`, which call `root.handleDeepLink(url:)`.
 
 ```bash
 # Boot the simulator first if it isn't running
@@ -112,12 +113,12 @@ xcrun simctl openurl booted "chefmate://signin"
 xcrun simctl openurl booted "chefmate://signup"
 ```
 
-The `chefmate://import?url=...` share flow still goes through the existing `onOpenURL` handler in `ContentView.swift` and is unaffected.
+The `chefmate://import?url=...` share flow is handled first in the same `onOpenURL` handler and is routed to `handleSharedUrl` instead.
 
 ## Adding a new deeplink
 
 1. Add a new `data object` or `data class` to `DeepLink` in `client/root/public/src/commonMain/kotlin/com/plusmobileapps/chefmate/root/DeepLink.kt` and a matching branch in `DeepLink.parse`.
-2. Extend `RootBlocImpl.initialStackFor` in `client/root/impl/...` to map the new variant to a `Configuration` (or list of configurations).
+2. Extend `RootBlocImpl.initialStackFor` (cold start) and `RootBlocImpl.handleDeepLink` (warm start) in `client/root/impl/...` to map the new variant to a `Configuration` (or list of configurations).
 3. If the target lives behind the bottom nav, also update the `initialBottomNavTab` mapping.
 4. Add coverage in `DeepLinkTest` (parser) and `RootBlocTest` (initial stack).
 

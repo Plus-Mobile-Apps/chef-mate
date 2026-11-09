@@ -3,7 +3,9 @@
 
 package com.plusmobileapps.chefmate.recipe.core.impl.addgrocery
 
+import com.plusmobileapps.chefmate.grocery.data.GroceryListModel
 import com.plusmobileapps.chefmate.grocery.data.testing.FakeGroceryRepository
+import com.plusmobileapps.chefmate.recipe.core.addgrocery.AddRecipeToGroceryListBloc.GroceryListItem
 import com.plusmobileapps.chefmate.recipe.data.Recipe
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeIngredientScalePreferences
 import com.plusmobileapps.chefmate.recipe.data.testing.FakeRecipeRepository
@@ -120,6 +122,26 @@ class AddRecipeToGroceryListViewModelTest {
         val items = viewModel.state.value.groupedIngredients.flatMap { it.items }
         items.single { it.id == first.id }.isSelected shouldBe false
         items.filter { it.id != first.id }.map { it.isSelected } shouldContainExactly listOf(true)
+    }
+
+    @Test
+    fun When_lists_include_family_and_shared_lists_Then_they_carry_that_through() {
+        groceryRepository.setGroceryLists(
+            listOf(
+                GroceryListModel(id = 1L, name = "Mine"),
+                GroceryListModel(id = 2L, name = "Ours", familyId = "f1", familyName = "Smiths"),
+                GroceryListModel(id = 3L, name = "Theirs", isShared = true),
+            ),
+        )
+
+        val viewModel = createViewModel(recipe(ingredients = "Salt"))
+
+        viewModel.state.value.groceryLists shouldContainExactly
+            listOf(
+                GroceryListItem(id = 1L, name = "Mine"),
+                GroceryListItem(id = 2L, name = "Ours", familyId = "f1", familyName = "Smiths"),
+                GroceryListItem(id = 3L, name = "Theirs", isShared = true),
+            )
     }
 
     @Test

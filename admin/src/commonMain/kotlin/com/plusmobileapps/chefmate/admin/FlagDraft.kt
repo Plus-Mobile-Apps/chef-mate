@@ -27,10 +27,26 @@ data class FlagDraft(
     val archived: Boolean = false,
     val isNew: Boolean = true,
 ) {
+    /** Selected platform values that no app reports (left over from older rows), sorted. */
+    val unknownPlatforms: List<String>
+        get() = platforms.filterNot(::isKnownPlatform).sorted()
+
     companion object {
-        // Targetable platforms. Must match the platform identifiers the client reports in
-        // FeatureFlagContext (see FeatureFlagEvaluator.platformMatches).
-        val ALL_PLATFORMS = listOf("android", "ios", "desktop", "web")
+        // Targetable platforms: the client's `Platform` enum names (ANDROID / IOS / JVM), which
+        // FeatureFlagEvaluator.platformMatches compares case-insensitively. Stored lower-case.
+        // There is no web client, and the desktop app reports JVM, so older rows that list
+        // `desktop` or `web` match no app; the editor surfaces those via [isKnownPlatform].
+        val ALL_PLATFORMS = listOf("android", "ios", "jvm")
+
+        fun isKnownPlatform(id: String): Boolean = id.lowercase() in ALL_PLATFORMS
+
+        fun platformLabel(id: String): String =
+            when (id.lowercase()) {
+                "android" -> "Android"
+                "ios" -> "iOS"
+                "jvm" -> "Desktop"
+                else -> id
+            }
 
         // User ids are separated by commas, newlines, or surrounding whitespace.
         private val USER_ID_SPLIT = Regex("[\\s,]+")
@@ -47,7 +63,10 @@ data class FlagDraft(
                 stringValue = if (isBool) "" else flag.value,
                 enabled = flag.enabled,
                 rolloutPercent = flag.rolloutPercent,
-                platforms = flag.platforms?.toSet() ?: emptySet(),
+                // Lower-cased so chips match regardless of how the row was written; evaluation is
+                // case-insensitive, so this doesn't change who gets the flag. Unknown values are
+                // kept (dropping one could widen a flag to every platform).
+                platforms = flag.platforms?.map { it.lowercase() }?.toSet() ?: emptySet(),
                 minVersion = flag.minVersion.orEmpty(),
                 maxVersion = flag.maxVersion.orEmpty(),
                 userIdsText = flag.userIds?.joinToString("\n").orEmpty(),
@@ -108,3 +127,22 @@ fun FlagDraft.toFlag(): AdminFeatureFlag =
         archived = archived,
         description = description.trim().ifBlank { null },
     )
+
+/**
+ * Explains why [unknown] platform values matter. When they're the only ones selected the flag
+ * reaches nobody, and removing them all would leave the list empty, which means *every* platform,
+ * so that case gets a stronger warning.
+ */
+fun unknownPlatformsWarning(unknown: List<String>, selected: Set<String>): String {
+    val names = unknown.joinToString(", ")
+    return if (selected.all { !FlagDraft.isKnownPlatform(it) }) {
+        "No app reports $names, so this flag currently reaches nobody. Removing " +
+            (if (unknown.size == 1) "it" else "them") +
+            " with nothing else selected targets every platform, so select the platforms you " +
+            "mean first. Desktop is the desktop app."
+    } else {
+        "No app reports $names, so " +
+            (if (unknown.size == 1) "it has" else "they have") +
+            " no effect and can be removed. Desktop is the desktop app."
+    }
+}

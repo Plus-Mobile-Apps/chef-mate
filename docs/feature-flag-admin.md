@@ -10,7 +10,7 @@ The `kmpLibrary` convention plugin hardcodes Android + iOS + JVM, and no shared 
 
 ## Backend setup (one time)
 
-1. **Apply the migration** `supabase/migrations/20260604_feature_flags_admin.sql` (Supabase Studio SQL editor or `supabase db push`). It versions the `feature_flags` table, adds the admin-only columns (`archived`, `description`, `created_at`, `updated_at` + trigger), creates the `admins` allow-list table, and installs RLS.
+1. **Apply the migrations** `supabase/migrations/20260604_feature_flags_admin.sql` and `supabase/migrations/20260605_add_feature_flag_user_ids.sql` (Supabase Studio SQL editor or `supabase db push`). The first versions the `feature_flags` table, adds the admin-only columns (`archived`, `description`, `created_at`, `updated_at` + trigger), creates the `admins` allow-list table, and installs RLS; the second adds the `user_ids` allowlist column.
 
 2. **Seed yourself as an admin.** Sign in to the dashboard once (this creates your `auth.users` row), then run in the SQL editor:
 
@@ -59,7 +59,7 @@ Email one-time-code (OTP), the same passwordless flow as the app: enter your adm
 
 ## Using the dashboard
 
-The flag list shows each flag's state (`enabled`/`disabled`, `type=value`, rollout %, platforms, user count, `ARCHIVED`). A **Show archived** toggle reveals retired flags. Each row has **Edit**, **Archive/Unarchive**, and **Delete** (delete asks for confirmation). **New flag** opens the editor.
+The flag list shows each flag's state (enabled/disabled, `type = value`, rollout %, platforms, user count, version range, archived). Search filters by key, description, or value, and **Show archived** reveals retired flags. Click a row to edit it (on desktop-width windows the editor opens beside the list). Each row has **Archive/Unarchive** and **Delete** (delete asks for confirmation). The **ⓘ** button in the top bar explains every field and the order the app evaluates them in.
 
 ### Editor fields
 
@@ -70,7 +70,7 @@ The flag list shows each flag's state (`enabled`/`disabled`, `type=value`, rollo
 | Value | `value` | A switch for booleans (`true`/`false`), a text field for strings. |
 | Enabled | `enabled` | Global kill switch. Off ⇒ everyone gets the in-code default. |
 | Rollout | `rollout_percent` | 0–100% of users (stable per key+identity). |
-| Platforms | `platforms` | None selected = all. Otherwise android/ios/desktop/web. |
+| Platforms | `platforms` | None selected = all. Otherwise **Android** / **iOS** / **Desktop**, stored as `android` / `ios` / `jvm` to match the client's `Platform` enum (`ANDROID`/`IOS`/`JVM`, case-insensitive). There is no web client. Rows written before this fix may contain `desktop` or `web`, which match no client: the dashboard shows them in red with a warning, and they're kept until an admin removes them, because dropping one could empty the list and widen the flag to every platform. |
 | Min / Max version | `min_version` / `max_version` | Optional semver bounds. |
 | User allowlist | `user_ids` | Supabase user ids (one per line / comma-separated) who get the flag **on top of** the rollout. |
 | Description | `description` | Admin note; not read by the client. |
@@ -111,3 +111,4 @@ Caveats: targeting matches the **signed-in** Supabase user id (logged-out client
 | Editor + validation | `admin/src/commonMain/.../FlagEditorScreen.kt` + `FlagDraft.kt` |
 | CRUD repository | `admin/src/commonMain/.../FeatureFlagAdminRepository.kt` |
 | Schema + RLS migration | `supabase/migrations/20260604_feature_flags_admin.sql` |
+| `user_ids` allowlist migration | `supabase/migrations/20260605_add_feature_flag_user_ids.sql` |

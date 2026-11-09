@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -77,75 +75,79 @@ fun SignInScreen(auth: AdminAuth) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Column(
-            modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("ChefMate feature flags", style = MaterialTheme.typography.headlineSmall)
+        AuthCard {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("ChefMate feature flags", style = MaterialTheme.typography.headlineSmall)
 
-            when (step) {
-                SignInStep.EnterEmail -> {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Admin email") },
-                        singleLine = true,
-                        enabled = !loading,
-                        modifier = Modifier.fillMaxWidth().submitOnEnter(::sendCode),
-                        keyboardOptions =
-                            KeyboardOptions(
-                                keyboardType = KeyboardType.Email,
-                                imeAction = ImeAction.Send,
-                            ),
-                        keyboardActions = KeyboardActions(onSend = { sendCode() }),
-                    )
-                    Button(
-                        onClick = ::sendCode,
-                        enabled = !loading && email.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Send sign-in code")
+                when (step) {
+                    SignInStep.EnterEmail -> {
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("Admin email") },
+                            singleLine = true,
+                            shape = PillShape,
+                            enabled = !loading,
+                            modifier = Modifier.fillMaxWidth().submitOnEnter(::sendCode),
+                            keyboardOptions =
+                                KeyboardOptions(
+                                    keyboardType = KeyboardType.Email,
+                                    imeAction = ImeAction.Send,
+                                ),
+                            keyboardActions = KeyboardActions(onSend = { sendCode() }),
+                        )
+                        Button(
+                            onClick = ::sendCode,
+                            enabled = !loading && email.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Send sign-in code")
+                        }
+                    }
+                    SignInStep.EnterCode -> {
+                        Text("Enter the code emailed to $email")
+                        OutlinedTextField(
+                            value = code,
+                            onValueChange = { code = it },
+                            label = { Text("6-digit code") },
+                            singleLine = true,
+                            shape = PillShape,
+                            enabled = !loading,
+                            modifier = Modifier.fillMaxWidth().submitOnEnter(::verifyCode),
+                            keyboardOptions =
+                                KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done,
+                                ),
+                            keyboardActions = KeyboardActions(onDone = { verifyCode() }),
+                        )
+                        Button(
+                            onClick = ::verifyCode,
+                            enabled = !loading && code.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Verify & sign in")
+                        }
+                        TextButton(
+                            onClick = {
+                                step = SignInStep.EnterEmail
+                                code = ""
+                                error = null
+                            },
+                            enabled = !loading,
+                        ) {
+                            Text("Use a different email")
+                        }
                     }
                 }
-                SignInStep.EnterCode -> {
-                    Text("Enter the code emailed to $email")
-                    OutlinedTextField(
-                        value = code,
-                        onValueChange = { code = it },
-                        label = { Text("6-digit code") },
-                        singleLine = true,
-                        enabled = !loading,
-                        modifier = Modifier.fillMaxWidth().submitOnEnter(::verifyCode),
-                        keyboardOptions =
-                            KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done,
-                            ),
-                        keyboardActions = KeyboardActions(onDone = { verifyCode() }),
-                    )
-                    Button(
-                        onClick = ::verifyCode,
-                        enabled = !loading && code.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Verify & sign in")
-                    }
-                    TextButton(
-                        onClick = {
-                            step = SignInStep.EnterEmail
-                            code = ""
-                            error = null
-                        },
-                        enabled = !loading,
-                    ) {
-                        Text("Use a different email")
-                    }
-                }
+
+                if (loading) AdminLoadingIndicator()
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
-
-            if (loading) CircularProgressIndicator()
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }
 }
