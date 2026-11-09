@@ -5539,11 +5539,43 @@
         }
       }
     },
-    "premium_required_confirm" : {
+    "premium_paywall_unavailable_confirm" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : { "state" : "translated", "value" : "Got it" }
+        }
+      }
+    },
+    "premium_paywall_unavailable_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "ChefMate Premium can’t be purchased here. Subscribe from the ChefMate app on your iPhone or Android phone, then sign in with the same account." }
+        }
+      }
+    },
+    "premium_paywall_unavailable_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Subscriptions unavailable" }
+        }
+      }
+    },
+    "premium_required_confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Subscribe" }
+        }
+      }
+    },
+    "premium_required_dismiss" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Not now" }
         }
       }
     },

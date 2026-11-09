@@ -127,17 +127,12 @@ struct MoreView: View {
         } message: {
             Text(ComposeStrings["sign_out_confirmation_message"])
         }
-        .alert(
-            ComposeStrings["premium_required_title"],
+        .premiumUpsell(
             isPresented: Binding(
                 get: { model.current.showPremiumRequiredDialog },
                 set: { if !$0 { bloc.onPremiumRequiredDismissed() } }
             )
-        ) {
-            Button(ComposeStrings["premium_required_confirm"], action: bloc.onPremiumRequiredDismissed)
-        } message: {
-            Text(ComposeStrings["premium_required_message"])
-        }
+        )
     }
 }
 

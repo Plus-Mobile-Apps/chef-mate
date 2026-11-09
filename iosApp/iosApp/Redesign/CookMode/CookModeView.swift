@@ -57,19 +57,14 @@ struct CookModeView: View {
             } message: {
                 Text(ComposeStrings["cook_mode_finish_confirm_message"])
             }
-            .alert(
-                ComposeStrings["premium_required_title"],
+            .premiumUpsell(
                 isPresented: Binding(
                     get: { model.value.showPremiumRequiredDialog },
                     set: { shown in
                         if !shown && model.current.showPremiumRequiredDialog { bloc.onPremiumRequiredDismissed() }
                     }
                 )
-            ) {
-                Button(ComposeStrings["premium_required_confirm"], role: .cancel, action: bloc.onPremiumRequiredDismissed)
-            } message: {
-                Text(ComposeStrings["premium_required_message"])
-            }
+            )
             .keepScreenOn(state.keepScreenOn)
             // Switching recipes starts with a clean slate.
             .onChange(of: state.activeRecipe?.id) {
