@@ -74,14 +74,9 @@ struct RecipeDetailView: View {
         } message: {
             Text(ComposeStrings["recipe_detail_share_confirm_body"])
         }
-        .alert(
-            ComposeStrings["premium_required_title"],
+        .premiumUpsell(
             isPresented: alertBinding(\.showPremiumRequiredDialog, dismiss: bloc.onPremiumRequiredDismissed)
-        ) {
-            Button(ComposeStrings["premium_required_confirm"], role: .cancel, action: bloc.onPremiumRequiredDismissed)
-        } message: {
-            Text(ComposeStrings["premium_required_message"])
-        }
+        )
         .overlay {
             if state.isDeleting {
                 DeletingOverlay()
