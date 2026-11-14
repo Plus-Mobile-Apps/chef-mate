@@ -1,8 +1,9 @@
 package com.plusmobileapps.chefmate.recipe.list
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -94,8 +95,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -161,10 +160,8 @@ import chefmate.client.recipe.list.public.generated.resources.recipe_list_scanni
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_scanning_title
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_search
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_search_all_recipes
-import chefmate.client.recipe.list.public.generated.resources.recipe_list_search_clear
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_search_empty
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_search_empty_book_hint
-import chefmate.client.recipe.list.public.generated.resources.recipe_list_search_placeholder
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_add_to_book
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_add_to_category
 import chefmate.client.recipe.list.public.generated.resources.recipe_list_selection_count
@@ -214,7 +211,6 @@ import com.plusmobileapps.chefmate.ui.components.PlusNavContainer
 import com.plusmobileapps.chefmate.ui.components.PlusOnboardingTooltip
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveContainer
 import com.plusmobileapps.chefmate.ui.components.PlusResponsiveModal
-import com.plusmobileapps.chefmate.ui.components.PlusTextField
 import com.plusmobileapps.chefmate.ui.components.PlusTooltipPlacement
 import com.plusmobileapps.chefmate.ui.components.RecipeImage
 import com.plusmobileapps.chefmate.ui.components.WindowSizeClass
@@ -231,7 +227,27 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
     val state by bloc.state.collectAsState()
-    var showSearchBar by remember { mutableStateOf(state.isSearchActive) }
+    // The search screen covers the list while open. A query the BLoC restored reopens it, so the
+    // filter is never invisible.
+    var isSearchOpen by remember { mutableStateOf(state.isSearchActive) }
+    // The list's filters and book when search opened, put back when it is cancelled so filters
+    // picked while searching don't linger on the list.
+    var preSearchFilters by remember { mutableStateOf<SearchFilterSnapshot?>(null) }
+    val openSearch = {
+        preSearchFilters = SearchFilterSnapshot(bloc.state.value)
+        isSearchOpen = true
+    }
+    val closeSearch = {
+        isSearchOpen = false
+        val current = bloc.state.value
+        if (current.searchQuery.isNotEmpty()) bloc.onSearchQueryChanged("")
+        preSearchFilters?.restore(bloc, current)
+        preSearchFilters = null
+    }
+    SearchBackHandler(bloc = bloc, isEnabled = isSearchOpen, onBack = closeSearch)
+    LaunchedEffect(state.isSelectionMode) {
+        if (state.isSelectionMode && isSearchOpen) closeSearch()
+    }
     var showSortFilterSheet by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -246,6 +262,9 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 gridState.animateScrollToItem(0)
             }
     }
+
+    // Coach marks point at header actions the search screen covers, so they wait until it closes.
+    val activeCoachMark = state.activeCoachMark.takeUnless { isSearchOpen }
 
     PlusResponsiveContainer { windowSizeClass ->
         // Wide windows get a permanent filter rail down the left edge; the same options are then
@@ -282,7 +301,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                                 Res.string.recipe_list_selection_deselect_all
                                             } else {
                                                 Res.string.recipe_list_selection_select_all
-                                            }
+                                            },
                                         ),
                                 )
                             }
@@ -354,10 +373,8 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     trailingAccessory =
                         PlusHeaderData.TrailingAccessory.Custom {
                             IconButton(
-                                onClick = {
-                                    showSearchBar = !showSearchBar
-                                    if (!showSearchBar) bloc.onSearchQueryChanged("")
-                                }
+                                onClick = openSearch,
+                                modifier = Modifier.testTag(RecipeListTestTags.SEARCH_BUTTON),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
@@ -376,7 +393,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 RecipeListCoachMark(
                                     id = CoachMarkId.RECIPE_LIST_FILTER,
                                     text = Res.string.recipe_list_filter_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
+                                    activeCoachMark = activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
                                     SortFilterButton(
@@ -386,7 +403,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                     )
                                 }
                                 CompactOverflowCoachMark(
-                                    activeCoachMark = state.activeCoachMark,
+                                    activeCoachMark = activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
                                     OverflowMenu(
@@ -408,7 +425,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 RecipeListCoachMark(
                                     id = CoachMarkId.RECIPE_LIST_VIEW_MODE,
                                     text = Res.string.recipe_list_view_mode_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
+                                    activeCoachMark = activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
                                     IconButton(onClick = bloc::onToggleViewMode) {
@@ -423,7 +440,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                                         Res.string.recipe_list_view_list
                                                     } else {
                                                         Res.string.recipe_list_view_grid
-                                                    }
+                                                    },
                                                 ),
                                         )
                                     }
@@ -431,7 +448,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 RecipeListCoachMark(
                                     id = CoachMarkId.RECIPE_LIST_FILTER,
                                     text = Res.string.recipe_list_filter_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
+                                    activeCoachMark = activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
                                     // With the rail visible the filters live there, so this action
@@ -445,7 +462,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 RecipeListCoachMark(
                                     id = CoachMarkId.RECIPE_LIST_ADD,
                                     text = Res.string.recipe_list_add_onboarding.asTextData(),
-                                    activeCoachMark = state.activeCoachMark,
+                                    activeCoachMark = activeCoachMark,
                                     onDismiss = bloc::onCoachMarkDismissed,
                                 ) {
                                     AddRecipeMenu(
@@ -474,20 +491,6 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 // over it as one panel.
                 drawContentBehindHeader = true,
                 headerContent = {
-                    AnimatedVisibility(
-                        visible = showSearchBar,
-                        enter = expandVertically(),
-                        exit = shrinkVertically(),
-                    ) {
-                        SearchBar(
-                            query = state.searchQuery,
-                            onQueryChanged = bloc::onSearchQueryChanged,
-                            onClear = {
-                                bloc.onSearchQueryChanged("")
-                                showSearchBar = false
-                            },
-                        )
-                    }
                     state.pendingInvites.forEach { invite ->
                         InviteBanner(
                             invite = invite,
@@ -623,7 +626,15 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                 )
             }
 
-            if (state.cookingRecipeCount > 0) {
+            AnimatedVisibility(
+                visible = isSearchOpen,
+                enter = fadeIn() + slideInVertically { it / 16 },
+                exit = fadeOut(),
+            ) {
+                RecipeSearchScreen(state = state, bloc = bloc, onCancel = closeSearch)
+            }
+
+            if (state.cookingRecipeCount > 0 && !isSearchOpen) {
                 CookingSessionFabStack(
                     onContinueClicked = bloc::onContinueCookingClicked,
                     onDoneCookingClicked = bloc::onDoneCookingClicked,
@@ -632,7 +643,8 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     modifier =
                         Modifier.align(Alignment.BottomEnd)
                             .padding(
-                                bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                                bottom =
+                                    LocalBottomNavBarInset.current + LocalSnackbarInset.current,
                             ),
                 )
             }
@@ -888,7 +900,7 @@ private fun SortFilterButton(sortOnly: Boolean, activeFilterCount: Int, onClick:
         val icon = if (sortOnly) Icons.AutoMirrored.Filled.Sort else Icons.Default.FilterList
         val label =
             stringResource(
-                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter
+                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter,
             )
         val filterCount = if (sortOnly) 0 else activeFilterCount
         if (filterCount > 0) {
@@ -998,8 +1010,8 @@ private fun OverflowMenu(
                         Text(
                             stringResource(
                                 if (compactActions.isGridView) Res.string.recipe_list_view_list
-                                else Res.string.recipe_list_view_grid
-                            )
+                                else Res.string.recipe_list_view_grid,
+                            ),
                         )
                     },
                     leadingIcon = {
@@ -1115,7 +1127,7 @@ private fun BulkAddToBookSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            modifier = Modifier.navigationBarsPadding().testTag(RecipeListTestTags.BULK_BOOK_SHEET)
+            modifier = Modifier.navigationBarsPadding().testTag(RecipeListTestTags.BULK_BOOK_SHEET),
         ) {
             Text(
                 text = stringResource(Res.string.recipe_list_bulk_book_title),
@@ -1154,7 +1166,7 @@ private fun BulkAddToCategorySheet(
             modifier =
                 Modifier.padding(horizontal = ChefMateTheme.dimens.paddingNormal)
                     .navigationBarsPadding()
-                    .testTag(RecipeListTestTags.BULK_CATEGORY_SHEET)
+                    .testTag(RecipeListTestTags.BULK_CATEGORY_SHEET),
         ) {
             Text(
                 text = stringResource(Res.string.recipe_list_bulk_category_title),
@@ -1320,7 +1332,7 @@ fun SortFilterSheetContent(
             text =
                 stringResource(
                     if (showFilters) Res.string.recipe_list_sort_and_filter
-                    else Res.string.recipe_list_sort
+                    else Res.string.recipe_list_sort,
                 ),
             style = MaterialTheme.typography.titleLarge,
         )
@@ -1362,7 +1374,7 @@ fun SortFilterSheetContent(
                             selectedFilters = emptySet()
                             selectedCategories = emptySet()
                             selectedUserCategoryIds = emptySet()
-                        }
+                        },
                     ) {
                         Text(stringResource(Res.string.recipe_list_clear_filters))
                     }
@@ -1477,44 +1489,7 @@ internal fun BuiltinCategory.labelRes(): StringResource =
 // region Search
 
 @Composable
-private fun SearchBar(
-    query: String,
-    onQueryChanged: (String) -> Unit,
-    onClear: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PlusTextField(
-            value = query,
-            onValueChange = onQueryChanged,
-            modifier = Modifier.weight(1f),
-            focusRequester = focusRequester,
-            placeholder = { Text(stringResource(Res.string.recipe_list_search_placeholder)) },
-            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
-            singleLine = true,
-        )
-        // The clear/close control lives OUTSIDE PlusTextField rather than in its trailing slot. On
-        // iOS the field renders through the native text input (usingNativeTextInput), whose UIView
-        // covers the field's bounds and swallows taps landing on any control drawn inside it — so a
-        // trailing IconButton there never fired and the search wouldn't close. As a sibling it sits
-        // outside that native view and reliably clears the query and dismisses the search bar.
-        IconButton(onClick = onClear) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(Res.string.recipe_list_search_clear),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchEmptyState(
+internal fun SearchEmptyState(
     canSearchAllRecipes: Boolean,
     onSearchAllRecipes: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1749,7 +1724,7 @@ private fun RecipeGridItem(
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
                         MaterialTheme.colorScheme.surfaceContainerLow
-                    }
+                    },
             ),
     ) {
         Box {
@@ -1833,7 +1808,7 @@ private fun RecipeList(
         // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
         contentPadding =
             LocalPlusHeaderOverlap.current.contentPadding(
-                bottom = bottomContentPadding + LocalBottomNavBarInset.current
+                bottom = bottomContentPadding + LocalBottomNavBarInset.current,
             ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->
@@ -1856,7 +1831,7 @@ private val FabStackReserve = 152.dp
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun RecipeListItemContent(
+internal fun RecipeListItemContent(
     recipe: RecipeListItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
