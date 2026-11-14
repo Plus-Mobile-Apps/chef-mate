@@ -14,6 +14,10 @@ struct RecipeListView: View {
     @State private var showPhotoPicker = false
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var pendingDelete: RecipeListItem?
+    /// Whether the bottom search bar is open. Opened from the toolbar's search button; while open
+    /// the tab bar hides so the field and its close button sit at the bottom, above the keyboard.
+    @State private var isSearchPresented = false
+    @FocusState private var isSearchFocused: Bool
 
     init(bloc: RecipeListBloc) {
         self.bloc = bloc
@@ -24,10 +28,6 @@ struct RecipeListView: View {
         let state = model.value
         content(state)
             .navigationTitle(title(state))
-            .searchable(
-                text: Binding(get: { model.current.searchQuery }, set: { bloc.onSearchQueryChanged(query: $0) }),
-                prompt: ComposeStrings["recipe_list_search_placeholder"]
-            )
             .refreshable { bloc.onSyncClicked() }
             .toolbar {
                 if state.isSelectionMode {
@@ -51,8 +51,27 @@ struct RecipeListView: View {
                     .padding(.vertical, ChefTheme.Spacing.small)
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSearchPresented {
+                    BottomSearchBar(
+                        query: Binding(get: { model.current.searchQuery }, set: { bloc.onSearchQueryChanged(query: $0) }),
+                        isFocused: $isSearchFocused,
+                        onClose: closeSearch
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .toolbar(isSearchPresented ? .hidden : .automatic, for: .tabBar)
+            .animation(.snappy, value: isSearchPresented)
+            .onAppear {
+                // A query restored by the BLoC keeps its bar open, so the filter is never invisible.
+                if !model.current.searchQuery.isEmpty { isSearchPresented = true }
+            }
+            .onChange(of: state.isSelectionMode) { _, selecting in
+                if selecting { closeSearch() }
+            }
             .overlay(alignment: .bottom) {
-                if state.cookingRecipeCount > 0 && !state.isSelectionMode {
+                if state.cookingRecipeCount > 0 && !state.isSelectionMode && !isSearchPresented {
                     CookingSessionBar(
                         continueTitle: ComposeStrings["recipe_list_continue_cooking"],
                         doneTitle: ComposeStrings["recipe_list_done_cooking"],
@@ -160,26 +179,21 @@ struct RecipeListView: View {
             .accessibilityLabel(ComposeStrings["recipe_list_filter"])
             .accessibilityValue(state.totalActiveFilterCount > 0 ? "\(state.totalActiveFilterCount)" : "")
 
-            if state.isScanFromPhotoEnabled {
-                Menu {
-                    Button(action: bloc.onAddRecipeClicked) {
-                        Label(ComposeStrings["recipe_list_create_recipe"], systemImage: "square.and.pencil")
-                    }
+            Button(action: openSearch) {
+                Image(systemName: "magnifyingglass")
+            }
+            .accessibilityLabel(ComposeStrings["recipe_list_search_placeholder"])
+
+            Menu {
+                Button(action: bloc.onAddRecipeClicked) {
+                    Label(ComposeStrings["recipe_list_create_recipe"], systemImage: "square.and.pencil")
+                }
+                if state.isScanFromPhotoEnabled {
                     Button { showPhotoPicker = true } label: {
                         Label(ComposeStrings["recipe_list_scan_from_photo"], systemImage: "camera.viewfinder")
                     }
-                } label: {
-                    Image(systemName: "plus")
                 }
-                .accessibilityLabel(ComposeStrings["recipe_list_add_recipe"])
-            } else {
-                Button(action: bloc.onAddRecipeClicked) {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel(ComposeStrings["recipe_list_add_recipe"])
-            }
-
-            Menu {
+                Divider()
                 Button(action: bloc.onToggleViewMode) {
                     if state.isGridView {
                         Label(ComposeStrings["recipe_list_view_list"], systemImage: "list.bullet")
@@ -350,6 +364,19 @@ struct RecipeListView: View {
         }
     }
 
+    private func openSearch() {
+        isSearchPresented = true
+        // Focus once the bar is in the hierarchy so the keyboard comes up with it.
+        DispatchQueue.main.async { isSearchFocused = true }
+    }
+
+    /// Closing the bar also clears the query: a hidden filter would leave the list looking empty.
+    private func closeSearch() {
+        isSearchFocused = false
+        isSearchPresented = false
+        if !model.current.searchQuery.isEmpty { bloc.onSearchQueryChanged(query: "") }
+    }
+
     /// Room under the last row so the cooking buttons never cover it (Compose's `FabStackReserve`).
     private func cookingReserve(_ state: RecipeListBlocModel) -> CGFloat {
         state.cookingRecipeCount > 0 && !state.isSelectionMode ? 80 : 0
@@ -369,6 +396,54 @@ struct RecipeListView: View {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.9) ?? data
         bloc.onScanRecipePhotoPicked(bytes: NativeBytes.shared.fromData(data: jpeg), fileExtension: "jpg")
+    }
+}
+
+// MARK: - Search
+
+/// The search field pinned to the bottom of the Recipes tab (in place of the tab bar while open),
+/// with an in-field clear button and a round close button beside it, within thumb reach.
+private struct BottomSearchBar: View {
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: ChefTheme.Spacing.small) {
+            HStack(spacing: ChefTheme.Spacing.small) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField(ComposeStrings["recipe_list_search_placeholder"], text: $query)
+                    .focused(isFocused)
+                    .submitLabel(.search)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(ComposeStrings["recipe_list_search_clear"])
+                }
+            }
+            .padding(.horizontal, ChefTheme.Spacing.normal)
+            .frame(height: 48)
+            .chefGlass()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.headline)
+                    .frame(width: 48, height: 48)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+            .chefGlass(in: Circle())
+            .accessibilityLabel("Close search")
+        }
+        .padding(.horizontal, ChefTheme.Spacing.normal)
+        .padding(.vertical, ChefTheme.Spacing.small)
     }
 }
 
