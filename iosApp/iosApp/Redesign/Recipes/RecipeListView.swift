@@ -14,9 +14,12 @@ struct RecipeListView: View {
     @State private var showPhotoPicker = false
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var pendingDelete: RecipeListItem?
-    /// Whether the bottom search bar is open. Opened from the toolbar's search button; while open
-    /// the tab bar hides so the field and its close button sit at the bottom, above the keyboard.
+    /// Whether the search screen (`RecipeSearchView`) is showing in place of the list. Opened from
+    /// the toolbar's search button; while open the navigation and tab bars hide.
     @State private var isSearchPresented = false
+    /// The list's filters and book when search opened, restored when it is cancelled so filters
+    /// picked while searching don't linger on the list.
+    @State private var preSearchFilters: FilterSnapshot?
     @FocusState private var isSearchFocused: Bool
 
     init(bloc: RecipeListBloc) {
@@ -26,16 +29,45 @@ struct RecipeListView: View {
 
     var body: some View {
         let state = model.value
-        content(state)
-            .navigationTitle(title(state))
-            .refreshable { bloc.onSyncClicked() }
-            .toolbar {
-                if state.isSelectionMode {
-                    selectionToolbar(state)
-                } else {
-                    browseToolbar(state)
-                }
+        let screen = ZStack {
+            browse(state)
+            if isSearchPresented {
+                RecipeSearchView(state: state, bloc: bloc, isFocused: $isSearchFocused, onCancel: closeSearch)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .offset(y: 32)),
+                        removal: .opacity
+                    ))
+                    .zIndex(1)
             }
+        }
+        .navigationTitle(title(state))
+        .toolbar {
+            if state.isSelectionMode {
+                selectionToolbar(state)
+            } else {
+                browseToolbar(state)
+            }
+        }
+        .toolbar(isSearchPresented ? .hidden : .automatic, for: .navigationBar)
+        .toolbar(isSearchPresented ? .hidden : .automatic, for: .tabBar)
+        .animation(.snappy, value: isSearchPresented)
+        .onAppear {
+            // A query restored by the BLoC reopens search, so the filter is never invisible.
+            if !model.current.searchQuery.isEmpty && !isSearchPresented { openSearch() }
+        }
+        .onChange(of: state.isSelectionMode) { _, selecting in
+            if selecting { closeSearch() }
+        }
+        .overlay {
+            if state.isScanning { ScanningOverlay() }
+        }
+        dialogs(screen, state)
+    }
+
+    /// The list itself, with its pending-invite banners and cooking buttons.
+    private func browse(_ state: RecipeListBlocModel) -> some View {
+        content(state)
+            .refreshable { bloc.onSyncClicked() }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if !state.pendingInvites.isEmpty {
                     VStack(spacing: ChefTheme.Spacing.small) {
@@ -51,25 +83,6 @@ struct RecipeListView: View {
                     .padding(.vertical, ChefTheme.Spacing.small)
                 }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if isSearchPresented {
-                    BottomSearchBar(
-                        query: Binding(get: { model.current.searchQuery }, set: { bloc.onSearchQueryChanged(query: $0) }),
-                        isFocused: $isSearchFocused,
-                        onClose: closeSearch
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .toolbar(isSearchPresented ? .hidden : .automatic, for: .tabBar)
-            .animation(.snappy, value: isSearchPresented)
-            .onAppear {
-                // A query restored by the BLoC keeps its bar open, so the filter is never invisible.
-                if !model.current.searchQuery.isEmpty { isSearchPresented = true }
-            }
-            .onChange(of: state.isSelectionMode) { _, selecting in
-                if selecting { closeSearch() }
-            }
             .overlay(alignment: .bottom) {
                 if state.cookingRecipeCount > 0 && !state.isSelectionMode && !isSearchPresented {
                     CookingSessionBar(
@@ -80,9 +93,11 @@ struct RecipeListView: View {
                     )
                 }
             }
-            .overlay {
-                if state.isScanning { ScanningOverlay() }
-            }
+    }
+
+    /// Adds the screen's alerts, sheets and photo picker; kept apart so `body` type-checks quickly.
+    private func dialogs<Content: View>(_ view: Content, _ state: RecipeListBlocModel) -> some View {
+        view
             .alert(
                 ComposeStrings["recipe_list_done_cooking_title"],
                 isPresented: blocFlag(state.showDoneCookingDialog, onDismiss: bloc.onDoneCookingDismissed)
@@ -365,16 +380,24 @@ struct RecipeListView: View {
     }
 
     private func openSearch() {
+        preSearchFilters = FilterSnapshot(model.current)
         isSearchPresented = true
-        // Focus once the bar is in the hierarchy so the keyboard comes up with it.
+        // Focus once the field is in the hierarchy so the keyboard comes up with the screen.
         DispatchQueue.main.async { isSearchFocused = true }
     }
 
-    /// Closing the bar also clears the query: a hidden filter would leave the list looking empty.
+    /// Leaving search clears the query and puts back the list's filters and book from before it
+    /// opened: anything picked while searching was for that search only.
     private func closeSearch() {
+        guard isSearchPresented else { return }
         isSearchFocused = false
         isSearchPresented = false
-        if !model.current.searchQuery.isEmpty { bloc.onSearchQueryChanged(query: "") }
+        let state = model.current
+        if !state.searchQuery.isEmpty { bloc.onSearchQueryChanged(query: "") }
+        if let snapshot = preSearchFilters {
+            snapshot.restore(on: bloc, from: state)
+            preSearchFilters = nil
+        }
     }
 
     /// Room under the last row so the cooking buttons never cover it (Compose's `FabStackReserve`).
@@ -401,49 +424,37 @@ struct RecipeListView: View {
 
 // MARK: - Search
 
-/// The search field pinned to the bottom of the Recipes tab (in place of the tab bar while open),
-/// with an in-field clear button and a round close button beside it, within thumb reach.
-private struct BottomSearchBar: View {
-    @Binding var query: String
-    var isFocused: FocusState<Bool>.Binding
-    let onClose: () -> Void
+/// The list's filters and recipe book at the moment search opened.
+private struct FilterSnapshot {
+    let sort: RecipeSortOption
+    let filters: Set<RecipeFilterOption>
+    let categories: Set<BuiltinCategory>
+    let userCategoryIds: Set<Int64>
+    /// The open book, or nil for the cross-book "All recipes" view.
+    let bookId: Int64?
 
-    var body: some View {
-        HStack(spacing: ChefTheme.Spacing.small) {
-            HStack(spacing: ChefTheme.Spacing.small) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField(ComposeStrings["recipe_list_search_placeholder"], text: $query)
-                    .focused(isFocused)
-                    .submitLabel(.search)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                if !query.isEmpty {
-                    Button { query = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(ComposeStrings["recipe_list_search_clear"])
-                }
-            }
-            .padding(.horizontal, ChefTheme.Spacing.normal)
-            .frame(height: 48)
-            .chefGlass()
+    init(_ state: RecipeListBlocModel) {
+        sort = state.currentSort
+        filters = state.activeFilters
+        categories = state.activeCategories
+        userCategoryIds = Set(state.activeUserCategoryIds.map { $0.int64Value })
+        bookId = state.isAllRecipesSelected ? nil : state.activeBook?.id
+    }
 
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.headline)
-                    .frame(width: 48, height: 48)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-            .chefGlass(in: Circle())
-            .accessibilityLabel("Close search")
+    /// Re-applies this snapshot, touching only what changed since it was taken.
+    func restore(on bloc: RecipeListBloc, from state: RecipeListBlocModel) {
+        let now = FilterSnapshot(state)
+        if now.bookId != bookId, let bookId {
+            bloc.onBookSelected(bookId: bookId)
         }
-        .padding(.horizontal, ChefTheme.Spacing.normal)
-        .padding(.vertical, ChefTheme.Spacing.small)
+        if now.filters != filters || now.categories != categories || now.userCategoryIds != userCategoryIds {
+            bloc.onApplySortAndFilters(
+                sort: sort,
+                filters: filters,
+                categories: categories,
+                userCategoryIds: Set(userCategoryIds.map { KotlinLong(value: $0) })
+            )
+        }
     }
 }
 
@@ -507,7 +518,8 @@ private struct SelectionBadge: View {
     }
 }
 
-private struct RecipeRow: View {
+/// A recipe's list row; also used for `RecipeSearchView`'s results.
+struct RecipeRow: View {
     let recipe: RecipeListItem
 
     var body: some View {
