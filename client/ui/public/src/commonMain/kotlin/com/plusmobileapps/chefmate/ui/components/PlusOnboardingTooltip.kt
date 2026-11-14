@@ -101,8 +101,8 @@ fun PlusOnboardingTooltip(
         modifier =
             modifier.then(
                 if (previewEntry != null) Modifier.onPlaced { previewEntry.anchor = it }
-                else Modifier
-            )
+                else Modifier,
+            ),
     ) {
         anchor()
 

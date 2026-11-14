@@ -282,7 +282,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                                 Res.string.recipe_list_selection_deselect_all
                                             } else {
                                                 Res.string.recipe_list_selection_select_all
-                                            }
+                                            },
                                         ),
                                 )
                             }
@@ -357,7 +357,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                 onClick = {
                                     showSearchBar = !showSearchBar
                                     if (!showSearchBar) bloc.onSearchQueryChanged("")
-                                }
+                                },
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
@@ -423,7 +423,7 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                                                         Res.string.recipe_list_view_list
                                                     } else {
                                                         Res.string.recipe_list_view_grid
-                                                    }
+                                                    },
                                                 ),
                                         )
                                     }
@@ -632,7 +632,8 @@ fun RecipeListScreen(bloc: RecipeListBloc, modifier: Modifier = Modifier) {
                     modifier =
                         Modifier.align(Alignment.BottomEnd)
                             .padding(
-                                bottom = LocalBottomNavBarInset.current + LocalSnackbarInset.current
+                                bottom =
+                                    LocalBottomNavBarInset.current + LocalSnackbarInset.current,
                             ),
                 )
             }
@@ -888,7 +889,7 @@ private fun SortFilterButton(sortOnly: Boolean, activeFilterCount: Int, onClick:
         val icon = if (sortOnly) Icons.AutoMirrored.Filled.Sort else Icons.Default.FilterList
         val label =
             stringResource(
-                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter
+                if (sortOnly) Res.string.recipe_list_sort else Res.string.recipe_list_filter,
             )
         val filterCount = if (sortOnly) 0 else activeFilterCount
         if (filterCount > 0) {
@@ -998,8 +999,8 @@ private fun OverflowMenu(
                         Text(
                             stringResource(
                                 if (compactActions.isGridView) Res.string.recipe_list_view_list
-                                else Res.string.recipe_list_view_grid
-                            )
+                                else Res.string.recipe_list_view_grid,
+                            ),
                         )
                     },
                     leadingIcon = {
@@ -1115,7 +1116,7 @@ private fun BulkAddToBookSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            modifier = Modifier.navigationBarsPadding().testTag(RecipeListTestTags.BULK_BOOK_SHEET)
+            modifier = Modifier.navigationBarsPadding().testTag(RecipeListTestTags.BULK_BOOK_SHEET),
         ) {
             Text(
                 text = stringResource(Res.string.recipe_list_bulk_book_title),
@@ -1154,7 +1155,7 @@ private fun BulkAddToCategorySheet(
             modifier =
                 Modifier.padding(horizontal = ChefMateTheme.dimens.paddingNormal)
                     .navigationBarsPadding()
-                    .testTag(RecipeListTestTags.BULK_CATEGORY_SHEET)
+                    .testTag(RecipeListTestTags.BULK_CATEGORY_SHEET),
         ) {
             Text(
                 text = stringResource(Res.string.recipe_list_bulk_category_title),
@@ -1320,7 +1321,7 @@ fun SortFilterSheetContent(
             text =
                 stringResource(
                     if (showFilters) Res.string.recipe_list_sort_and_filter
-                    else Res.string.recipe_list_sort
+                    else Res.string.recipe_list_sort,
                 ),
             style = MaterialTheme.typography.titleLarge,
         )
@@ -1362,7 +1363,7 @@ fun SortFilterSheetContent(
                             selectedFilters = emptySet()
                             selectedCategories = emptySet()
                             selectedUserCategoryIds = emptySet()
-                        }
+                        },
                     ) {
                         Text(stringResource(Res.string.recipe_list_clear_filters))
                     }
@@ -1749,7 +1750,7 @@ private fun RecipeGridItem(
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
                         MaterialTheme.colorScheme.surfaceContainerLow
-                    }
+                    },
             ),
     ) {
         Box {
@@ -1833,7 +1834,7 @@ private fun RecipeList(
         // Starts below the frosted header it scrolls up behind, and clears the floating nav bar.
         contentPadding =
             LocalPlusHeaderOverlap.current.contentPadding(
-                bottom = bottomContentPadding + LocalBottomNavBarInset.current
+                bottom = bottomContentPadding + LocalBottomNavBarInset.current,
             ),
     ) {
         items(recipes.size, key = { recipes[it].id }) { index ->

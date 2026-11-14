@@ -208,7 +208,7 @@ fun PlusHeaderContainer(
             val overlap = remember(headerHeight) { PlusHeaderOverlap(headerHeight) }
             Box(
                 modifier =
-                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background)
+                    rootModifier.fillMaxSize().background(ChefMateTheme.colorScheme.background),
             ) {
                 HeaderOverlayLayout(
                     header = header,
@@ -371,7 +371,7 @@ private fun BottomBarBox(
                     // the FAB. Kept so the FAB sits exactly where it did before the toast
                     // migration.
                     bottom = ChefMateTheme.dimens.paddingNormal,
-                )
+                ),
         ) {
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.padding(end = ChefMateTheme.dimens.paddingNormal)) {

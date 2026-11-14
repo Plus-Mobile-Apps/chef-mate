@@ -36,7 +36,7 @@ class AddRecipeToGroceryListRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasTestTag(AddRecipeToGroceryListTestTags.INGREDIENT_SCALE_BUTTON) and
-                    hasAnyAncestor(onScreen)
+                    hasAnyAncestor(onScreen),
             )
             .performClick()
         test.onNode(hasText(label)).performClick()
@@ -47,7 +47,7 @@ class AddRecipeToGroceryListRobot(private val test: ComposeUiTest) {
         test
             .onNode(
                 hasTestTag(AddRecipeToGroceryListTestTags.INGREDIENT_SCALE_BUTTON) and
-                    hasAnyAncestor(onScreen)
+                    hasAnyAncestor(onScreen),
             )
             .assert(hasText(label))
     }

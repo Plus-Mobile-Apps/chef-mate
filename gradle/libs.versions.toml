@@ -43,6 +43,7 @@ multiplatform-markdown-renderer = "0.41.0"
 multiplatform-settings = "1.3.0"
 play-review = "2.0.2"
 multiplatform-webview = "2.0.3"
+purchases-kmp = "3.14.0"
 openjfx = "21.0.7"
 richeditor = "1.2.1"
 ksoup = "0.2.6"
@@ -120,6 +121,9 @@ multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", vers
 multiplatform-settings-noarg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
 multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatform-settings" }
 play-review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "play-review" }
+purchases-core = { module = "com.revenuecat.purchases:purchases-kmp-core", version.ref = "purchases-kmp" }
+purchases-result = { module = "com.revenuecat.purchases:purchases-kmp-result", version.ref = "purchases-kmp" }
+purchases-ui = { module = "com.revenuecat.purchases:purchases-kmp-ui", version.ref = "purchases-kmp" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 richeditor-compose = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version.ref = "richeditor" }
 ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }

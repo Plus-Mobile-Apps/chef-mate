@@ -2,6 +2,10 @@
 <resources>
     <string name="premium_required_title">ChefMate Premium</string>
     <string name="premium_required_message">The AI cooking assistant is part of ChefMate Premium. Subscribe to ask questions about any recipe, get substitutions, and scale ingredients hands-free.</string>
-    <string name="premium_required_confirm">Got it</string>
+    <string name="premium_required_confirm">Subscribe</string>
+    <string name="premium_required_dismiss">Not now</string>
+    <string name="premium_paywall_unavailable_title">Subscriptions unavailable</string>
+    <string name="premium_paywall_unavailable_message">ChefMate Premium can’t be purchased here. Subscribe from the ChefMate app on your iPhone or Android phone, then sign in with the same account.</string>
+    <string name="premium_paywall_unavailable_confirm">Got it</string>
     <string name="premium_locked_badge">Premium</string>
 </resources>

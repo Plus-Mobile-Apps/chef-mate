@@ -11,6 +11,16 @@ kotlin {
             implementation(projects.client.ui.public)
             implementation(compose.components.resources)
         }
+        // RevenueCat's server-driven Paywall is Android/iOS only; jvmMain renders an "unavailable"
+        // dialog instead. See PremiumPaywall.
+        androidMain.dependencies {
+            implementation(libs.purchases.core)
+            implementation(libs.purchases.ui)
+        }
+        getByName("iosMain").dependencies {
+            implementation(libs.purchases.core)
+            implementation(libs.purchases.ui)
+        }
     }
 }
 

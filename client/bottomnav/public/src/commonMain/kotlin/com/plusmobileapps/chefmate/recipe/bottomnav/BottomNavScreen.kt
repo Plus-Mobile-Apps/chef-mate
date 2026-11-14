@@ -270,7 +270,7 @@ private fun SideRail(
                     contentDescription =
                         stringResource(
                             if (expanded) Res.string.nav_rail_collapse
-                            else Res.string.nav_rail_expand
+                            else Res.string.nav_rail_expand,
                         ),
                     tint = ChefMateTheme.colorScheme.onSurfaceVariant,
                 )
@@ -329,7 +329,7 @@ private fun MobileBottomNavContent(
                 Modifier.fillMaxSize()
                     .appBackdropSource(backdrop)
                     .windowInsetsPadding(contentInsets)
-                    .imePadding()
+                    .imePadding(),
             )
         }
         AnimatedVisibility(
@@ -474,7 +474,7 @@ private fun LensNavRail(
     val railWidth = if (expanded) ExpandedRailWidth else RailWidth
     val maxCellHeight = if (expanded) ExpandedRailCellHeight else RailCellMaxHeight
     BoxWithConstraints(
-        modifier = modifier.then(if (expanded) Modifier.padding(ExpandedRailPadding) else Modifier)
+        modifier = modifier.then(if (expanded) Modifier.padding(ExpandedRailPadding) else Modifier),
     ) {
         // Equal cells so the lens can be positioned arithmetically, as on the bottom bar. Capped so
         // a taller window doesn't stretch them, and shrunk to fit a short one.
@@ -487,7 +487,7 @@ private fun LensNavRail(
             modifier = Modifier.width(railWidth),
         ) { lensTint ->
             CompositionLocalProvider(
-                LocalContentColor provides ChefMateTheme.colorScheme.onSurface
+                LocalContentColor provides ChefMateTheme.colorScheme.onSurface,
             ) {
                 Column {
                     state.tabs.forEach { tab ->
@@ -533,7 +533,7 @@ private fun LensNavRail(
                                     style = ChefMateTheme.typography.labelMedium,
                                     modifier =
                                         Modifier.padding(
-                                            top = ChefMateTheme.dimens.paddingExtraSmall
+                                            top = ChefMateTheme.dimens.paddingExtraSmall,
                                         ),
                                 )
                             }
@@ -663,7 +663,7 @@ private fun LensTrack(
                         settle.snapTo(dragOffset)
                         dragging = false
                     },
-                )
+                ),
     ) {
         // Declared first so it draws beneath the icons and labels, and sized with matchParentSize
         // so the items still decide the track's size.
@@ -679,9 +679,9 @@ private fun LensTrack(
                                 Modifier.width(cellSize).fillMaxHeight()
                             } else {
                                 Modifier.height(cellSize).fillMaxWidth()
-                            }
+                            },
                         )
-                        .padding(LensInset)
+                        .padding(LensInset),
             )
         }
         CompositionLocalProvider(LocalRippleConfiguration provides null) { items(lensTint) }
@@ -795,13 +795,13 @@ private fun SelectionLens(modifier: Modifier = Modifier) {
                     Brush.verticalGradient(
                         listOf(
                             colorScheme.secondaryContainer.copy(
-                                alpha = if (isDark) 0.55f else 0.80f
+                                alpha = if (isDark) 0.55f else 0.80f,
                             ),
                             colorScheme.secondaryContainer.copy(
-                                alpha = if (isDark) 0.32f else 0.55f
+                                alpha = if (isDark) 0.32f else 0.55f,
                             ),
-                        )
-                    )
+                        ),
+                    ),
                 )
                 // A bright top edge is what sells a piece of glass as raised rather than painted
                 // on.
@@ -812,10 +812,10 @@ private fun SelectionLens(modifier: Modifier = Modifier) {
                             listOf(
                                 Color.White.copy(alpha = if (isDark) 0.28f else 0.60f),
                                 Color.White.copy(alpha = 0.04f),
-                            )
+                            ),
                         ),
                     shape = LensShape,
-                )
+                ),
     )
 }
 

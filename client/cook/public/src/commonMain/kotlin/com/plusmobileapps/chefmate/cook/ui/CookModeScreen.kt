@@ -358,7 +358,7 @@ private fun CookModeTabletLayout(
                                             stringResource(
                                                 if (state.keepScreenOn)
                                                     Res.string.cook_mode_allow_screen_off
-                                                else Res.string.cook_mode_keep_screen_on
+                                                else Res.string.cook_mode_keep_screen_on,
                                             ),
                                     )
                                 }
@@ -382,7 +382,7 @@ private fun CookModeTabletLayout(
                                                         CookModeBloc.LayoutMode.Stacked
                                                 )
                                                     Res.string.cook_mode_layout_split
-                                                else Res.string.cook_mode_layout_stacked
+                                                else Res.string.cook_mode_layout_stacked,
                                             ),
                                     )
                                 }
@@ -642,8 +642,8 @@ private fun CookModeOverflowMenu(
                     Text(
                         stringResource(
                             if (state.keepScreenOn) Res.string.cook_mode_allow_screen_off
-                            else Res.string.cook_mode_keep_screen_on
-                        )
+                            else Res.string.cook_mode_keep_screen_on,
+                        ),
                     )
                 },
                 leadingIcon = {
@@ -665,8 +665,8 @@ private fun CookModeOverflowMenu(
                     Text(
                         stringResource(
                             if (isStacked) Res.string.cook_mode_layout_split
-                            else Res.string.cook_mode_layout_stacked
-                        )
+                            else Res.string.cook_mode_layout_stacked,
+                        ),
                     )
                 },
                 leadingIcon = {
@@ -953,7 +953,7 @@ private fun SplitCompactLayout(
                     end = contentPadding.calculateEndPadding(layoutDir),
                     top = contentPadding.calculateTopPadding(),
                     bottom = contentPadding.calculateBottomPadding(),
-                )
+                ),
     ) {
         SecondaryTabRow(selectedTabIndex = pagerState.currentPage) {
             tabs.forEachIndexed { index, title ->
@@ -1035,7 +1035,7 @@ private fun SplitWideLayout(
                     start = contentPadding.calculateStartPadding(layoutDir),
                     end = contentPadding.calculateEndPadding(layoutDir),
                     top = contentPadding.calculateTopPadding(),
-                )
+                ),
     ) {
         LazyColumn(
             modifier = Modifier.weight(ingredientsWeight).fillMaxHeight(),
@@ -1058,7 +1058,7 @@ private fun SplitWideLayout(
             onDrag = { dx ->
                 val deltaWeight = dx * 0.001f
                 ingredientsWeight = (ingredientsWeight + deltaWeight).coerceIn(0.2f, 0.8f)
-            }
+            },
         )
         LazyColumn(
             modifier = Modifier.weight(1f - ingredientsWeight).fillMaxHeight(),
@@ -1099,7 +1099,7 @@ private fun VerticalDragHandle(onDrag: (Float) -> Unit) {
                     .background(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         shape = MaterialTheme.shapes.small,
-                    )
+                    ),
         )
     }
 }
@@ -1182,7 +1182,7 @@ private fun DirectionRow(text: String, highlighted: Boolean, onClick: () -> Unit
                         )
                     } else {
                         Modifier
-                    }
+                    },
                 )
                 .padding(
                     vertical = dimens.paddingExtraSmall,

@@ -14,9 +14,9 @@ interface DeveloperPreferences : EnvironmentProvider {
     val selectedUserIndex: StateFlow<Int?>
 
     /**
-     * Developer override standing in for a real store entitlement. Read by the subscription
-     * repository, so flipping it takes effect immediately everywhere premium is gated — no restart.
-     * Defaults to `false` so an untouched build behaves like a free user.
+     * Developer override OR-ed over the real store entitlement (debug builds only). Read by the
+     * subscription repository, so flipping it takes effect immediately everywhere premium is gated
+     * — no restart. Defaults to `false` so an untouched build behaves like a free user.
      */
     val isSubscribed: StateFlow<Boolean>
 

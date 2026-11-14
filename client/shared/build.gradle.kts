@@ -63,6 +63,16 @@ val supabaseTestingKey =
 val bugsnagApiKey =
     (findProperty("bugsnag.apiKey") as? String) ?: System.getenv("BUGSNAG_API_KEY") ?: ""
 
+val revenueCatAndroidApiKey =
+    (findProperty("revenuecat.android.apiKey") as? String)
+        ?: System.getenv("REVENUECAT_ANDROID_API_KEY")
+        ?: ""
+
+val revenueCatIosApiKey =
+    (findProperty("revenuecat.ios.apiKey") as? String)
+        ?: System.getenv("REVENUECAT_IOS_API_KEY")
+        ?: ""
+
 // Collect test users by incrementing n until a pair is missing. Looked up in order:
 // 1. local.properties at the project root (chefmate.user.<n> / chefmate.user.password.<n>)
 // 2. ~/.gradle/gradle.properties or any other Gradle property source (same keys)
@@ -124,6 +134,8 @@ buildkonfig {
         buildConfigField(STRING, "SUPABASE_TESTING_URL", supabaseTestingUrl)
         buildConfigField(STRING, "SUPABASE_TESTING_KEY", supabaseTestingKey)
         buildConfigField(STRING, "BUGSNAG_API_KEY", bugsnagApiKey)
+        buildConfigField(STRING, "REVENUECAT_ANDROID_API_KEY", revenueCatAndroidApiKey)
+        buildConfigField(STRING, "REVENUECAT_IOS_API_KEY", revenueCatIosApiKey)
         buildConfigField(STRING, "TEST_USERS", testUsersSerialized)
         buildConfigField(BOOLEAN, "IS_DEBUG", isDebugBuildFlag.toString())
         buildConfigField(STRING, "VERSION_NAME", appVersionName)

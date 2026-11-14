@@ -29,6 +29,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     override init() {
         super.init()
         BugsnagStartup_iosKt.initializeBugsnag()
+        // Before `root` builds the DI graph: the subscription repository resolves its RevenueCat
+        // gateway on creation.
+        SubscriptionStartup_iosKt.initializeSubscriptions()
     }
 
     func application(
