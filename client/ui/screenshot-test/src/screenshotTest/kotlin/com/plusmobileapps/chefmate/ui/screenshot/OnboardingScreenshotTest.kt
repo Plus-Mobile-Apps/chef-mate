@@ -20,6 +20,8 @@ import com.plusmobileapps.chefmate.onboarding.impl.ui.previewRecipeBooksBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewSaveRecipesBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewStartCookingBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewStartCookingSignedInBloc
+import com.plusmobileapps.chefmate.onboarding.impl.ui.previewVoiceGroceryGeminiBloc
+import com.plusmobileapps.chefmate.onboarding.impl.ui.previewVoiceGrocerySiriBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewWelcomeBloc
 import com.plusmobileapps.chefmate.onboarding.impl.ui.previewWelcomeSignedInBloc
 import com.plusmobileapps.chefmate.ui.Content
@@ -43,7 +45,7 @@ fun OnboardingNavBarLightScreenshot() {
     OnboardingScreenshot(
         content = {
             OnboardingNavBar(currentStep = 1, totalSteps = 9, onBackClick = {}, onSkipClick = {})
-        }
+        },
     )
 }
 
@@ -101,7 +103,7 @@ fun OnboardingWelcomeSignedInDarkScreenshot() {
 @Composable
 fun OnboardingShareRecipesAndroidLightScreenshot() {
     OnboardingScreenshot(
-        content = { ShareRecipesScreen(platform = Platform.ANDROID, onNextClick = {}) }
+        content = { ShareRecipesScreen(platform = Platform.ANDROID, onNextClick = {}) },
     )
 }
 
@@ -120,7 +122,7 @@ fun OnboardingShareRecipesAndroidDarkScreenshot() {
 @Composable
 fun OnboardingShareRecipesIosLightScreenshot() {
     OnboardingScreenshot(
-        content = { ShareRecipesScreen(platform = Platform.IOS, onNextClick = {}) }
+        content = { ShareRecipesScreen(platform = Platform.IOS, onNextClick = {}) },
     )
 }
 
@@ -139,7 +141,7 @@ fun OnboardingShareRecipesIosDarkScreenshot() {
 @Composable
 fun OnboardingShareRecipesDesktopLightScreenshot() {
     OnboardingScreenshot(
-        content = { ShareRecipesScreen(platform = Platform.JVM, onNextClick = {}) }
+        content = { ShareRecipesScreen(platform = Platform.JVM, onNextClick = {}) },
     )
 }
 
@@ -183,6 +185,36 @@ fun OnboardingAddToGroceryLightScreenshot() {
 @Composable
 fun OnboardingAddToGroceryDarkScreenshot() {
     OnboardingScreenshot(content = { previewAddToGroceryBloc.Content() }, darkTheme = true)
+}
+
+// ── Add groceries by voice (Siri on iOS, Gemini on Android) ─────────────────
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+fun OnboardingVoiceGrocerySiriLightScreenshot() {
+    OnboardingScreenshot(content = { previewVoiceGrocerySiriBloc.Content() })
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun OnboardingVoiceGrocerySiriDarkScreenshot() {
+    OnboardingScreenshot(content = { previewVoiceGrocerySiriBloc.Content() }, darkTheme = true)
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+fun OnboardingVoiceGroceryGeminiLightScreenshot() {
+    OnboardingScreenshot(content = { previewVoiceGroceryGeminiBloc.Content() })
+}
+
+@PreviewTest
+@Preview(showBackground = true, heightDp = 900, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun OnboardingVoiceGroceryGeminiDarkScreenshot() {
+    OnboardingScreenshot(content = { previewVoiceGroceryGeminiBloc.Content() }, darkTheme = true)
 }
 
 // ── Add to meal plan ─────────────────────────────────────────────────────────

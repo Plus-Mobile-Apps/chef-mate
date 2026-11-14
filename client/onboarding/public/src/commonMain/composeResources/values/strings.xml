@@ -18,6 +18,10 @@
     <string name="onboarding_add_to_grocery_title">Add to your grocery list</string>
     <string name="onboarding_add_to_grocery_message">Open any recipe and tap the cart in the toolbar to send its ingredients straight to a grocery list. ChefMate combines duplicates so you never buy the same thing twice.</string>
 
+    <string name="onboarding_voice_grocery_title">Add groceries with your voice</string>
+    <string name="onboarding_voice_grocery_message_siri">Just ask Siri. Say “Add eggs to my ChefMate grocery list” and it lands on your list — no need to open the app, even when your hands are full.</string>
+    <string name="onboarding_voice_grocery_message_gemini">Just ask Gemini. Say “Add eggs and milk to my ChefMate grocery list” and they land on your list — no need to open the app, even when your hands are full.</string>
+
     <string name="onboarding_meal_planning_title">Add it to your meal plan</string>
     <string name="onboarding_meal_planning_message">Tap the calendar in the recipe toolbar to drop a recipe onto any day of the week. Map out breakfast, lunch, and dinner so there’s never a question of what’s for dinner.</string>
 
