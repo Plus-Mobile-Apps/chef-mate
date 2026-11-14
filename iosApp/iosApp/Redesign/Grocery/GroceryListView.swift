@@ -128,6 +128,12 @@ struct GroceryListView: View {
                 Section {
                     ForEach(group.items, id: \.id) { item in
                         row(item)
+                            // The pinned header below already separates the sections, so the
+                            // section's last row draws no divider of its own above it.
+                            .listRowSeparator(
+                                showHeaders && item.id == group.items.last?.id ? .hidden : .automatic,
+                                edges: .bottom
+                            )
                     }
                 } header: {
                     if showHeaders {
