@@ -3,13 +3,18 @@ import ComposeApp
 
 /// The redesigned Meals tab, mirroring the Android `MealPlanScreen`: a Day / Week / Month segmented
 /// control, a previous / next date row, and the planned meals grouped by meal type (or by day in
-/// the week view; under a month calendar in the month view). Swipe a meal to remove it; tap it to
-/// open the recipe. With family plans, the navigation title becomes a menu to switch plans.
+/// the week view; under a month calendar in the month view). Swipe the day or week view sideways to
+/// page; long-press a meal (or swipe it, in the month view) to remove it; tap it to open the recipe. With family plans, the navigation title becomes a menu to switch plans.
 ///
 /// Not yet ported (docs/ios-swiftui-redesign.md, PR 10): the first-run coach marks.
 struct MealPlanView: View {
     let bloc: MealPlanBloc
     @StateObject private var model: ObservedFlow<MealPlanBlocModel>
+    /// How far the day / week content is dragged sideways while paging to the previous or next one.
+    @State private var pageOffset: CGFloat = 0
+    /// Whether the current drag has been claimed as a horizontal page swipe (vs. a vertical scroll).
+    @State private var isPaging: Bool?
+    @State private var contentWidth: CGFloat = 0
 
     init(bloc: MealPlanBloc) {
         self.bloc = bloc
@@ -22,6 +27,10 @@ struct MealPlanView: View {
             controls(state)
             content(state)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(x: pageOffset)
+                .clipped()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
+                .simultaneousGesture(pageSwipe(state), including: state.viewMode == .month ? .subviews : .all)
                 // Let the last meal scroll clear of the cook-mode buttons.
                 .contentMargins(.bottom, state.cookingRecipeCount > 0 ? 80 : 0, for: .scrollContent)
         }
@@ -147,6 +156,43 @@ struct MealPlanView: View {
         .padding(.top, ChefTheme.Spacing.small)
     }
 
+    // MARK: Paging
+
+    /// Swipe the day or week view sideways to page to the previous (right) or next (left) one, like
+    /// the chevrons. The content follows the finger, slides out past the threshold, and the new
+    /// period slides in from the opposite edge. Mostly vertical drags are left to the list.
+    private func pageSwipe(_ state: MealPlanBlocModel) -> some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { value in
+                let dx = value.translation.width, dy = value.translation.height
+                if isPaging == nil { isPaging = abs(dx) > abs(dy) * 1.5 }
+                guard isPaging == true else { return }
+                pageOffset = dx
+            }
+            .onEnded { value in
+                defer { isPaging = nil }
+                guard isPaging == true else { return }
+                let dx = value.translation.width
+                let projected = value.predictedEndTranslation.width
+                let threshold = max(contentWidth, 1) * 0.25
+                guard abs(dx) > threshold || abs(projected) > max(contentWidth, 1) * 0.5 else {
+                    withAnimation(.snappy) { pageOffset = 0 }
+                    return
+                }
+                let forward = dx < 0
+                let width = max(contentWidth, 300)
+                withAnimation(.easeIn(duration: 0.15)) {
+                    pageOffset = forward ? -width : width
+                } completion: {
+                    if forward { bloc.onNextClicked() } else { bloc.onPreviousClicked() }
+                    var entry = Transaction()
+                    entry.disablesAnimations = true
+                    withTransaction(entry) { pageOffset = forward ? width : -width }
+                    withAnimation(.snappy) { pageOffset = 0 }
+                }
+            }
+    }
+
     // MARK: Content
 
     @ViewBuilder
@@ -189,7 +235,7 @@ struct MealPlanView: View {
                     ForEach(Array(nonEmpty.enumerated()), id: \.offset) { _, day in
                         Section {
                             ForEach(day.meals, id: \.id) { meal in
-                                mealRow(meal, showsMealType: true)
+                                mealRow(meal, showsMealType: true, swipeToDelete: false)
                             }
                         } header: {
                             MealSectionHeader(title: day.dateLabel.localized)
@@ -239,7 +285,7 @@ struct MealPlanView: View {
         ForEach(meals.sections, id: \.type) { section in
             Section {
                 ForEach(section.meals, id: \.id) { meal in
-                    mealRow(meal, showsMealType: false)
+                    mealRow(meal, showsMealType: false, swipeToDelete: allowsSwipeToDelete)
                 }
             } header: {
                 MealSectionHeader(title: section.type.title) {
@@ -255,7 +301,11 @@ struct MealPlanView: View {
         }
     }
 
-    private func mealRow(_ meal: MealPlanItem, showsMealType: Bool) -> some View {
+    /// Day and week rows page on a sideways swipe, so only the month list (which doesn't page)
+    /// keeps swipe-to-delete; the long-press menu deletes everywhere.
+    private var allowsSwipeToDelete: Bool { model.value.viewMode == .month }
+
+    private func mealRow(_ meal: MealPlanItem, showsMealType: Bool, swipeToDelete: Bool) -> some View {
         Button { bloc.onMealClicked(item: meal) } label: {
             HStack(spacing: ChefTheme.Spacing.normal) {
                 MealThumbnail(url: meal.recipeImageUrl, size: showsMealType ? 40 : 48)
@@ -275,10 +325,12 @@ struct MealPlanView: View {
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) { bloc.onDeleteMealClicked(item: meal) } label: {
-                Label(ComposeStrings["meal_plan_delete"], systemImage: "trash")
+            if swipeToDelete {
+                Button(role: .destructive) { bloc.onDeleteMealClicked(item: meal) } label: {
+                    Label(ComposeStrings["meal_plan_delete"], systemImage: "trash")
+                }
+                .tint(.red)
             }
-            .tint(.red)
         }
         .contextMenu {
             Button(role: .destructive) { bloc.onDeleteMealClicked(item: meal) } label: {
