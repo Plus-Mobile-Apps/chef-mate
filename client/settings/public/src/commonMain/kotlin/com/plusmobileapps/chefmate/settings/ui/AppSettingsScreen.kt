@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import chefmate.client.settings.public.generated.resources.Res
 import chefmate.client.settings.public.generated.resources.app_settings_backup_section
+import chefmate.client.settings.public.generated.resources.app_settings_beta_section
 import chefmate.client.settings.public.generated.resources.app_settings_bottom_nav_order
 import chefmate.client.settings.public.generated.resources.app_settings_browser_bookmarks
 import chefmate.client.settings.public.generated.resources.app_settings_browser_history_enabled
@@ -42,6 +43,8 @@ import chefmate.client.settings.public.generated.resources.app_settings_grocery_
 import chefmate.client.settings.public.generated.resources.app_settings_navigation_section
 import chefmate.client.settings.public.generated.resources.app_settings_recipe_categories
 import chefmate.client.settings.public.generated.resources.app_settings_recipes_section
+import chefmate.client.settings.public.generated.resources.app_settings_swiftui_redesign
+import chefmate.client.settings.public.generated.resources.app_settings_swiftui_redesign_description
 import chefmate.client.settings.public.generated.resources.app_settings_title
 import chefmate.client.settings.public.generated.resources.export_recipes
 import chefmate.client.settings.public.generated.resources.import_recipes
@@ -144,6 +147,17 @@ fun AppSettingsScreen(bloc: AppSettingsBloc, modifier: Modifier = Modifier) {
                 name = Res.string.export_recipes.asTextData(),
                 onClick = bloc::onExportRecipesClicked,
             )
+            if (state.showBetaSection) {
+                HorizontalDivider()
+                SectionHeader(name = Res.string.app_settings_beta_section.asTextData())
+                DescribedToggleRow(
+                    name = Res.string.app_settings_swiftui_redesign.asTextData(),
+                    description = Res.string.app_settings_swiftui_redesign_description.asTextData(),
+                    checked = state.isSwiftUiRedesignEnabled,
+                    onCheckedChange = bloc::onSwiftUiRedesignChanged,
+                    modifier = Modifier.testTag(SettingsTestTags.SWIFTUI_REDESIGN_TOGGLE),
+                )
+            }
         },
     )
 }
@@ -284,6 +298,38 @@ private fun HistoryToggleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(name.localized(), style = ChefMateTheme.typography.titleMedium)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun DescribedToggleRow(
+    name: TextData,
+    description: TextData,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) }
+                .padding(
+                    horizontal = ChefMateTheme.dimens.paddingNormal,
+                    vertical = ChefMateTheme.dimens.paddingSmall,
+                ),
+        horizontalArrangement = Arrangement.spacedBy(ChefMateTheme.dimens.paddingNormal),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(name.localized(), style = ChefMateTheme.typography.titleMedium)
+            Text(
+                description.localized(),
+                style = ChefMateTheme.typography.bodyMedium,
+                color = ChefMateTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

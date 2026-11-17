@@ -42,6 +42,9 @@
     <string name="app_settings_grocery_section">Grocery</string>
     <string name="app_settings_grocery_autocomplete">Autocomplete items</string>
     <string name="app_settings_grocery_category_rules">Category rules</string>
+    <string name="app_settings_beta_section">Beta</string>
+    <string name="app_settings_swiftui_redesign">New iOS design</string>
+    <string name="app_settings_swiftui_redesign_description">Try the redesigned native iOS app. Takes effect the next time you open the app.</string>
     <string name="developer_settings">Developer Settings</string>
     <string name="version_label">Version {version}</string>
 </resources>

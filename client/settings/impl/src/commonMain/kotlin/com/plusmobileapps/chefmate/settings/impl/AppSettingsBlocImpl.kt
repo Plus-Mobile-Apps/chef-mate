@@ -86,4 +86,8 @@ class AppSettingsBlocImpl(
     override fun onGroceryCategoryRulesClicked() {
         output.onNext(Output.OpenGroceryCategoryRules)
     }
+
+    override fun onSwiftUiRedesignChanged(enabled: Boolean) {
+        viewModel.setSwiftUiRedesignEnabled(enabled)
+    }
 }

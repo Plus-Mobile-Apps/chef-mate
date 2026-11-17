@@ -20,6 +20,7 @@ kotlin {
             implementation(compose.components.resources)
         }
         commonTest.dependencies {
+            implementation(libs.multiplatform.settings.test)
             implementation(projects.client.auth.data.testing)
             implementation(projects.client.browser.testing)
             implementation(projects.client.featureflag.testing)

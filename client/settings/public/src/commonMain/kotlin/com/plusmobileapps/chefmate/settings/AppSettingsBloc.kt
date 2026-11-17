@@ -48,12 +48,18 @@ interface AppSettingsBloc : BackHandlerOwner, ComposeScreen {
 
     fun onGroceryCategoryRulesClicked()
 
+    fun onSwiftUiRedesignChanged(enabled: Boolean)
+
     data class Model(
         val isHistoryEnabled: Boolean = true,
         val showClearHistoryDialog: Boolean = false,
         /** The current default search engine, or null until the user picks one. */
         val selectedSearchEngine: SearchEngine? = null,
         val showSearchEnginePicker: Boolean = false,
+        /** Whether the Beta section is shown — it only holds iOS-only toggles today. */
+        val showBetaSection: Boolean = false,
+        /** iOS: launch the native SwiftUI shell. Takes effect on the next cold start. */
+        val isSwiftUiRedesignEnabled: Boolean = false,
     )
 
     sealed class Output {

@@ -1,11 +1,14 @@
 package com.plusmobileapps.chefmate.settings.impl
 
+import com.plusmobileapps.chefmate.Platform
 import com.plusmobileapps.chefmate.ViewModel
 import com.plusmobileapps.chefmate.browser.BrowserHistoryRepository
 import com.plusmobileapps.chefmate.browser.BrowserPreferences
 import com.plusmobileapps.chefmate.browser.SearchEngine
+import com.plusmobileapps.chefmate.currentPlatform
 import com.plusmobileapps.chefmate.di.Main
 import com.plusmobileapps.chefmate.settings.AppSettingsBloc
+import com.plusmobileapps.chefmate.settings.BetaPreferences
 import dev.zacsweers.metro.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,9 +24,12 @@ class AppSettingsViewModel(
     @Main mainContext: CoroutineContext,
     private val browserPreferences: BrowserPreferences,
     private val historyRepository: BrowserHistoryRepository,
+    private val betaPreferences: BetaPreferences,
+    platform: Platform = currentPlatform,
 ) : ViewModel(mainContext) {
 
-    private val _state = MutableStateFlow(AppSettingsBloc.Model())
+    private val _state =
+        MutableStateFlow(AppSettingsBloc.Model(showBetaSection = platform == Platform.IOS))
     val state: StateFlow<AppSettingsBloc.Model> = _state.asStateFlow()
 
     init {
@@ -33,6 +39,13 @@ class AppSettingsViewModel(
         browserPreferences.defaultSearchEngine
             .onEach { engine -> _state.update { it.copy(selectedSearchEngine = engine) } }
             .launchIn(scope)
+        betaPreferences.isSwiftUiRedesignEnabled
+            .onEach { enabled -> _state.update { it.copy(isSwiftUiRedesignEnabled = enabled) } }
+            .launchIn(scope)
+    }
+
+    fun setSwiftUiRedesignEnabled(enabled: Boolean) {
+        betaPreferences.setSwiftUiRedesignEnabled(enabled)
     }
 
     fun setHistoryEnabled(enabled: Boolean) {
