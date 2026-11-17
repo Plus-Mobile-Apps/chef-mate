@@ -9,6 +9,7 @@ import com.plusmobileapps.chefmate.featureflag.Override
 import com.russhwolf.settings.MapSettings
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 
@@ -35,7 +36,7 @@ class FeatureFlagRepositoryImplTest {
                     value = "true",
                     enabled = true,
                     rolloutPercent = 100,
-                )
+                ),
             )
         val repo = buildRepo(remoteRows = rows)
 
@@ -56,8 +57,8 @@ class FeatureFlagRepositoryImplTest {
                             value = "true",
                             enabled = false, // remote says disabled
                             rolloutPercent = 100,
-                        )
-                    )
+                        ),
+                    ),
             )
         repo.refresh()
         repo.valueOf(cookFlag).value shouldBe false
@@ -79,8 +80,8 @@ class FeatureFlagRepositoryImplTest {
                             value = "remote-text",
                             enabled = true,
                             rolloutPercent = 100,
-                        )
-                    )
+                        ),
+                    ),
             )
         repo.refresh()
 
@@ -105,8 +106,8 @@ class FeatureFlagRepositoryImplTest {
                         value = "remote-text",
                         enabled = true,
                         rolloutPercent = 100,
-                    )
-                )
+                    ),
+                ),
             )
         val repo =
             buildRepo(
@@ -131,7 +132,7 @@ class FeatureFlagRepositoryImplTest {
         val overridesSettings = MapSettings()
         val overrides = FeatureFlagOverridesImpl(overridesSettings)
         val authRepo = FakeAuthenticationRepository()
-        val identity = BucketingIdentityProvider(authRepo, MapSettings())
+        val identity = BucketingIdentityProvider(authRepo, MapSettings(), Dispatchers.Unconfined)
         val remote = FakeRemote(remoteRows)
         val repo =
             FeatureFlagRepositoryImpl(
