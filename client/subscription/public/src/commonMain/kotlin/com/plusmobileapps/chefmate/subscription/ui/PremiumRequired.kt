@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -21,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import chefmate.client.subscription.public.generated.resources.Res
 import chefmate.client.subscription.public.generated.resources.premium_locked_badge
 import chefmate.client.subscription.public.generated.resources.premium_required_confirm
+import chefmate.client.subscription.public.generated.resources.premium_required_dismiss
 import chefmate.client.subscription.public.generated.resources.premium_required_message
 import chefmate.client.subscription.public.generated.resources.premium_required_title
 import com.plusmobileapps.chefmate.subscription.SubscriptionTestTags
@@ -41,21 +46,28 @@ private val TOOLBAR_LOCK_BADGE_SIZE = 13.dp
 private val TOOLBAR_LOCK_BADGE_INSET = 1.dp
 
 /**
- * Shown when a non-subscriber taps a premium entry point. There is no paywall to route to yet, so
- * confirming just dismisses.
+ * Shown when a non-subscriber taps a premium entry point. "Subscribe" swaps the prompt for the
+ * [PremiumPaywall]; closing either one — or completing a purchase — calls [onDismiss].
  *
- * TODO: once the paywall screen exists, give this a "Subscribe" confirm button that routes to it
- *   and keep [onDismiss] as the cancel path.
+ * Which of the two is showing is purely presentational, so it lives here rather than in each gated
+ * screen's BLoC: callers keep a single "premium prompt visible" flag and the purchase itself is
+ * observed through `SubscriptionRepository.isSubscribed`.
  */
 @Composable
 fun PremiumRequiredDialog(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    var showPaywall by rememberSaveable { mutableStateOf(false) }
+    if (showPaywall) {
+        PremiumPaywall(onDismiss = onDismiss)
+        return
+    }
     // PlusDialog renders into a dialog window, so the tag has to ride on content inside it for the
     // semantics tree to pick it up from the screen's root.
     PlusDialog(
         title = Res.string.premium_required_title.asTextData(),
         message = Res.string.premium_required_message.asTextData(),
         confirmButtonText = Res.string.premium_required_confirm.asTextData(),
-        onConfirmClick = onDismiss,
+        dismissButtonText = Res.string.premium_required_dismiss.asTextData(),
+        onConfirmClick = { showPaywall = true },
         onDismissRequest = onDismiss,
         modifier = modifier.testTag(SubscriptionTestTags.PREMIUM_REQUIRED_DIALOG),
     )

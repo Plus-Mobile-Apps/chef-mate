@@ -13,6 +13,8 @@ This project uses [BuildKonfig](https://github.com/yshrsmz/BuildKonfig) to secur
 supabase.url=https://your-project-id.supabase.co
 supabase.key=your-anon-public-key
 bugsnag.apiKey=your-bugsnag-api-key
+revenuecat.android.apiKey=goog_your-revenuecat-public-key
+revenuecat.ios.apiKey=appl_your-revenuecat-public-key
 ```
 
 You can also pass them per build with `-Psupabase.url=...`. **Note:** these keys are read with Gradle's `findProperty`, so putting them in the project's `local.properties` has no effect — `local.properties` is only read for the developer-menu test users (`chefmate.user.*`, see [developer-settings.md](developer-settings.md)).
@@ -25,6 +27,8 @@ Set the following environment variables:
 export SUPABASE_URL=https://your-project-id.supabase.co
 export SUPABASE_KEY=your-anon-public-key
 export BUGSNAG_API_KEY=your-bugsnag-api-key
+export REVENUECAT_ANDROID_API_KEY=goog_your-revenuecat-public-key
+export REVENUECAT_IOS_API_KEY=appl_your-revenuecat-public-key
 ```
 
 ### Priority
