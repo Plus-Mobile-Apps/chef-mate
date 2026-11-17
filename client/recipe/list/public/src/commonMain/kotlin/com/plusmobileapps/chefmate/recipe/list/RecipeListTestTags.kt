@@ -26,4 +26,8 @@ object RecipeListTestTags {
     const val BULK_BOOK_SHEET: String = "recipe_list_bulk_book_sheet"
     const val BULK_CATEGORY_SHEET: String = "recipe_list_bulk_category_sheet"
     const val FILTER_SIDEBAR: String = "recipe_list_filter_sidebar"
+    const val SEARCH_BUTTON: String = "recipe_list_search_button"
+    const val SEARCH_SCREEN: String = "recipe_list_search_screen"
+    const val SEARCH_FIELD: String = "recipe_list_search_field"
+    const val SEARCH_CANCEL: String = "recipe_list_search_cancel"
 }

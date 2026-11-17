@@ -2,6 +2,8 @@ package com.plusmobileapps.chefmate.recipe.list.impl.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.arkivanov.essenty.backhandler.BackDispatcher
+import com.arkivanov.essenty.backhandler.BackHandler
 import com.plusmobileapps.chefmate.recipe.data.BuiltinCategory
 import com.plusmobileapps.chefmate.recipe.data.Category
 import com.plusmobileapps.chefmate.recipe.data.SyncStatus
@@ -65,6 +67,8 @@ private val sampleRecipes =
 private fun recipeListBloc(model: RecipeListBloc.Model): RecipeListBloc =
     object : RecipeListBloc {
         override val state = MutableStateFlow(model)
+
+        override val backHandler: BackHandler = BackDispatcher()
 
         override fun onRecipeClicked(recipe: RecipeListItem) = Unit
 
@@ -163,7 +167,7 @@ val previewRecipeListBloc: RecipeListBloc =
             totalRecipeCount = sampleRecipes.size,
             recipeBooks = RecipeBook.Samples,
             activeBook = RecipeBook.Sample,
-        )
+        ),
     )
 
 /** "All recipes" cross-book view active — the selector reads "All recipes" with no single book. */
@@ -175,7 +179,7 @@ val previewRecipeListBlocAllRecipes: RecipeListBloc =
             recipeBooks = RecipeBook.Samples,
             activeBook = null,
             isAllRecipesSelected = true,
-        )
+        ),
     )
 
 /**
@@ -191,7 +195,7 @@ val previewRecipeListBlocSearchEmpty: RecipeListBloc =
             activeBook = RecipeBook.Sample,
             searchQuery = "tonkotsu",
             isSearchActive = true,
-        )
+        ),
     )
 
 /**
@@ -205,7 +209,7 @@ val previewRecipeListBlocCooking: RecipeListBloc =
             recipes = sampleRecipes,
             totalRecipeCount = sampleRecipes.size,
             cookingRecipeCount = 2,
-        )
+        ),
     )
 
 /** Recipe list with one active category filter — exercises the filter-icon badge indicator. */
@@ -215,7 +219,7 @@ val previewRecipeListBlocCategoryFiltered: RecipeListBloc =
             recipes = sampleRecipes,
             totalRecipeCount = sampleRecipes.size,
             activeCategories = setOf(BuiltinCategory.BREAKFAST),
-        )
+        ),
     )
 
 /**
@@ -234,7 +238,7 @@ val previewRecipeListBlocFilterSidebar: RecipeListBloc =
                     Category(id = 42L, name = "Weeknight"),
                     Category(id = 43L, name = "Meal Prep"),
                 ),
-        )
+        ),
     )
 
 /** Recipe list in multi-select mode with two recipes picked — exercises the selection top bar. */
@@ -245,7 +249,7 @@ val previewRecipeListBlocSelectionMode: RecipeListBloc =
             totalRecipeCount = sampleRecipes.size,
             isSelectionMode = true,
             selectedRecipeIds = setOf(1L, 3L),
-        )
+        ),
     )
 
 /** Multi-select mode with no recipes picked — locks in the disabled export icon state. */
@@ -256,7 +260,7 @@ val previewRecipeListBlocSelectionModeEmpty: RecipeListBloc =
             totalRecipeCount = sampleRecipes.size,
             isSelectionMode = true,
             selectedRecipeIds = emptySet(),
-        )
+        ),
     )
 
 /** Photo scan in progress — shows the non-cancellable scanning dialog over the list. */
@@ -266,7 +270,7 @@ val previewRecipeListBlocScanning: RecipeListBloc =
             recipes = sampleRecipes,
             totalRecipeCount = sampleRecipes.size,
             isScanning = true,
-        )
+        ),
     )
 
 /** Recipe list with a pending recipe-book invite — exercises the accept/decline invite banner. */
@@ -283,9 +287,9 @@ val previewRecipeListBlocPendingInvite: RecipeListBloc =
                         memberId = "invite-1",
                         bookName = "Weeknight Dinners",
                         role = RecipeBookRole.EDITOR,
-                    )
+                    ),
                 ),
-        )
+        ),
     )
 
 /** Photo scan failed — shows the scan-error dialog. */
@@ -297,9 +301,9 @@ val previewRecipeListBlocScanError: RecipeListBloc =
             scanError =
                 FixedString(
                     "We couldn’t read a recipe from that photo. Try a clearer shot of the full " +
-                        "recipe."
+                        "recipe.",
                 ),
-        )
+        ),
     )
 
 /**

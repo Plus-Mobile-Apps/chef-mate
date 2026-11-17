@@ -24,6 +24,11 @@
     <string name="recipe_list_search_empty">No recipes match your search</string>
     <string name="recipe_list_search_empty_book_hint">This search only covers the current book.</string>
     <string name="recipe_list_search_all_recipes">Search all recipes</string>
+    <string name="recipe_list_search_cancel">Cancel</string>
+    <string name="recipe_list_search_quick_filters">Quick filters</string>
+    <string name="recipe_list_search_categories">Browse by category</string>
+    <string name="recipe_list_search_results">Results</string>
+    <string name="recipe_list_search_scope_book">Searching in {book}</string>
 
     <!-- Sort -->
     <string name="recipe_list_sort">Sort</string>

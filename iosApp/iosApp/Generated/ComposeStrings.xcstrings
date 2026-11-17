@@ -6947,6 +6947,22 @@
         }
       }
     },
+    "recipe_list_search_cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Cancel" }
+        }
+      }
+    },
+    "recipe_list_search_categories" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Browse by category" }
+        }
+      }
+    },
     "recipe_list_search_clear" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6976,6 +6992,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : { "state" : "translated", "value" : "Search recipes…" }
+        }
+      }
+    },
+    "recipe_list_search_quick_filters" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Quick filters" }
+        }
+      }
+    },
+    "recipe_list_search_results" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Results" }
+        }
+      }
+    },
+    "recipe_list_search_scope_book" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Searching in {book}" }
         }
       }
     },
