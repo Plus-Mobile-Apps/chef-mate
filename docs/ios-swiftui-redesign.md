@@ -1,6 +1,6 @@
 # iOS SwiftUI Redesign
 
-Rebuild the iOS UI natively in SwiftUI, one screen per PR, behind the `ios_swiftui_redesign` flag.
+Rebuild the iOS UI natively in SwiftUI, one screen per PR, behind a Beta toggle in Settings.
 The look follows the Android (Material 3) app — same layouts, hierarchy, copy, and colors — but uses
 native iOS chrome: a `NavigationStack` for push/pop and the edge-swipe back gesture, `TabView` for
 the bottom nav, and Liquid Glass on toolbars, the tab bar, sheets, and floating controls.
@@ -8,26 +8,19 @@ the bottom nav, and Liquid Glass on toolbars, the tab bar, sheets, and floating 
 Business logic does **not** move. Every screen keeps binding to its existing Kotlin BLoC; only the
 rendering layer changes on iOS. Android, desktop, and web keep their Compose UI.
 
-## Feature flag
+## Beta toggle
 
 | | |
 |---|---|
-| Key | `ios_swiftui_redesign` (`FeatureFlagRegistry.IosSwiftUiRedesign`) |
+| Setting | **Settings → Beta → New iOS design** (iOS only) |
+| Storage | `BetaPreferences.isSwiftUiRedesignEnabled` (device-local `Settings` key `beta.swiftui_redesign`) |
 | Default | `false` |
 | Read | once, in `RootBlocProvider.buildRootBloc`, into `RootBlocProvider.useSwiftUiRedesign` |
 | Consumed | `ContentView.swift` picks `RedesignRootView` vs the Compose root |
 
-The value is snapshotted at launch (cached rows + dev overrides), so the shell never swaps
-mid-session. Toggle it from **More → Developer settings → Feature flags** and relaunch the app. The
-redesigned More tab keeps that path reachable at every stage, so the flag can always be turned back
-off from inside the redesign.
-
-Supabase row (iOS only, start at 0%):
-
-```sql
-insert into feature_flags (key, value_type, value, enabled, rollout_percent, platforms)
-values ('ios_swiftui_redesign', 'bool', 'true', true, 0, array['IOS']);
-```
+The value is snapshotted at launch, so the shell never swaps mid-session; a change takes effect on
+the next cold start. Both the Compose and the SwiftUI app settings screens show the Beta section on
+iOS, so the redesign can always be turned back off from inside it.
 
 ## Architecture
 
@@ -42,7 +35,7 @@ each child, `RootChildView` (root stack) or `TabChildView` (bottom-nav tabs) pic
   `UIViewController` (`ComposeScreenHost` → Kotlin `ComposeScreenViewController.create(screen:)`),
   wrapped in `ChefMateTheme`.
 
-So the flag is always usable end to end, and each screen PR just flips one case from hosted to
+So the toggle is always usable end to end, and each screen PR just flips one case from hosted to
 native.
 
 ### State interop
@@ -190,7 +183,7 @@ has native equivalents in `Redesign/GlobalHosts.swift`, applied once at the root
 
 Each PR: SwiftUI views under `iosApp/iosApp/Redesign/<Feature>/`, add a case to `RootChildView` /
 `TabChildView`, add the framework `export`, add `#Preview`s fed by the Kotlin `preview*Bloc`
-fakes from the feature's `Previews.kt`, and check the flag off and on in the simulator.
+fakes from the feature's `Previews.kt`, and check the toggle off and on in the simulator.
 
 | # | PR | Screens | Notes |
 |---|---|---|---|
@@ -214,8 +207,8 @@ fakes from the feature's `Previews.kt`, and check the flag off and on in the sim
 | 17 | Profile + notifications | `ManageProfileScreen`, `NotificationsScreen` | Done (first cut): profile Form with `PhotosPicker` avatar, display name, read-only email, and delete account behind an email-confirmation alert. Notifications lists invites with Accept/Decline (also as swipe actions), plus signed-out and empty states; the invite text comes from a shared Kotlin `notificationMessage()` so `notifications:data` needn't be exported. |
 | 18 | Manage family | `FamilyListScreen`, `FamilyDetailScreen` | Done (first cut): ManageFamily flattened into the root stack, both screens native. Form dialogs (new/rename family, invite, create/rename shared grocery list or recipe book) are sheets; confirmations are alerts; member and collection actions are menus. |
 | 19 | Recipe books & misc | `EditRecipeBookScreen`, `RecipeCategoriesScreen`, `ExportRecipesScreen`, `ImportRecipesScreen`, public recipe | Done (first cut): SettingsRoot flattened, EditRecipeBook as the first native sheet (Form: name, collaborators by role, invite, delete/leave), categories with inline create, context menu / swipe rename-delete and bulk selection, import/export via `fileImporter` / `fileExporter` (bytes cross through `NativeBytes`), public recipe with a floating Save. Export opened from the recipe list is native too. |
-| 20 | Dev tools | `DeveloperSettingsScreen`, `FeatureFlagsScreen` | Done (first cut): developer settings with environment / test-user pickers as sheets, premium toggle, coach-mark reset and restart alerts. Feature flags: Default / On / Off segmented control per boolean flag, text field with Reset / Save for string flags, Reset all in the nav bar. Still reachable from More → Developer settings, so the redesign flag can be turned off from inside it. |
-| 21 | Rollout + cleanup | — | Ramp the flag; once at 100%, delete the hosted fallback and the Compose iOS path. |
+| 20 | Dev tools | `DeveloperSettingsScreen`, `FeatureFlagsScreen` | Done (first cut): developer settings with environment / test-user pickers as sheets, premium toggle, coach-mark reset and restart alerts. Feature flags: Default / On / Off segmented control per boolean flag, text field with Reset / Save for string flags, Reset all in the nav bar. Still reachable from More → Developer settings. |
+| 21 | Rollout + cleanup | — | Once the Beta toggle has had enough use, delete the hosted fallback and the Compose iOS path. |
 
 ## Open questions
 

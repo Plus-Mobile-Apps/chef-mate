@@ -23,10 +23,9 @@ import kotlinx.coroutines.launch
  *
  * Auth starts as [AuthState.Unauthenticated] on every cold start and only flips to
  * [AuthState.Authenticated] once Supabase has loaded the saved session in the background. Flags
- * read synchronously at launch (e.g. `ios_swiftui_redesign`, snapshotted once to pick the UI shell)
- * would therefore always see the device id and miss the user allowlist. To avoid that, the last
- * signed-in user id is remembered and used until auth settles, and forgotten on an observed
- * sign-out.
+ * read synchronously at launch (e.g. a flag snapshotted once at startup) would therefore always see
+ * the device id and miss the user allowlist. To avoid that, the last signed-in user id is
+ * remembered and used until auth settles, and forgotten on an observed sign-out.
  */
 @Inject
 @SingleIn(AppScope::class)
