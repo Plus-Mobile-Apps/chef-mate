@@ -24,6 +24,8 @@ import com.plusmobileapps.chefmate.onboarding.RecipeBooksBloc
 import com.plusmobileapps.chefmate.onboarding.SaveRecipesBloc
 import com.plusmobileapps.chefmate.onboarding.ShareRecipesBloc
 import com.plusmobileapps.chefmate.onboarding.StartCookingBloc
+import com.plusmobileapps.chefmate.onboarding.VoiceAssistantProvider
+import com.plusmobileapps.chefmate.onboarding.VoiceGroceryBloc
 import com.plusmobileapps.chefmate.onboarding.WelcomeBloc
 import com.plusmobileapps.metro.extensions.assistedfactory.ContributesAssistedFactory
 import dev.zacsweers.metro.Assisted
@@ -40,10 +42,12 @@ class OnboardingRootBlocImpl(
     @Assisted private val props: OnboardingRootBloc.Props,
     @Assisted private val output: Consumer<Output>,
     private val onboardingRepository: OnboardingRepository,
+    voiceAssistantProvider: VoiceAssistantProvider,
     private val welcome: WelcomeBloc.Factory,
     private val shareRecipes: ShareRecipesBloc.Factory,
     private val saveRecipes: SaveRecipesBloc.Factory,
     private val addToGrocery: AddToGroceryBloc.Factory,
+    private val voiceGrocery: VoiceGroceryBloc.Factory,
     private val mealPlanning: MealPlanningBloc.Factory,
     private val cookMode: CookModeBloc.Factory,
     private val recipeBooks: RecipeBooksBloc.Factory,
@@ -53,6 +57,9 @@ class OnboardingRootBlocImpl(
 ) : OnboardingRootBloc, BlocContext by context {
 
     private val navigation = StackNavigation<Configuration>()
+
+    /** Null when the device has no supported voice assistant, which leaves the voice step out. */
+    private val voiceAssistant = voiceAssistantProvider.voiceAssistant()
 
     private val stack =
         childStack(
@@ -66,7 +73,7 @@ class OnboardingRootBlocImpl(
 
     override val routerState: Value<ChildStack<*, OnboardingRootBloc.Child>> = stack
 
-    override val totalSteps: Int = STEP_COUNT
+    override val totalSteps: Int = if (voiceAssistant != null) STEP_COUNT + 1 else STEP_COUNT
 
     override val isDismissible: Boolean = props.isDismissible
 
@@ -92,46 +99,59 @@ class OnboardingRootBlocImpl(
                             context = context,
                             showSignIn = !props.isSignedIn,
                             output = ::handleWelcomeOutput,
-                        )
+                        ),
                 )
 
             Configuration.ShareRecipes ->
                 OnboardingRootBloc.Child.ShareRecipes(
                     bloc =
-                        shareRecipes.create(context = context, output = ::handleShareRecipesOutput)
+                        shareRecipes.create(context = context, output = ::handleShareRecipesOutput),
                 )
 
             Configuration.SaveRecipes ->
                 OnboardingRootBloc.Child.SaveRecipes(
-                    bloc = saveRecipes.create(context = context, output = ::handleSaveRecipesOutput)
+                    bloc =
+                        saveRecipes.create(context = context, output = ::handleSaveRecipesOutput),
                 )
 
             Configuration.AddToGrocery ->
                 OnboardingRootBloc.Child.AddToGrocery(
                     bloc =
-                        addToGrocery.create(context = context, output = ::handleAddToGroceryOutput)
+                        addToGrocery.create(context = context, output = ::handleAddToGroceryOutput),
+                )
+
+            Configuration.VoiceGrocery ->
+                OnboardingRootBloc.Child.VoiceGrocery(
+                    bloc =
+                        voiceGrocery.create(
+                            context = context,
+                            // Only navigated to when an assistant is available.
+                            assistant = checkNotNull(voiceAssistant),
+                            output = ::handleVoiceGroceryOutput,
+                        ),
                 )
 
             Configuration.MealPlanning ->
                 OnboardingRootBloc.Child.MealPlanning(
                     bloc =
-                        mealPlanning.create(context = context, output = ::handleMealPlanningOutput)
+                        mealPlanning.create(context = context, output = ::handleMealPlanningOutput),
                 )
 
             Configuration.CookMode ->
                 OnboardingRootBloc.Child.CookMode(
-                    bloc = cookMode.create(context = context, output = ::handleCookModeOutput)
+                    bloc = cookMode.create(context = context, output = ::handleCookModeOutput),
                 )
 
             Configuration.RecipeBooks ->
                 OnboardingRootBloc.Child.RecipeBooks(
-                    bloc = recipeBooks.create(context = context, output = ::handleRecipeBooksOutput)
+                    bloc =
+                        recipeBooks.create(context = context, output = ::handleRecipeBooksOutput),
                 )
 
             Configuration.GroceryLists ->
                 OnboardingRootBloc.Child.GroceryLists(
                     bloc =
-                        groceryLists.create(context = context, output = ::handleGroceryListsOutput)
+                        groceryLists.create(context = context, output = ::handleGroceryListsOutput),
                 )
 
             Configuration.FamilySharing ->
@@ -140,7 +160,7 @@ class OnboardingRootBlocImpl(
                         familySharing.create(
                             context = context,
                             output = ::handleFamilySharingOutput,
-                        )
+                        ),
                 )
 
             Configuration.StartCooking ->
@@ -150,7 +170,7 @@ class OnboardingRootBlocImpl(
                             context = context,
                             showSignUp = !props.isSignedIn,
                             output = ::handleStartCookingOutput,
-                        )
+                        ),
                 )
         }
 
@@ -181,7 +201,17 @@ class OnboardingRootBlocImpl(
 
     private fun handleAddToGroceryOutput(output: AddToGroceryBloc.Output) {
         when (output) {
-            AddToGroceryBloc.Output.Next -> advanceTo(Configuration.MealPlanning)
+            AddToGroceryBloc.Output.Next ->
+                advanceTo(
+                    if (voiceAssistant != null) Configuration.VoiceGrocery
+                    else Configuration.MealPlanning,
+                )
+        }
+    }
+
+    private fun handleVoiceGroceryOutput(output: VoiceGroceryBloc.Output) {
+        when (output) {
+            VoiceGroceryBloc.Output.Next -> advanceTo(Configuration.MealPlanning)
         }
     }
 
@@ -232,7 +262,8 @@ class OnboardingRootBlocImpl(
     private companion object {
         /**
          * Welcome, Share recipes, Save recipes, Add to grocery, Meal planning, Cook mode, Recipe
-         * books, Grocery lists, Family sharing, Start cooking.
+         * books, Grocery lists, Family sharing, Start cooking. The optional voice grocery step is
+         * added on top of this when a voice assistant is available.
          */
         const val STEP_COUNT = 10
     }
@@ -246,6 +277,8 @@ class OnboardingRootBlocImpl(
         @Serializable data object SaveRecipes : Configuration()
 
         @Serializable data object AddToGrocery : Configuration()
+
+        @Serializable data object VoiceGrocery : Configuration()
 
         @Serializable data object MealPlanning : Configuration()
 

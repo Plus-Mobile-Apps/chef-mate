@@ -20,6 +20,9 @@ object OnboardingTestTags {
     const val ADD_TO_GROCERY_SCREEN = "onboarding_add_to_grocery_screen"
     const val ADD_TO_GROCERY_NEXT_BUTTON = "onboarding_add_to_grocery_next_button"
 
+    const val VOICE_GROCERY_SCREEN = "onboarding_voice_grocery_screen"
+    const val VOICE_GROCERY_NEXT_BUTTON = "onboarding_voice_grocery_next_button"
+
     const val MEAL_PLANNING_SCREEN = "onboarding_meal_planning_screen"
     const val MEAL_PLANNING_NEXT_BUTTON = "onboarding_meal_planning_next_button"
 
