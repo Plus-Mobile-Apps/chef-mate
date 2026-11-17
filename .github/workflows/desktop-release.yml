@@ -39,6 +39,39 @@ jobs:
           BUGSNAG_API_KEY: ${{ secrets.BUGSNAG_API_KEY }}
         run: ./gradlew :client:composeApp:${{ matrix.task }}
 
+      # The Flathub manifest (packaging/linux/com.plusmobileapps.chefmate.yml) consumes this tarball
+      # rather than the .deb: it is the jpackage app image — bundled jlink runtime included, so the
+      # flatpak needs no JDK extension — plus the hicolor icon sizes and the license file that the
+      # manifest installs into the sandbox prefix.
+      - name: Package Linux app image tarball (Flathub)
+        if: runner.os == 'Linux'
+        # Same reason the Windows MSIX step re-declares these: BuildKonfig reads them via
+        # System.getenv at Gradle configuration time, and GitHub Actions env vars are per-step.
+        # Without them this step reconfigures with placeholder Supabase keys and rebuilds the app
+        # image with broken auth.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          BUGSNAG_API_KEY: ${{ secrets.BUGSNAG_API_KEY }}
+        run: |
+          set -euo pipefail
+          ./gradlew :client:composeApp:createReleaseDistributable
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' client/composeApp/build.gradle.kts | head -n1)
+          fi
+
+          packaging/linux/stage-tarball.sh "$VERSION" "${RUNNER_TEMP}"
+
+      - name: Upload Flathub tarball (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-flatpak-tarball
+          path: ${{ runner.temp }}/chef-mate-*-linux-x86_64.tar.gz
+
       - name: Build app image for MSIX (Windows)
         if: runner.os == 'Windows'
         # BuildKonfig reads these at Gradle configuration time via System.getenv, and GitHub

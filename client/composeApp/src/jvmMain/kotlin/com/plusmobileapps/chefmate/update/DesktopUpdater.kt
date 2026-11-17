@@ -2,6 +2,7 @@ package com.plusmobileapps.chefmate.update
 
 import co.touchlab.kermit.Logger
 import com.plusmobileapps.chefmate.buildconfig.BuildConfig
+import com.plusmobileapps.chefmate.platform.isRunningInFlatpak
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
@@ -50,8 +51,12 @@ class DesktopUpdater(
 
     private var available: UpdateState.Available? = null
 
-    /** In-app updates run on Linux only; macOS and Windows defer to their respective app stores. */
-    private val isSupported: Boolean = platformKey() == "linux"
+    /**
+     * In-app updates run on Linux only; macOS and Windows defer to their respective app stores. The
+     * Flathub build is excluded for the same reason as the stores: Flatpak owns the install and the
+     * sandbox is read-only, so the app can neither replace itself nor run a downloaded .deb.
+     */
+    private val isSupported: Boolean = platformKey() == "linux" && !isRunningInFlatpak
 
     fun checkForUpdates() {
         if (!isSupported) return

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.plusmobileapps.chefmate</id>
+
+  <name>Chef Mate</name>
+  <summary>Save, organize, and cook your recipes</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+
+  <developer id="com.plusmobileapps">
+    <name>Plus Mobile Apps</name>
+  </developer>
+
+  <description>
+    <p>
+      Chef Mate is a recipe manager and cooking companion. Import recipes from the web, write your
+      own, organize them into recipe books, and follow them step by step while you cook.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Import recipes from any website with the built-in browser</li>
+      <li>Organize recipes into books and share them with other people</li>
+      <li>Build grocery lists from the recipes you plan to cook</li>
+      <li>Ask an AI kitchen assistant about substitutions, scaling, and technique</li>
+      <li>Sync your library across desktop, Android, and iOS with a free account</li>
+    </ul>
+    <p>
+      An account is optional — recipes are stored locally and the app works offline. Signing in
+      enables sync and sharing. The AI assistant sends your question to a remote service to answer
+      it.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.plusmobileapps.chefmate.desktop</launchable>
+
+  <url type="homepage">https://chefmate.plusmobileapps.com</url>
+  <url type="bugtracker">https://github.com/Plus-Mobile-Apps/chef-mate/issues</url>
+  <url type="vcs-browser">https://github.com/Plus-Mobile-Apps/chef-mate</url>
+
+  <!--
+    TODO before submission: capture these on the Linux build and host them at stable HTTPS URLs.
+    Flathub requires at least one screenshot, PNG or JPEG, and the first one is the hero image
+    shown on the store page. Do not link to GitHub raw/user-content URLs that can move.
+  -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://chefmate.plusmobileapps.com/flathub/screenshot-recipe-list.png</image>
+      <caption>Your recipe library</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://chefmate.plusmobileapps.com/flathub/screenshot-recipe-detail.png</image>
+      <caption>Cook mode with ingredients and steps side by side</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://chefmate.plusmobileapps.com/flathub/screenshot-grocery-list.png</image>
+      <caption>Grocery lists built from the recipes you plan to cook</caption>
+    </screenshot>
+  </screenshots>
+
+  <categories>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>recipe</keyword>
+    <keyword>cooking</keyword>
+    <keyword>kitchen</keyword>
+    <keyword>grocery</keyword>
+    <keyword>meal</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1">
+    <!-- Account sync and crash reporting send user data to first- and third-party services. -->
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <recommends>
+    <display_length compare="ge">768</display_length>
+  </recommends>
+
+  <update_contact>support_AT_plusmobileapps.com</update_contact>
+
+  <releases>
+    <release version="1.9.40" date="2026-07-28">
+      <url type="details">https://github.com/Plus-Mobile-Apps/chef-mate/releases/tag/v1.9.40</url>
+    </release>
+  </releases>
+</component>
