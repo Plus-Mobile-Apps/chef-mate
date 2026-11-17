@@ -377,6 +377,14 @@
         }
       }
     },
+    "app_settings_beta_section" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Beta" }
+        }
+      }
+    },
     "app_settings_bottom_nav_order" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -518,6 +526,22 @@
       "localizations" : {
         "en" : {
           "stringUnit" : { "state" : "translated", "value" : "Recipes" }
+        }
+      }
+    },
+    "app_settings_swiftui_redesign" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "New iOS design" }
+        }
+      }
+    },
+    "app_settings_swiftui_redesign_description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Try the redesigned native iOS app. Takes effect the next time you open the app." }
         }
       }
     },

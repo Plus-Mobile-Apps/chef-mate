@@ -3,7 +3,7 @@ import ComposeApp
 
 /// The redesigned Developer Settings (More → Developer settings, debug builds), mirroring the
 /// Compose `DeveloperSettingsScreen`: environment and test-user pickers, sign out, the Feature
-/// flags drill-in (how the `ios_swiftui_redesign` flag is turned back off), the fake Premium
+/// flags drill-in, the fake Premium
 /// switch, and coach-mark reset. The pickers are model-driven sheets with a checkmark on the
 /// current choice; the restart, sign-in error and coach-mark notices are alerts.
 struct DeveloperSettingsView: View {

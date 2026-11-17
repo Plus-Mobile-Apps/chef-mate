@@ -5,8 +5,7 @@ import ComposeApp
 /// `FeatureFlagsScreen`: one section per registered flag with its key, description, resolved and
 /// default values, and an override control — a Default / On / Off segmented picker for boolean
 /// flags, a text field with Reset / Save for string flags. "Reset all overrides" sits in the
-/// navigation bar. This is how `ios_swiftui_redesign` gets switched back off from inside the
-/// redesign, so every override goes straight to the BLoC.
+/// navigation bar. Every override goes straight to the BLoC.
 struct FeatureFlagsView: View {
     let bloc: FeatureFlagsBloc
     @StateObject private var model: ObservedFlow<FeatureFlagsBlocModel>

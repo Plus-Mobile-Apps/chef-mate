@@ -3,7 +3,8 @@ import ComposeApp
 
 /// The redesigned app settings (More → Settings), mirroring the Android `AppSettingsScreen`:
 /// Navigation (tab order), Browser (default engine, bookmarks, history toggle, clear history),
-/// Recipes (categories), Grocery (autocomplete, aisle rules) and Backup (import / export). The
+/// Recipes (categories), Grocery (autocomplete, aisle rules), Backup (import / export) and Beta
+/// (the SwiftUI redesign toggle, which is how the user gets back to the Compose UI). The
 /// engine picker is a native menu on the row rather than the Android dialog.
 struct AppSettingsView: View {
     let bloc: AppSettingsBloc
@@ -51,6 +52,25 @@ struct AppSettingsView: View {
             Section(ComposeStrings["app_settings_backup_section"]) {
                 MoreRow(ComposeStrings["import_recipes"], systemImage: "square.and.arrow.down", action: bloc.onImportRecipesClicked)
                 MoreRow(ComposeStrings["export_recipes"], systemImage: "square.and.arrow.up", action: bloc.onExportRecipesClicked)
+            }
+
+            if state.showBetaSection {
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { model.current.isSwiftUiRedesignEnabled },
+                        set: { bloc.onSwiftUiRedesignChanged(enabled: $0) }
+                    )) {
+                        Label {
+                            Text(ComposeStrings["app_settings_swiftui_redesign"])
+                        } icon: {
+                            Image(systemName: "sparkles").foregroundStyle(ChefTheme.primary)
+                        }
+                    }
+                } header: {
+                    Text(ComposeStrings["app_settings_beta_section"])
+                } footer: {
+                    Text(ComposeStrings["app_settings_swiftui_redesign_description"])
+                }
             }
         }
         .navigationTitle(ComposeStrings["app_settings_title"])

@@ -44,6 +44,8 @@ private fun appSettingsBloc(model: AppSettingsBloc.Model): AppSettingsBloc =
         override fun onBookmarksClicked() = Unit
 
         override fun onGroceryCategoryRulesClicked() = Unit
+
+        override fun onSwiftUiRedesignChanged(enabled: Boolean) = Unit
     }
 
 val previewAppSettingsBloc: AppSettingsBloc =
@@ -52,7 +54,18 @@ val previewAppSettingsBloc: AppSettingsBloc =
             isHistoryEnabled = true,
             showClearHistoryDialog = false,
             selectedSearchEngine = SearchEngine.GOOGLE,
-        )
+        ),
+    )
+
+/** As on iOS, where the Beta section (SwiftUI redesign toggle) is shown. */
+val previewAppSettingsBetaBloc: AppSettingsBloc =
+    appSettingsBloc(
+        AppSettingsBloc.Model(
+            isHistoryEnabled = true,
+            selectedSearchEngine = SearchEngine.GOOGLE,
+            showBetaSection = true,
+            isSwiftUiRedesignEnabled = true,
+        ),
     )
 
 val previewAppSettingsEnginePickerBloc: AppSettingsBloc =
@@ -61,7 +74,7 @@ val previewAppSettingsEnginePickerBloc: AppSettingsBloc =
             isHistoryEnabled = true,
             selectedSearchEngine = SearchEngine.DUCK_DUCK_GO,
             showSearchEnginePicker = true,
-        )
+        ),
     )
 
 @Preview(showBackground = true)
@@ -80,4 +93,10 @@ internal fun AppSettingsScreenDarkPreview() {
 @Composable
 internal fun AppSettingsScreenEnginePickerPreview() {
     ChefMateTheme { AppSettingsScreen(bloc = previewAppSettingsEnginePickerBloc) }
+}
+
+@Preview(showBackground = true)
+@Composable
+internal fun AppSettingsScreenBetaPreview() {
+    ChefMateTheme { AppSettingsScreen(bloc = previewAppSettingsBetaBloc) }
 }

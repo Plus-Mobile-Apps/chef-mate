@@ -8,4 +8,7 @@ object SettingsTestTags {
 
     /** More-tab row that opens Manage Family. Only present while the flag is on. */
     const val MANAGE_FAMILY_ROW = "SettingsManageFamilyRow"
+
+    /** App settings Beta toggle for the iOS SwiftUI redesign. Only present on iOS. */
+    const val SWIFTUI_REDESIGN_TOGGLE = "SettingsSwiftUiRedesignToggle"
 }

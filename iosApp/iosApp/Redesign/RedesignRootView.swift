@@ -2,7 +2,7 @@ import SwiftUI
 import ComposeApp
 
 /// Entry point of the native SwiftUI redesign, shown instead of the Compose UI when the
-/// `ios_swiftui_redesign` flag is on (see `RootBlocProvider.useSwiftUiRedesign` and
+/// Settings → Beta toggle is on (see `RootBlocProvider.useSwiftUiRedesign` and
 /// docs/ios-swiftui-redesign.md).
 ///
 /// Renders the Decompose root stack, with redesigned nested stacks flattened into it (see

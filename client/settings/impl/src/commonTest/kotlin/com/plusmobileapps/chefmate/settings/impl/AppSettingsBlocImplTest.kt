@@ -3,6 +3,7 @@
 
 package com.plusmobileapps.chefmate.settings.impl
 
+import com.plusmobileapps.chefmate.Platform
 import com.plusmobileapps.chefmate.browser.BrowserHistoryEntry
 import com.plusmobileapps.chefmate.browser.BrowserHistoryRepository
 import com.plusmobileapps.chefmate.browser.SearchEngine
@@ -10,6 +11,7 @@ import com.plusmobileapps.chefmate.browser.testing.FakeBrowserPreferences
 import com.plusmobileapps.chefmate.settings.AppSettingsBloc
 import com.plusmobileapps.chefmate.testing.TestBlocContext
 import com.plusmobileapps.chefmate.testing.TestConsumer
+import com.russhwolf.settings.MapSettings
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -26,16 +28,17 @@ class AppSettingsBlocImplTest {
     private val context = TestBlocContext.create()
     private val output = TestConsumer<AppSettingsBloc.Output>()
     private val browserPreferences = FakeBrowserPreferences()
+    private val betaPreferences = BetaPreferencesImpl(MapSettings())
     private val historyRepository: BrowserHistoryRepository =
         mock(
             block = {
                 everySuspend { observeRecent(any()) } returns
                     MutableStateFlow<List<BrowserHistoryEntry>>(emptyList())
                 everySuspend { clearAll() } returns Unit
-            }
+            },
         )
 
-    private fun createBloc() =
+    private fun createBloc(platform: Platform = Platform.IOS) =
         AppSettingsBlocImpl(
             context = context,
             output = output,
@@ -44,6 +47,8 @@ class AppSettingsBlocImplTest {
                     mainContext = context.mainContext,
                     browserPreferences = browserPreferences,
                     historyRepository = historyRepository,
+                    betaPreferences = betaPreferences,
+                    platform = platform,
                 )
             },
         )
@@ -159,5 +164,29 @@ class AppSettingsBlocImplTest {
         val bloc = createBloc()
         bloc.onBookmarksClicked()
         output.lastValue shouldBe AppSettingsBloc.Output.OpenBrowserBookmarks
+    }
+
+    @Test
+    fun beta_section_shown_on_ios() {
+        createBloc(platform = Platform.IOS).state.value.showBetaSection shouldBe true
+    }
+
+    @Test
+    fun beta_section_hidden_on_android() {
+        createBloc(platform = Platform.ANDROID).state.value.showBetaSection shouldBe false
+    }
+
+    @Test
+    fun initial_state_reflects_swiftui_redesign_preference() {
+        betaPreferences.setSwiftUiRedesignEnabled(true)
+        createBloc().state.value.isSwiftUiRedesignEnabled shouldBe true
+    }
+
+    @Test
+    fun When_swiftui_redesign_toggled_on_Then_preference_updated() {
+        val bloc = createBloc()
+        bloc.onSwiftUiRedesignChanged(true)
+        betaPreferences.isSwiftUiRedesignEnabled.value shouldBe true
+        bloc.state.value.isSwiftUiRedesignEnabled shouldBe true
     }
 }
