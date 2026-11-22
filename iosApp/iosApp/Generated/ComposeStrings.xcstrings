@@ -7379,6 +7379,46 @@
         }
       }
     },
+    "swiftui_redesign_prompt_accept" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Turn it on" }
+        }
+      }
+    },
+    "swiftui_redesign_prompt_body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "We’ve rebuilt Chef Mate to feel right at home on iPhone — native navigation, a native tab bar, and Liquid Glass throughout. It’s in beta, and you can switch back anytime in Settings → Beta." }
+        }
+      }
+    },
+    "swiftui_redesign_prompt_dismiss" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Not now" }
+        }
+      }
+    },
+    "swiftui_redesign_prompt_enabled_toast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "New design is on. Close and reopen Chef Mate to see it." }
+        }
+      }
+    },
+    "swiftui_redesign_prompt_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : { "state" : "translated", "value" : "Try the new iOS design" }
+        }
+      }
+    },
     "tab_browser" : {
       "extractionState" : "manual",
       "localizations" : {

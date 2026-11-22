@@ -35,6 +35,12 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
     /** Collapses the expanded side rail to the compact one, or expands it back. Persisted. */
     fun onRailCollapseToggled()
 
+    /** "Turn it on" in the one-time new-iOS-design sheet. */
+    fun onSwiftUiRedesignPromptAccepted()
+
+    /** "Not now", or the new-iOS-design sheet dismissed any other way. It won't show again. */
+    fun onSwiftUiRedesignPromptDismissed()
+
     fun handleSharedUrl(url: String)
 
     /**
@@ -55,6 +61,11 @@ interface BottomNavBloc : BackHandlerOwner, BackClickBloc, ComposeScreen {
          * the bottom bar and compact rail ignore this.
          */
         val railCollapsed: Boolean = false,
+        /**
+         * iOS only: show the one-time sheet offering the native SwiftUI redesign (Settings → Beta).
+         * Never shown again once accepted or dismissed.
+         */
+        val showSwiftUiRedesignPrompt: Boolean = false,
     )
 
     enum class Tab {
