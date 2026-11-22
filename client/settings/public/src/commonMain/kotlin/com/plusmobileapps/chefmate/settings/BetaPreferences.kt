@@ -11,4 +11,12 @@ interface BetaPreferences {
     val isSwiftUiRedesignEnabled: StateFlow<Boolean>
 
     fun setSwiftUiRedesignEnabled(enabled: Boolean)
+
+    /**
+     * Whether the one-time "try the new iOS design" sheet on the home screen has been answered —
+     * accepted or dismissed. Once true, the sheet never shows again.
+     */
+    val hasSeenSwiftUiRedesignPrompt: Boolean
+
+    fun markSwiftUiRedesignPromptSeen()
 }

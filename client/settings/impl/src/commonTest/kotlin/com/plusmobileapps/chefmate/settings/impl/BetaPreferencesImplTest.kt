@@ -30,4 +30,17 @@ class BetaPreferencesImplTest {
         preferences.isSwiftUiRedesignEnabled.value shouldBe true
         settings.getBoolean(BETA_SWIFTUI_REDESIGN_KEY, defaultValue = false) shouldBe true
     }
+
+    @Test
+    fun swiftUiRedesignPrompt_is_unseen_by_default() {
+        BetaPreferencesImpl(MapSettings()).hasSeenSwiftUiRedesignPrompt shouldBe false
+    }
+
+    @Test
+    fun markSwiftUiRedesignPromptSeen_persists_across_instances() {
+        val settings = MapSettings()
+        BetaPreferencesImpl(settings).markSwiftUiRedesignPromptSeen()
+
+        BetaPreferencesImpl(settings).hasSeenSwiftUiRedesignPrompt shouldBe true
+    }
 }

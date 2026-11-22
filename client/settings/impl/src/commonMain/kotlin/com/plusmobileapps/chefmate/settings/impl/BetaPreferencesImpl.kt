@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal const val BETA_SWIFTUI_REDESIGN_KEY = "beta.swiftui_redesign"
+internal const val BETA_SWIFTUI_REDESIGN_PROMPT_SEEN_KEY = "beta.swiftui_redesign_prompt_seen"
 
 @Inject
 @SingleIn(AppScope::class)
@@ -26,5 +27,12 @@ class BetaPreferencesImpl(private val settings: Settings) : BetaPreferences {
     override fun setSwiftUiRedesignEnabled(enabled: Boolean) {
         settings.putBoolean(BETA_SWIFTUI_REDESIGN_KEY, enabled)
         _isSwiftUiRedesignEnabled.value = enabled
+    }
+
+    override val hasSeenSwiftUiRedesignPrompt: Boolean
+        get() = settings.getBoolean(BETA_SWIFTUI_REDESIGN_PROMPT_SEEN_KEY, defaultValue = false)
+
+    override fun markSwiftUiRedesignPromptSeen() {
+        settings.putBoolean(BETA_SWIFTUI_REDESIGN_PROMPT_SEEN_KEY, true)
     }
 }
