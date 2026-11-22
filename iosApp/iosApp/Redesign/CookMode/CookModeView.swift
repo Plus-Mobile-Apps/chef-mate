@@ -278,6 +278,7 @@ private struct StackedBody: View {
             }
             .padding(.bottom, ChefTheme.Spacing.normal)
         }
+        .pinnedHeaderEdgeEffect()
     }
 }
 
@@ -335,16 +336,19 @@ private struct SplitWideBody: View {
         }
     }
 
+    /// The header sits above the scroll view rather than pinned inside it: two side-by-side scroll
+    /// views under one navigation bar each draw their own edge effect, and in landscape lines still
+    /// slipped past a pinned header into the bar behind the title. Here the lines stop at the header,
+    /// and the header's bar material reaches up behind the navigation bar.
     private func column<Rows: View>(title: String, @ViewBuilder rows: () -> Rows) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: ChefTheme.Spacing.extraSmall, pinnedViews: [.sectionHeaders]) {
-                Section {
+        VStack(spacing: 0) {
+            CookSectionHeader(title: title)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: ChefTheme.Spacing.extraSmall) {
                     rows()
-                } header: {
-                    CookSectionHeader(title: title)
                 }
+                .padding(.bottom, ChefTheme.Spacing.normal)
             }
-            .padding(.bottom, ChefTheme.Spacing.normal)
         }
     }
 
@@ -476,6 +480,21 @@ private struct CoachMarkBanner: View {
         case CoachMarkId.shared.COOK_MODE_KEEP_SCREEN_ON: ComposeStrings["cook_mode_keep_screen_on_onboarding"]
         case CoachMarkId.shared.COOK_MODE_LAYOUT: ComposeStrings["cook_mode_layout_onboarding"]
         default: nil
+        }
+    }
+}
+
+private extension View {
+    /// Lines scrolled past a pinned section header keep going up under the navigation bar. The
+    /// default soft edge effect barely fades them, which is most visible in landscape where the bar
+    /// is short, so they clash with the title. The hard style gives the bar an opaque backing, as
+    /// Apple recommends for content with pinned headers.
+    @ViewBuilder
+    func pinnedHeaderEdgeEffect() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectStyle(.hard, for: .top)
+        } else {
+            self
         }
     }
 }
