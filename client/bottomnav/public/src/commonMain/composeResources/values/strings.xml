@@ -10,4 +10,9 @@
     <string name="bottom_nav_order_drag_handle_content_description">Drag to reorder</string>
     <string name="nav_rail_collapse">Collapse navigation</string>
     <string name="nav_rail_expand">Expand navigation</string>
+    <string name="swiftui_redesign_prompt_title">Try the new iOS design</string>
+    <string name="swiftui_redesign_prompt_body">We’ve rebuilt Chef Mate to feel right at home on iPhone — native navigation, a native tab bar, and Liquid Glass throughout. It’s in beta, and you can switch back anytime in Settings → Beta.</string>
+    <string name="swiftui_redesign_prompt_accept">Turn it on</string>
+    <string name="swiftui_redesign_prompt_dismiss">Not now</string>
+    <string name="swiftui_redesign_prompt_enabled_toast">New design is on. Close and reopen Chef Mate to see it.</string>
 </resources>

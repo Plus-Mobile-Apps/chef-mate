@@ -14,6 +14,7 @@ kotlin {
             implementation(libs.arkivanov.decompose.compose.extensions)
             implementation(projects.client.shared)
             implementation(projects.client.notifications.data.public)
+            implementation(projects.client.toast.public)
             implementation(libs.kotlinx.serialization.json)
             implementation(compose.components.resources)
             api(projects.client.browser.public)
@@ -24,6 +25,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(projects.client.notifications.data.testing)
+            implementation(projects.client.toast.testing)
             implementation(libs.multiplatform.settings.test)
         }
     }

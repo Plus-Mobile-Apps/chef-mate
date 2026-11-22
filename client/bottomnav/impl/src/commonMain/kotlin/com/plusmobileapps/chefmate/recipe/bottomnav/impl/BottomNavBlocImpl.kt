@@ -91,6 +91,7 @@ class BottomNavBlocImpl(
                 tabs = it.tabs.toImmutableList(),
                 notificationCount = it.notificationCount,
                 railCollapsed = it.railCollapsed,
+                showSwiftUiRedesignPrompt = it.showSwiftUiRedesignPrompt,
             )
         }
 
@@ -120,6 +121,14 @@ class BottomNavBlocImpl(
             .firstOrNull()
             ?.bloc
             ?.onExportFinished()
+    }
+
+    override fun onSwiftUiRedesignPromptAccepted() {
+        viewModel.acceptSwiftUiRedesignPrompt()
+    }
+
+    override fun onSwiftUiRedesignPromptDismissed() {
+        viewModel.dismissSwiftUiRedesignPrompt()
     }
 
     override fun onRailCollapseToggled() {
